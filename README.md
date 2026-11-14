@@ -1,5 +1,10 @@
 # Signet
 
+<a href="https://github.com/therandomsecurityguy/signet/actions/workflows/test.yml"><img src="https://github.com/therandomsecurityguy/signet/actions/workflows/test.yml/badge.svg" alt="CI"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-BSD_3--Clause-blue.svg" alt="BSD 3-Clause"></a>
+<a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-22-339933.svg" alt="Node.js 22"></a>
+<a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/TypeScript-3178C6.svg?logo=typescript&logoColor=white" alt="TypeScript"></a>
+
 **The seal of approval for agents and skills.**
 
 Signet is a graph-first **semantic governance system** for autonomous

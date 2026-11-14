@@ -551,6 +551,13 @@
         "metricsNamespace": {
           "type": "string",
           "description": "Namespace label value of the platform Prometheus for sidecar scrape ingress when network policies are enabled."
+        },
+        "ingressControllerNamespaces": {
+          "type": "array",
+          "description": "Namespaces (kubernetes.io/metadata.name) allowed to reach api/mcp/webapp through the ingress controller when network policies are enabled.",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

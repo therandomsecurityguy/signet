@@ -291,9 +291,17 @@ networkPolicies:
   # "monitoring") when enabling network policies so scrapes of
   # tessera-sidecar stay allowed.
   metricsNamespace: ""
+  # Namespaces (by kubernetes.io/metadata.name) allowed to reach
+  # api/mcp/webapp through the ingress controller when policies are enabled.
+  # Adjust to your cluster (kube-system fits the AWS load balancer
+  # controller; ingress-nginx fits ingress-nginx).
+  ingressControllerNamespaces:
+    - kube-system
+    - ingress-nginx
   # Extra egress CIDRs for managed AWS services reached by IP (Postgres 5432,
   # Redis 6379, S3 gateway endpoints). HTTPS 443 to the internet is allowed by
-  # default for Okta/JWKS/S3 SDK calls.
+  # default for Okta/JWKS/S3 SDK calls; RFC1918 and link-local (IMDS) are
+  # excluded from that rule, so in-VPC HTTPS endpoints belong here.
   egressCidrs: []
     # - cidr: 10.0.0.0/16
     #   ports:

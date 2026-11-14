@@ -2,7 +2,7 @@
 # Production image for the Signet transparency sidecar (service/tessera-sidecar).
 # Build context is the repo root (per the platform release pipeline).
 
-FROM node:26-bookworm-slim AS build
+FROM node:26-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1 AS build
 
 WORKDIR /workspace
 
@@ -16,7 +16,7 @@ COPY service/tessera-sidecar service/tessera-sidecar
 RUN cd service/tessera-sidecar && npm run build
 
 
-FROM node:26-bookworm-slim
+FROM node:26-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1
 
 ENV NODE_ENV=production
 WORKDIR /workspace
@@ -26,7 +26,7 @@ COPY --from=build /workspace/service/tessera-sidecar/dist service/tessera-sideca
 COPY --from=build /workspace/service/tessera-sidecar/node_modules service/tessera-sidecar/node_modules
 COPY --from=build /workspace/service/tessera-sidecar/package*.json service/tessera-sidecar/
 
-RUN groupadd -r signet && useradd -r -g signet signet && chown -R signet:signet /workspace
+RUN groupadd -r -g 10001 signet && useradd -r -u 10001 -g signet signet && chown -R signet:signet /workspace
 USER signet
 
 WORKDIR /workspace/service/tessera-sidecar
