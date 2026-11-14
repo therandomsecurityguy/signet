@@ -25,10 +25,10 @@ describe('collectFusekiBackup', () => {
         ...(headers['authorization'] ? { authorization: headers['authorization'] } : {}),
       });
       if (init?.method === 'POST') return new Response(JSON.stringify(GRAPH_LISTING), { status: 200 });
-      if (url.includes('graph=urn%3Atg%3Agraph%3Aa')) {
+      if (url.includes('graph=urn%3Asg%3Agraph%3Aa')) {
         return new Response('<urn:s1> <urn:p> <urn:o> <urn:sg:graph:a> .\n', { status: 200 });
       }
-      if (url.includes('graph=urn%3Atg%3Agraph%3Ab')) {
+      if (url.includes('graph=urn%3Asg%3Agraph%3Ab')) {
         return new Response('<urn:s2> <urn:p> <urn:o> <urn:sg:graph:b> .\n', { status: 200 });
       }
       return new Response('<urn:d> <urn:p> <urn:o> .\n', { status: 200 });

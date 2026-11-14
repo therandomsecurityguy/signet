@@ -133,7 +133,7 @@ describe('knowledge-manager app', () => {
     expect(res.status).toBe(200);
     const text = await res.text();
     expect(text).toContain('cursor:test');
-    expect(text).toContain('/graph?root_urn=urn%3Atg%3Aagent%3Acursor%3Atest&depth=3');
+    expect(text).toContain('/graph?root_urn=urn%3Asg%3Aagent%3Acursor%3Atest&depth=3');
   });
 
   it('adds contextual graph links on agent and skill detail pages', async () => {
@@ -172,13 +172,13 @@ describe('knowledge-manager app', () => {
     const agent = await app.request('/agents/cursor%3Atest');
     expect(agent.status).toBe(200);
     const agentText = await agent.text();
-    expect(agentText).toContain('/graph?root_urn=urn%3Atg%3Aagent%3Acursor%3Atest&depth=3');
+    expect(agentText).toContain('/graph?root_urn=urn%3Asg%3Aagent%3Acursor%3Atest&depth=3');
     expect(agentText).toContain('Agent Version URN');
     expect(agentText).toContain('registry-operator');
 
     const skill = await app.request('/skills/skill%3Aexample');
     expect(skill.status).toBe(200);
-    await expect(skill.text()).resolves.toContain('/graph?root_urn=urn%3Atg%3Askill%3Aexample&depth=3');
+    await expect(skill.text()).resolves.toContain('/graph?root_urn=urn%3Asg%3Askill%3Aexample&depth=3');
   });
 
   it('renders lifecycle state and performs lifecycle actions through the mock okta session token', async () => {
@@ -612,7 +612,7 @@ describe('knowledge-manager app', () => {
     expect(await auto.text()).toContain('urn:sg:agent:cursor:cachet-security-agent');
 
     // Missing root: honest error plus a pick-list, never a dead end.
-    const page = await app.request('/graph?root_urn=urn%3Atg%3Aagent%3Acursor%3Amissing');
+    const page = await app.request('/graph?root_urn=urn%3Asg%3Aagent%3Acursor%3Amissing');
     expect(page.status).toBe(200);
     const text = await page.text();
     expect(text).toContain('Graph root not found.');
