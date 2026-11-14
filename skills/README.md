@@ -1,12 +1,12 @@
-# Cachet Skills
+# Signet Skills
 
-Distributable agent skills for the Cachet registry. These teach any agent how
-to use the Cachet registry as the single source of truth for agents and skills.
+Distributable agent skills for the Signet registry. These teach any agent how
+to use the Signet registry as the single source of truth for agents and skills.
 
 ## Skills
 
-- `cachet-registry` — discover → inspect → load → trust → use against the
-  Cachet registry via the MCP gateway.
+- `signet-registry` — discover → inspect → load → trust → use against the
+  Signet registry via the MCP gateway.
 
 ## Install
 
@@ -16,8 +16,8 @@ agent repo's skills location for your harness.
 ### Cursor
 
 ```bash
-mkdir -p .cursor/skills/cachet-registry
-cp skills/cachet-registry/SKILL.md .cursor/skills/cachet-registry/SKILL.md
+mkdir -p .cursor/skills/signet-registry
+cp skills/signet-registry/SKILL.md .cursor/skills/signet-registry/SKILL.md
 ```
 
 ### Claude Code
@@ -25,8 +25,8 @@ cp skills/cachet-registry/SKILL.md .cursor/skills/cachet-registry/SKILL.md
 Place the skill in your project's skills directory (e.g. `.claude/skills/`):
 
 ```bash
-mkdir -p .claude/skills/cachet-registry
-cp skills/cachet-registry/SKILL.md .claude/skills/cachet-registry/SKILL.md
+mkdir -p .claude/skills/signet-registry
+cp skills/signet-registry/SKILL.md .claude/skills/signet-registry/SKILL.md
 ```
 
 ### opencode
@@ -34,18 +34,18 @@ cp skills/cachet-registry/SKILL.md .claude/skills/cachet-registry/SKILL.md
 Place the skill in your opencode skills directory (e.g. `.opencode/skills/`):
 
 ```bash
-mkdir -p .opencode/skills/cachet-registry
-cp skills/cachet-registry/SKILL.md .opencode/skills/cachet-registry/SKILL.md
+mkdir -p .opencode/skills/signet-registry
+cp skills/signet-registry/SKILL.md .opencode/skills/signet-registry/SKILL.md
 ```
 
 ## Requirements
 
-The skill expects the Cachet MCP gateway to be reachable (default
+The skill expects the Signet MCP gateway to be reachable (default
 `http://localhost:3000/mcp`) with a bearer token. See `docs/mcp-onboarding.md`
 for connection and per-harness config.
 
 ## Canonical source
 
-The canonical skill for this repo lives at `.cursor/skills/cachet-registry/SKILL.md`.
-The copy under `skills/cachet-registry/` is the distributable snapshot for
+The canonical skill for this repo lives at `.cursor/skills/signet-registry/SKILL.md`.
+The copy under `skills/signet-registry/` is the distributable snapshot for
 other agent repos — keep them in sync when the skill changes.

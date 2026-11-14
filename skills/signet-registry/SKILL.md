@@ -1,11 +1,11 @@
 ---
-name: cachet-registry
-description: Discover, inspect, load, trust, and use skills and agents from the Cachet registry via the MCP gateway. Use when you need to find a capability that already exists, load its real implementation, verify its certification/provenance before relying on it, or onboard onto the Cachet registry as a new agent.
+name: signet-registry
+description: Discover, inspect, load, trust, and use skills and agents from the Signet registry via the MCP gateway. Use when you need to find a capability that already exists, load its real implementation, verify its certification/provenance before relying on it, or onboard onto the Signet registry as a new agent.
 ---
-# Cachet Registry
+# Signet Registry
 
 ## Goal
-Use the Cachet registry as the single source of truth for agents and skills.
+Use the Signet registry as the single source of truth for agents and skills.
 Follow the canonical happy path — **discover → inspect → load → trust → use** —
 so you never duplicate a capability that already exists, and you only rely on
 artifacts whose certification and provenance you have checked.
@@ -14,7 +14,7 @@ artifacts whose certification and provenance you have checked.
 - You need a capability (skill, runbook, process knowledge) and want to check whether it already exists before writing it yourself.
 - You want to load the real implementation of a skill or agent.
 - You need to verify that a skill/agent is current, certified, and trustworthy before using it.
-- You are onboarding onto the Cachet registry as a new agent.
+- You are onboarding onto the Signet registry as a new agent.
 
 ## Connect
 All reads go through the MCP gateway (`service/mcp`) at `http://localhost:3000/mcp`
