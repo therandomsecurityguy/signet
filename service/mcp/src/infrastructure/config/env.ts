@@ -28,6 +28,9 @@ const EnvSchema = z.object({
 
   // Okta (Stage 2)
   OKTA_MODE: z.enum(['mock', 'real']).default('mock'),
+  // Mock auth is dev/test-only; any other environment (staging, prod, unset)
+  // must opt in explicitly with ALLOW_MOCK_AUTH=true.
+  ALLOW_MOCK_AUTH: z.string().optional(),
   OKTA_ISSUER: z.string().optional(),
   OKTA_AUDIENCE: z.string().optional(),
   OKTA_REQUIRED_SCOPES: z.string().optional(), // space-separated
@@ -76,11 +79,11 @@ const EnvSchema = z.object({
   // (REGISTRY_READ_REQUIRE_VERIFIED=true): how strict verification must be is
   // a deployment policy. Setting both gives a default-deny posture.
   REGISTRY_READ_DENY_REVOKED: z
-    .string()
+    .enum(['true', 'false'])
     .optional()
     .transform((value) => (value === undefined ? true : value === 'true')),
   REGISTRY_READ_REQUIRE_VERIFIED: z
-    .string()
+    .enum(['true', 'false'])
     .optional()
     .transform((value) => (value === undefined ? undefined : value === 'true')),
 
@@ -120,6 +123,19 @@ const EnvSchema = z.object({
   COGNITIVE_CACHE_TTL_MS: z.coerce.number().int().positive().default(300_000),
   COGNITIVE_CACHE_MAX_ENTRIES: z.coerce.number().int().positive().default(500),
 }).superRefine((env, ctx) => {
+  // Mock auth is dev/test-only: staging, prod, or any unrecognized NODE_ENV
+  // requires an explicit opt-in.
+  if (
+    env.OKTA_MODE === 'mock' &&
+    env.NODE_ENV !== 'test' &&
+    env.NODE_ENV !== 'development' &&
+    env.ALLOW_MOCK_AUTH !== 'true'
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'OKTA_MODE=mock is only allowed in test/development or with ALLOW_MOCK_AUTH=true.',
+    });
+  }
   if (env.NODE_ENV === 'production') {
     if (env.OKTA_MODE === 'mock') {
       ctx.addIssue({
