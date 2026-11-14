@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 async function buildTestApp() {
-  const objectsDir = await mkdtemp(path.join(os.tmpdir(), 'cachet-trust-gates-'));
+  const objectsDir = await mkdtemp(path.join(os.tmpdir(), 'signet-trust-gates-'));
   tempDirs.push(objectsDir);
   const env = loadEnv({
     NODE_ENV: 'test',
@@ -141,8 +141,8 @@ async function attachAttestation(
         {
           _type: 'https://in-toto.io/Statement/v1',
           predicateType,
-          subject: [{ name: 'cachet/skill', digest: { sha256: artifactSha } }],
-          predicate: { buildType: 'https://cachet.dev/build/v1' },
+          subject: [{ name: 'signet/skill', digest: { sha256: artifactSha } }],
+          predicate: { buildType: 'https://signet.dev/build/v1' },
         },
         privateKey,
       ),

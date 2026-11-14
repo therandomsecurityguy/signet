@@ -2,7 +2,7 @@
 
 Thin wrapper that installs a **version-pinned** signet Helm chart into an
 existing EKS namespace. This repo ships the chart; the environment repo
-(`tf-io-sec`) owns Terraform state/apply and calls this module.
+owns Terraform state/apply and calls this module.
 
 ```hcl
 module "signet" {
@@ -21,4 +21,4 @@ module "signet" {
 ```
 
 The two-repo rule: this repo publishes immutable chart/image artifacts on tag;
-`tf-io-sec` pins the tag and applies. Never apply directly from CI against prod.
+Your environment repo pins the tag and applies. Never apply directly from CI against prod.

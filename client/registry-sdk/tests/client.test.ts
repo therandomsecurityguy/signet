@@ -45,7 +45,7 @@ describe('RegistryClient', () => {
     };
 
     const client = new RegistryClient({
-      baseUrl: 'https://cachet-api.tunnel.together.ai',
+      baseUrl: 'https://signet-api.example.com',
       apiToken: 'agk_x',
       headers: {
         'CF-Access-Client-Id': 'cf-id',

@@ -1,7 +1,7 @@
 # Client npm releases (`@signet/registry-sdk`, `@signet/registry-operator`)
 
 Where this goes: the **public npm registry** (`https://registry.npmjs.org`),
-scope `@together-ai`. Both packages are world-readable (`--access public`); they
+scope `@signet`. Both packages are world-readable (`--access public`); they
 are the adoption surfaces for the registry, so the published tarballs must be
 reviewed before they leave the machine.
 
@@ -14,13 +14,12 @@ credential to leak. Reference:
 **Provenance is currently disabled** and the workflows set
 `NPM_CONFIG_PROVENANCE=false` explicitly (trusted publishing otherwise
 defaults it to on). Reason: npm rejects sigstore bundles from source repos
-with `internal` visibility — `E422 … Only public source repositories are
-supported when publishing with provenance` — and this repository is
-internal. Publishes are still OIDC-authenticated and registry-signed; they
-just carry no build-provenance attestation. When this repository becomes
-public, remove the env flag and the `--provenance` handling in both
-workflows to re-enable it (and then `scripts/verify-npm-provenance.sh`
-becomes the release gate again).
+that are not public — `E422 … Only public source repositories are
+supported when publishing with provenance`. Publishes are still
+OIDC-authenticated and registry-signed; they just carry no build-provenance
+attestation. Once the source repository is public, remove the env flag and
+the `--provenance` handling in both workflows to re-enable it (and then
+`scripts/verify-npm-provenance.sh` becomes the release gate again).
 
 Publish workflows: `.github/workflows/publish-registry-sdk.yml` and
 `.github/workflows/publish-registry-cli.yml`, triggered by
@@ -37,16 +36,16 @@ commit to publish:
 git worktree add /tmp/signet-publish origin/main
 cd /tmp/signet-publish/client/registry-sdk     # or client/registry-cli
 npm config get registry    # must be https://registry.npmjs.org/
-npm whoami                 # @together-ai maintainer, 2FA on
+npm whoami                 # @signet maintainer, 2FA on
 # Auth: `npm login --auth-type=web` (browser 2FA), or a granular access token
 # with bypass-2FA supplied through an environment variable — never committed
-# and never echoed. The bootstrap token used for 0.1.0 came from the 1Password
-# "Signet" environment and was revoked right after.
+# and never echoed. The bootstrap token used for 0.1.0 came from a secret
+# manager and was revoked right after.
 npm ci --ignore-scripts    # lockfile-exact; dependency scripts do not run
 npm run build              # build from the reviewed source
 npm pack --ignore-scripts  # artifact == exactly what you inspected
-tar -tzf together-ai-registry-sdk-0.1.0.tgz | sort
-npm publish ./together-ai-registry-sdk-0.1.0.tgz --access public --ignore-scripts
+tar -tzf signet-registry-sdk-0.1.0.tgz | sort
+npm publish ./signet-registry-sdk-0.1.0.tgz --access public --ignore-scripts
 npm view @signet/registry-sdk@0.1.0 dist.integrity   # must equal the local
 npm pack --json --ignore-scripts                        # integrity of the tarball
 git worktree remove /tmp/signet-publish
@@ -61,7 +60,7 @@ scripts/configure-npm-trusted-publishing.sh
 or manually on npmjs.com (package -> Settings -> Trusted publishing ->
 GitHub Actions):
 
-- Organization or user: `togethercomputer`
+- Organization or user: `therandomsecurityguy`
 - Repository: `signet`
 - Workflow filename: `publish-registry-sdk.yml` / `publish-registry-cli.yml`
 - Environment name: *(blank — the workflows do not use a GitHub environment)*

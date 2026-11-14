@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 async function buildTestApp() {
-  const objectsDir = await mkdtemp(path.join(os.tmpdir(), 'cachet-artifacts-'));
+  const objectsDir = await mkdtemp(path.join(os.tmpdir(), 'signet-artifacts-'));
   tempDirs.push(objectsDir);
   const env = loadEnv({
     NODE_ENV: 'test',

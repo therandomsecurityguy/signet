@@ -2,7 +2,7 @@
 
 How Signet is deployed and what to check when it isn't. Signet follows the
 **two-repo rule**: this repo ships release-tagged artifacts; the environment repo
-(`tf-io-sec`) owns Terraform state and applies.
+that owns Terraform state and applies them.
 
 > Migrating off the legacy platform pipeline? See
 > [`migration-cutover.md`](./migration-cutover.md).
@@ -12,7 +12,7 @@ How Signet is deployed and what to check when it isn't. Signet follows the
 - This repo publishes on release: immutable, digest-pinned component images and
   the Helm chart to **signet-owned ECR** (`.github/workflows/release.yaml`, via
   GitHub OIDC — no static AWS keys, no shared reusable workflow).
-- `tf-io-sec` pins the released chart version and applies the `signet-eks`
+- The environment repo pins the released chart version and applies the `signet-eks`
   Terraform module (which calls `helm_release`) into the `signet` namespace.
 - Workloads: `api`, `mcp`, `webapp`, `tessera-sidecar` (Deployments) + `fuseki`
   (StatefulSet). Backing stores: RDS Postgres, ElastiCache Redis, S3 artifacts,
@@ -57,24 +57,24 @@ How Signet is deployed and what to check when it isn't. Signet follows the
 
 1. Merge to `main`; release-please opens/updates the release PR.
 2. Merge the release PR — release-please creates the tag and GitHub release.
-3. The `Release` workflow assumes `CACHET_AWS_ROLE_ARN` via OIDC, pushes
+3. The `Release` workflow assumes `SIGNET_AWS_ROLE_ARN` via OIDC, pushes
    digest-pinned images + the OCI chart, attaches `release-manifest.json`, signs
    the images, chart, and manifest keyless (GitHub OIDC via cosign), creates
    GitHub build-provenance attestations for the images and chart, and attaches
    SPDX SBOMs (syft) to the images and to the GitHub release.
-4. In `tf-io-sec`, bump the pinned chart version and apply.
+4. In the environment repo, bump the pinned chart version and apply.
 
-Required repo variables: `CACHET_AWS_ROLE_ARN` (required), `CACHET_AWS_REGION`
+Required repo variables: `SIGNET_AWS_ROLE_ARN` (required), `SIGNET_AWS_REGION`
 (default `us-west-2`), and optional ECR repo-name overrides.
 
 ## Verify release signatures before applying
 
 Every release is signed and attested; verify a tag before pinning or applying
-its digests (the tf-io-sec PR gate runs the same check):
+its digests (your environment repo's PR gate should run the same check):
 
 ```bash
 aws ecr get-login-password --region us-west-2 \
-  | docker login --username AWS --password-stdin 940482418479.dkr.ecr.us-west-2.amazonaws.com
+  | docker login --username AWS --password-stdin <account-id>.dkr.ecr.<region>.amazonaws.com
 scripts/verify-release-signatures.sh v0.1.15
 ```
 
@@ -83,11 +83,11 @@ every component image, and the chart, all against the release workflow's OIDC
 identity. Provenance and SBOMs are verifiable with:
 
 ```bash
-gh attestation verify oci://940482418479.dkr.ecr.us-west-2.amazonaws.com/signet/api@sha256:...
+gh attestation verify oci://<account-id>.dkr.ecr.<region>.amazonaws.com/signet/api@sha256:...
 cosign verify-attestation --type spdxjson \
-  --certificate-identity-regexp '^https://github.com/togethercomputer/signet/\.github/workflows/release\.yaml@' \
+  --certificate-identity-regexp '^https://github.com/therandomsecurityguy/signet/\.github/workflows/release\.yaml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  940482418479.dkr.ecr.us-west-2.amazonaws.com/signet/api@sha256:...
+  <account-id>.dkr.ecr.<region>.amazonaws.com/signet/api@sha256:...
 ```
 
 A signature failure is a stop: do not apply the pin. Re-run the release
@@ -95,7 +95,7 @@ A signature failure is a stop: do not apply the pin. Re-run the release
 
 ## Pre-deploy checklist
 
-1. The Okta app exists (tf-io-sec `okta/.../apps/signet`) and you have the issuer,
+1. The OIDC app exists in your identity provider and you have the issuer,
    client ID, and client secret.
 2. Operator secrets are seeded (`charts/signet/SECRETS.md`) — especially
    `tessera-log-private-key`, which must match the signer you are migrating from.
@@ -137,5 +137,5 @@ curl -s https://signet.<env>.internal.example.com/healthz
 ## Rollback
 
 Helm chart versions are immutable. Roll back by pinning the previous chart version
-in `tf-io-sec` and re-applying (`helm_release` with `atomic = true` rolls back on
+in the environment repo and re-applying (`helm_release` with `atomic = true` rolls back on
 a failed upgrade).

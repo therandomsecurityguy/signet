@@ -43,5 +43,5 @@ What to do when a Signet alert fires or the service looks unhealthy.
 
 - Registry/domain correctness issues → Signet owners.
 - Secrets/ESO/IRSA/network issues → the `signet-data` Terraform module owner in
-  `tf-io-sec`.
-- Okta app/group issues → tf-io-sec (`okta/.../apps/signet`).
+  the environment repo.
+- OIDC app/group issues → the identity-provider owner for the Signet app.

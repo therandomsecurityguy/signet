@@ -4,7 +4,7 @@
 # signature), every component image (keyless container signature), and the
 # Helm chart (keyless container signature).
 #
-# Run before applying a new pin in the environment repo (tf-io-sec) or any
+# Run before applying a new pin in the environment repo or any
 # other consumer of release-manifest.json. Requires: cosign, jq, gh (or a
 # downloaded manifest), and ECR authentication for image/chart verification
 # (aws ecr get-login-password | docker login ...).

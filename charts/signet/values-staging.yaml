@@ -61,7 +61,7 @@ ingress:
 
 networkPolicies:
   enabled: true
-  # VPC CIDRs hosting RDS/ElastiCache/VPC endpoints; filled by tf-io-sec.
+  # VPC CIDRs hosting RDS/ElastiCache/VPC endpoints; filled by the environment repo.
   egressCidrs:
     - cidr: <vpc-cidr>
       ports:

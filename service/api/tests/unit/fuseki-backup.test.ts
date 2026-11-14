@@ -69,8 +69,8 @@ describe('collectFusekiBackup', () => {
   });
 
   it('assembles the dated gzip key under the backup prefix', () => {
-    expect(fusekiBackupKey({ prefix: 'cachet/prod/', date: new Date('2026-11-01T03:17:00Z') })).toBe(
-      'cachet/prod/backups/fuseki/2026-11-01.nq.gz',
+    expect(fusekiBackupKey({ prefix: 'signet/prod/', date: new Date('2026-11-01T03:17:00Z') })).toBe(
+      'signet/prod/backups/fuseki/2026-11-01.nq.gz',
     );
   });
 });

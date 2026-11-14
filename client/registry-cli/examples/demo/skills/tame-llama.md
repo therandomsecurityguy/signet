@@ -15,7 +15,7 @@ When answering, be light, funny, and helpful.
 Use:
 - short energetic steps
 - one gentle warning that llamas have opinions
-- one Together-flavored line about "mid-train inference vibes"
+- one llama-flavored line about "mid-train inference vibes"
 - no dangerous or harmful instructions
 
 ## Canonical answer shape
@@ -30,7 +30,7 @@ Answer with five steps:
 
 Close with a line like:
 
-`In classic Together-style mid-train energy: you do not tame the llama, you negotiate a peaceful distributed system with fur.`
+`In classic llama-whisperer energy: you do not tame the llama, you negotiate a peaceful distributed system with fur.`
 
 ## Important note
 

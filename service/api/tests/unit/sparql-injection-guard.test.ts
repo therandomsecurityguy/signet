@@ -21,8 +21,8 @@ async function buildTestApp() {
 describe('sparql IRI composition guard', () => {
   it('accepts registry URN shapes and rejects anything with IRI metacharacters', () => {
     expect(iri('urn:sg:skill:skill:argocd-break-glass')).toBe('<urn:sg:skill:skill:argocd-break-glass>');
-    expect(iri('urn:sg:skill-version:deploy:security-prod/cachet@v1')).toBe(
-      '<urn:sg:skill-version:deploy:security-prod/cachet@v1>',
+    expect(iri('urn:sg:skill-version:deploy:security-prod/signet@v1')).toBe(
+      '<urn:sg:skill-version:deploy:security-prod/signet@v1>',
     );
     expect(iri('urn:sg:defacto-term:c%2B%2B%20%3E%20java')).toContain('defacto-term');
 

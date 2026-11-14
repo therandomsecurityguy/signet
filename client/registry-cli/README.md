@@ -68,10 +68,11 @@ npm pack --pack-destination release/
 npm install -g release/signet-registry-operator-<version>.tgz
 ```
 
-### Deployed tunnels (Cloudflare Access)
+### Deployed environments (edge access)
 
-The deployed API/MCP live behind Cloudflare Access. Non-WARP machines pass a
-service token; the CLI applies it to both the API and MCP clients:
+Deployed API/MCP hosts may sit behind an edge access layer (for example
+Cloudflare Access). Machines outside the trusted network pass a service token;
+the CLI applies it to both the API and MCP clients:
 
 ```bash
 export SIGNET_CF_ACCESS_CLIENT_ID=...

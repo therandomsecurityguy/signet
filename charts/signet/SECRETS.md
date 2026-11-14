@@ -85,10 +85,10 @@ reconciliation (`POST /v1/transparency-logs/reconcile`).
 ## Non-secret per-env values
 
 `values-<env>.yaml` carries non-secret placeholders filled by the environment
-repo (tf-io-sec):
+repo:
 
-- `image.registry` — the ECR account, e.g. `125323761776.dkr.ecr.us-west-2.amazonaws.com`
-- `auth.oktaIssuer` / `auth.oktaClientId` — from the tf-io-sec Okta app
+- `image.registry` — the ECR account, e.g. `<account-id>.dkr.ecr.<region>.amazonaws.com`
+- `auth.oktaIssuer` / `auth.oktaClientId` — from your OIDC app
 - `artifacts.s3.bucket` — the S3 artifact bucket
 - `serviceAccount.roleArn` — the ESO IRSA role from `signet-data`
 - `secrets.external.prefix` — the Secrets Manager prefix from `signet-data`

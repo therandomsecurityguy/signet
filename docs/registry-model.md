@@ -526,4 +526,3 @@ Current limitation:
 ### Related docs
 - `docs/service-map.md`
 - `docs/local-development.md`
-- `../../_devagents/signet/projects/worksession-03/`

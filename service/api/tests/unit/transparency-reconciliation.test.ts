@@ -116,7 +116,7 @@ async function startNativeSidecar(input?: {
     TESSERA_SIDECAR_BUCKET: 'transparency-test-bucket',
     TESSERA_SIDECAR_TILES_PREFIX: 'tessera/tiles/test',
     TESSERA_SIDECAR_REQUESTS_PREFIX: 'tessera/requests/test',
-    ...(native ? { TESSERA_LOG_PRIVATE_KEY: privateKeyPem, TESSERA_LOG_ORIGIN: 'cachet-test-log' } : {}),
+    ...(native ? { TESSERA_LOG_PRIVATE_KEY: privateKeyPem, TESSERA_LOG_ORIGIN: 'signet-test-log' } : {}),
     ...(input?.authToken ? { TESSERA_SIDECAR_AUTH_TOKEN: input.authToken } : {}),
     ...(allowUnauthenticated ? { TESSERA_SIDECAR_ALLOW_UNAUTHENTICATED: 'true' } : {}),
   });
@@ -194,7 +194,7 @@ describe('transparency reconciliation', () => {
     const sidecar = await startNativeSidecar();
     const { app, token } = await buildTestApp({
       TESSERA_SIDECAR_URL: sidecar.baseUrl,
-      TRANSPARENCY_APPEND_LOG_ID: 'cachet-governance',
+      TRANSPARENCY_APPEND_LOG_ID: 'signet-governance',
       TESSERA_LOG_PUBLIC_KEY: sidecar.publicKeyPem,
     });
 
@@ -203,7 +203,7 @@ describe('transparency reconciliation', () => {
     expect(reconciled.status).toBe(200);
     expect(reconciled.body).toMatchObject({
       publication_urn: 'urn:sg:skill-version:skill:reconcile-verified@v1',
-      log_id: 'cachet-governance',
+      log_id: 'signet-governance',
       status: 'verified',
     });
     const outcomes = reconciled.body['outcomes'] as Array<Record<string, unknown>>;
@@ -229,11 +229,11 @@ describe('transparency reconciliation', () => {
     // The same publication reconciles against the native log endpoints.
     const firstIndex = outcomes[0]?.['tessera_entry_index'] as number;
     const entry = await fetch(
-      `${sidecar.baseUrl}/v1/logs/cachet-governance/entries/${firstIndex}`,
+      `${sidecar.baseUrl}/v1/logs/signet-governance/entries/${firstIndex}`,
     );
     expect(entry.status).toBe(200);
     const entryBody = (await entry.json()) as Record<string, unknown>;
-    expect(entryBody['log_id']).toBe('cachet-governance');
+    expect(entryBody['log_id']).toBe('signet-governance');
     expect(typeof (entryBody['checkpoint'] as Record<string, unknown>)['envelope']).toBe('string');
 
     // Sanity: the version is still readable after reconciliation recorded
@@ -246,7 +246,7 @@ describe('transparency reconciliation', () => {
     const sidecar = await startNativeSidecar({ native: false });
     const { app, token } = await buildTestApp({
       TESSERA_SIDECAR_URL: sidecar.baseUrl,
-      TRANSPARENCY_APPEND_LOG_ID: 'cachet-governance',
+      TRANSPARENCY_APPEND_LOG_ID: 'signet-governance',
       TESSERA_LOG_PUBLIC_KEY: sidecar.publicKeyPem,
     });
 
@@ -268,7 +268,7 @@ describe('transparency reconciliation', () => {
     const otherPublicKeyPem = otherKey.publicKey.export({ type: 'spki', format: 'pem' }).toString();
     const { app, token } = await buildTestApp({
       TESSERA_SIDECAR_URL: sidecar.baseUrl,
-      TRANSPARENCY_APPEND_LOG_ID: 'cachet-governance',
+      TRANSPARENCY_APPEND_LOG_ID: 'signet-governance',
       TESSERA_LOG_PUBLIC_KEY: otherPublicKeyPem,
     });
 
@@ -290,7 +290,7 @@ describe('transparency reconciliation', () => {
     const sidecar = await startNativeSidecar();
     const { app, token } = await buildTestApp({
       TESSERA_SIDECAR_URL: sidecar.baseUrl,
-      TRANSPARENCY_APPEND_LOG_ID: 'cachet-governance',
+      TRANSPARENCY_APPEND_LOG_ID: 'signet-governance',
       TESSERA_LOG_PUBLIC_KEY: sidecar.publicKeyPem,
     });
 
@@ -304,7 +304,7 @@ describe('transparency reconciliation', () => {
     expect(typeof referencedIndex).toBe('number');
 
     const leafKey = [...sidecar.objects.keys()]
-      .filter((key) => key.includes('/cachet-governance/leaves/'))
+      .filter((key) => key.includes('/signet-governance/leaves/'))
       .find((key) => {
         const leaf = JSON.parse((sidecar.objects.get(key) as Buffer).toString('utf8')) as Record<string, unknown>;
         return leaf['entry_index'] === referencedIndex;
@@ -314,7 +314,7 @@ describe('transparency reconciliation', () => {
       string,
       unknown
     >;
-    leaf['record_key'] = 'tessera/tiles/test/cachet-governance/state.json';
+    leaf['record_key'] = 'tessera/tiles/test/signet-governance/state.json';
     sidecar.objects.set(leafKey as string, Buffer.from(JSON.stringify(leaf), 'utf8'));
 
     const reconciled = await reconcile(app, token, 'urn:sg:skill-version:skill:reconcile-tampered@v1');
@@ -333,7 +333,7 @@ describe('transparency reconciliation', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        log_id: 'cachet-governance',
+        log_id: 'signet-governance',
         source_type: 'publication_envelope',
         source_urn: 'urn:sg:skill-version:skill:ignored@v1',
         digest: 'a'.repeat(64),
@@ -355,7 +355,7 @@ describe('transparency reconciliation', () => {
     // The registry presents the same token on append and reconciliation calls.
     const { app, token } = await buildTestApp({
       TESSERA_SIDECAR_URL: sidecar.baseUrl,
-      TRANSPARENCY_APPEND_LOG_ID: 'cachet-governance',
+      TRANSPARENCY_APPEND_LOG_ID: 'signet-governance',
       TESSERA_LOG_PUBLIC_KEY: sidecar.publicKeyPem,
       TESSERA_SIDECAR_AUTH_TOKEN: 'e2e-sidecar-token',
     });
@@ -370,7 +370,7 @@ describe('transparency reconciliation', () => {
     // configured pair never silently publishes without transparency intent.
     const misconfigured = await buildTestApp({
       TESSERA_SIDECAR_URL: sidecar.baseUrl,
-      TRANSPARENCY_APPEND_LOG_ID: 'cachet-governance',
+      TRANSPARENCY_APPEND_LOG_ID: 'signet-governance',
       TESSERA_LOG_PUBLIC_KEY: sidecar.publicKeyPem,
     });
     const draft = await misconfigured.app.request('/v1/skills/skill%3Areconcile-unauthed/drafts', {
@@ -415,7 +415,7 @@ describe('transparency reconciliation', () => {
     const sidecar = await startNativeSidecar();
     const configured = await buildTestApp({
       TESSERA_SIDECAR_URL: sidecar.baseUrl,
-      TRANSPARENCY_APPEND_LOG_ID: 'cachet-governance',
+      TRANSPARENCY_APPEND_LOG_ID: 'signet-governance',
       TESSERA_LOG_PUBLIC_KEY: sidecar.publicKeyPem,
     });
 

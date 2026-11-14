@@ -117,7 +117,7 @@ What makes it valuable:
 
 Story:
 - a human states an intent like:
-  - “create sg-streams with SDK v3”
+  - “create a new stream processor with SDK v3”
   - “bootstrap a new pipeline”
   - “wire a content flow”
 - the system discovers and orchestrates the needed certified skills
@@ -243,10 +243,10 @@ Suggested slice:
 - process/task lineage view
 - operational happy path docs
 
-### Worksession 42. sg-streams SDK v3 killer-app specification
+### Worksession 42. SDK v3 killer-app specification
 
 Goal:
-- specify the intent-driven workflow story for “create sg-streams with SDK v3”
+- specify the intent-driven workflow story for “create a new stream processor with SDK v3”
 
 Suggested slice:
 - end-to-end user story

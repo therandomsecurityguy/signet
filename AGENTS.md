@@ -1,4 +1,4 @@
-# Agents Registry
+# Signet Registry
 
 You are working in `signet`.
 
@@ -10,9 +10,6 @@ Read these first:
 - `docs/quick-value-roadmap.md`
 - `docs/service-map.md`
 - `docs/registry-model.md`
-
-For implementation history and rationale:
-- `../_devagents/signet/projects/README.md`
 
 ## Canonical boundaries
 
@@ -32,13 +29,11 @@ For implementation history and rationale:
   signed keyless (cosign) with GitHub build-provenance attestations and SPDX
   SBOMs attached; verify with `scripts/verify-release-signatures.sh <tag>`
   before pinning or applying a release.
-- The environment repo (`tf-io-sec`) owns Terraform state/apply; the signet
-  release runs as an Argo CD Application (adopted 2026-11-10,
-  `gitops/security-prod/apps/signet`, Synced/Healthy with automated
-  selfHeal). Version bumps update the Application `targetRevision` and the
-  image digests in `gitops/security-prod/apps/signet/values.yaml` in one PR —
-  merging is the deploy. Reusable data/registry modules (`signet-data`,
-  `signet-registry`) still live in this repo.
+- The environment repo that owns Terraform state/apply pins this repo's
+  released chart and image digests; bumping a release means updating the
+  pinned chart version and image digests there in one PR — merging is the
+  deploy. Reusable data/registry modules (`signet-data`, `signet-registry`)
+  live in this repo.
 - Never deploy directly from this repo against prod; never commit secrets or seed
   secret values through Helm values/Terraform state. See
   `docs/runbooks/deploy.md` and `charts/signet/SECRETS.md`.

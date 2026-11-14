@@ -387,7 +387,7 @@ describe('knowledge-manager app', () => {
               sha256: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
               ontology_version: 'registry-shape/v1',
               ontology_kind: 'registry_shape',
-              created_by: 'tf-io-sec-ci',
+              created_by: 'signet-ci',
               created_at: '2026-11-12T00:00:00.000Z',
               description: 'Registry shape ontology',
               ontology: {},

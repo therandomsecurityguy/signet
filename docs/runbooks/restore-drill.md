@@ -6,7 +6,7 @@ bytes (S3 CAS), and transparency-log state (S3). Non-destructive drills are
 the default; the last section is the real restore procedure.
 
 Cross-references: `alerting.md` (what fires when backups stop),
-`secret-rotation.md` (credentials used below), `deploy.md` (release/Argo
+`secret-rotation.md` (credentials used below), `deploy.md` (release
 mechanics).
 
 ## What holds what
@@ -14,8 +14,8 @@ mechanics).
 | Data | Store | Backup mechanism | Restore source |
 |---|---|---|---|
 | API keys, audit events, sessions | RDS Postgres | Automated backups, **35-day retention**, point-in-time recovery (PITR) | Snapshot / PITR → new instance |
-| Registry graph metadata (nodes, edges, evidence links) | Fuseki StatefulSet + PVC | **Daily dump** CronJob → S3 bucket `security-prod-signet-artifacts`, prefix `signet/prod/backups/fuseki/<date>.nq.gz` (90-day lifecycle) | Dump file → import |
-| Artifact/envelope bytes (CAS) | S3 `security-prod-signet-artifacts` | S3 durability; versioning per bucket setting | In-place (no restore expected) |
+| Registry graph metadata (nodes, edges, evidence links) | Fuseki StatefulSet + PVC | **Daily dump** CronJob → S3 bucket `signet-<env>-artifacts`, prefix `signet/<env>/backups/fuseki/<date>.nq.gz` (90-day lifecycle) | Dump file → import |
+| Artifact/envelope bytes (CAS) | S3 `signet-<env>-artifacts` | S3 durability; versioning per bucket setting | In-place (no restore expected) |
 | Transparency log (Tessera tree state, leaves, staged requests) | S3 under `signet/prod/tessera/**` | S3 durability | In-place |
 | Redis | ElastiCache | Node replacement | **Treated as cache**: rebuilt empty; never a source of truth |
 
@@ -29,12 +29,12 @@ Proposed targets (revisit if the product bar changes):
 
 ```bash
 # Contexts and names (discover, don't guess):
-BUCKET=security-prod-signet-artifacts
+BUCKET=signet-<env>-artifacts
 AWS_PROFILE=signet-admin kubectl --context signet-prod -n signet get cronjob   # signet-fuseki-backup schedule
 AWS_PROFILE=signet-admin kubectl --context signet-prod -n signet get sts signet-fuseki
 aws rds describe-db-instances --region us-west-2 \
   --query 'DBInstances[].{id:DBInstanceIdentifier,class:DBInstanceClass,az:MultiAZ,retention:BackupRetentionPeriod}'
-aws s3 ls "s3://$BUCKET/signet/prod/backups/fuseki/" | tail -3
+aws s3 ls "s3://$BUCKET/signet/<env>/backups/fuseki/" | tail -3
 aws s3api get-bucket-versioning --bucket "$BUCKET"
 ```
 
@@ -81,8 +81,8 @@ Import the newest dump into a **scratch Fuseki** (docker locally or a throwaway
 namespace), not prod:
 
 ```bash
-DUMP=$(aws s3 ls "s3://$BUCKET/signet/prod/backups/fuseki/" | tail -1 | awk '{print $4}')
-aws s3 cp "s3://$BUCKET/signet/prod/backups/fuseki/$DUMP" /tmp/fuseki-dump.nq.gz
+DUMP=$(aws s3 ls "s3://$BUCKET/signet/<env>/backups/fuseki/" | tail -1 | awk '{print $4}')
+aws s3 cp "s3://$BUCKET/signet/<env>/backups/fuseki/$DUMP" /tmp/fuseki-dump.nq.gz
 gunzip -k /tmp/fuseki-dump.nq.gz
 
 docker run -d --name drill-fuseki -p 3031:3030 stain/jena-fuseki   # or a scratch pod
@@ -102,7 +102,7 @@ curl -u admin:admin "http://127.0.0.1:3031/registry/sparql" \
 Cross-check the triple count against the live graph
 (`kubectl … port-forward svc/signet-fuseki 3030:3030` + the same query).
 Also verify the dump contains the latest known nodes (e.g. the newest
-`deploy:security-prod/*` agent URN from the registry API).
+`deploy:<env>/*` agent URN from the registry API).
 
 Cleanup: `docker rm -f drill-fuseki` (or delete the scratch namespace).
 

@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 async function buildTestApp() {
-  const objectsDir = await mkdtemp(path.join(os.tmpdir(), 'cachet-attestations-'));
+  const objectsDir = await mkdtemp(path.join(os.tmpdir(), 'signet-attestations-'));
   tempDirs.push(objectsDir);
   const env = loadEnv({
     NODE_ENV: 'test',
@@ -103,8 +103,8 @@ function slsaStatement(artifactSha256: string) {
   return {
     _type: 'https://in-toto.io/Statement/v1',
     predicateType: 'https://slsa.dev/provenance/v1',
-    subject: [{ name: 'cachet/skill', digest: { sha256: artifactSha256 } }],
-    predicate: { buildType: 'https://cachet.dev/build/v1', builder: { id: 'github-actions' } },
+    subject: [{ name: 'signet/skill', digest: { sha256: artifactSha256 } }],
+    predicate: { buildType: 'https://signet.dev/build/v1', builder: { id: 'github-actions' } },
   };
 }
 

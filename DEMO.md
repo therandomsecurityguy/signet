@@ -353,7 +353,7 @@ Validated final answer shape:
 
 Gentle warning: llamas have opinions, and they are not shy about peer review.
 
-In classic Together-style mid-train energy: you do not tame the llama, you negotiate a peaceful distributed system with fur.
+In classic llama-whisperer energy: you do not tame the llama, you negotiate a peaceful distributed system with fur.
 ```
 
 ## Artifact storage note

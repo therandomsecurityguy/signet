@@ -17,7 +17,7 @@ means keyless signatures are rejected:
 - `KEYLESS_ALLOWED_ISSUERS` — exact OIDC issuers (e.g.
   `https://token.actions.githubusercontent.com`).
 - `KEYLESS_ALLOWED_SUBJECTS` — regexes matched against the certificate SAN
-  (e.g. `^https://github\.com/togethercomputer/signet/`).
+  (e.g. `^https://github\.com/therandomsecurityguy/signet/`).
 
 ### Rekor anchoring (recommended)
 

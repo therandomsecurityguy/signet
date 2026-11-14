@@ -68,7 +68,7 @@ jobs:
   # On a release, publish each component image (digest-pinned, immutable ECR) and
   # the Helm chart to signet-owned ECR using GitHub OIDC. Also runnable manually
   # to re-publish an existing tag (workflow_dispatch). The environment repo
-  # (tf-io-sec) then pins the released chart version and applies. No static AWS
+  # (or equivalent environment repo) then pins the released chart version and applies. No static AWS
   # credentials and no shared org reusable workflow.
   publish:
     needs: [release-please]

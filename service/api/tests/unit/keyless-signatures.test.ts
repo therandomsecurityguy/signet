@@ -100,7 +100,7 @@ describe('keyless publication signatures', () => {
       body: JSON.stringify({
         author: 'governance-team',
         prepared_publication_urn: prepared.prepared_publication_urn,
-        signatures: [{ signer: 'cachet-release-workflow', keyless_bundle: bundle }],
+        signatures: [{ signer: 'signet-release-workflow', keyless_bundle: bundle }],
       }),
     });
     if (publish.status !== 200) {
@@ -168,7 +168,7 @@ describe('keyless publication signatures', () => {
     const attach = await app.request('/v1/skills/kl-legacy/versions/1/signatures', {
       method: 'POST',
       headers: authHeaders(token),
-      body: JSON.stringify({ signer: 'cachet-release-workflow', keyless_bundle: bundle }),
+      body: JSON.stringify({ signer: 'signet-release-workflow', keyless_bundle: bundle }),
     });
     if (attach.status !== 200) {
       console.log('DEBUG keyless attach body', JSON.stringify(await attach.clone().json()));
@@ -199,7 +199,7 @@ describe('keyless publication signatures', () => {
         body: JSON.stringify({
           author: 'governance-team',
           prepared_publication_urn: prepared.prepared_publication_urn,
-          signatures: [{ signer: 'cachet-release-workflow', keyless_bundle: bundle }],
+          signatures: [{ signer: 'signet-release-workflow', keyless_bundle: bundle }],
         }),
       });
 
@@ -236,7 +236,7 @@ describe('keyless publication signatures', () => {
         author: 'governance-team',
         prepared_publication_urn: prepared2.prepared_publication_urn,
         signatures: [
-          { signer: 'cachet-release-workflow', keyless_bundle: bundleFor('leaf', Buffer.from(prepared2.canonical_json, 'utf8')) },
+          { signer: 'signet-release-workflow', keyless_bundle: bundleFor('leaf', Buffer.from(prepared2.canonical_json, 'utf8')) },
         ],
       }),
     });
@@ -282,7 +282,7 @@ describe('keyless publication signatures', () => {
       method: 'POST',
       headers: authHeaders(token),
       body: JSON.stringify({
-        signer: 'cachet-release-workflow',
+        signer: 'signet-release-workflow',
         keyless_bundle: bundleFor('leaf', Buffer.from(envelopeBody.canonical_json, 'utf8')),
       }),
     });

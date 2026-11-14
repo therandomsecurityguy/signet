@@ -28,7 +28,7 @@ headers as well:
 ```ts
 const client = new RegistryClient({
   baseUrl: 'https://signet-api.example.com',
-  apiToken: process.env.CACHET_KEY,
+  apiToken: process.env.SIGNET_KEY,
   headers: {
     'CF-Access-Client-Id': process.env.SIGNET_CF_ACCESS_CLIENT_ID!,
     'CF-Access-Client-Secret': process.env.SIGNET_CF_ACCESS_CLIENT_SECRET!,

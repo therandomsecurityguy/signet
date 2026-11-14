@@ -12,7 +12,7 @@ import {
 const tempDirs: string[] = [];
 
 async function makeTempDir() {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'cachet-cas-integrity-'));
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'signet-cas-integrity-'));
   tempDirs.push(dir);
   return dir;
 }

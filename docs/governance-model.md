@@ -77,7 +77,7 @@ Examples:
   - content pipeline skills
   - data platform skills
   - motherduck/snowflake/athena skills
-  - sg-streams SDK skills
+  - SDK-family skills
 
 Purpose:
 - define the allowed meaning space

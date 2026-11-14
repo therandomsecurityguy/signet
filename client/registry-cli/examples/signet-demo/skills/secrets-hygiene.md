@@ -21,11 +21,11 @@ Issue, store, and rotate registry credentials without leaking them.
 ## Inputs → Outputs
 
 - **In:** a client identity (agent/CLI) that needs access.
-- **Out:** credentials stored in 1Password / the secret manager, never in git.
+- **Out:** credentials stored in a secret manager, never in git.
 
 ## Steps
 
-1. Store secrets in 1Password or the environment secret manager.
+1. Store secrets in a secret manager, never in git.
 2. Service token: taint `cloudflare_zero_trust_access_service_token.signet_machines`, then update clients.
 3. API key: `POST /v1/api-keys/{keyId}/rotate`; revoke with `DELETE /v1/api-keys/{keyId}`.
 

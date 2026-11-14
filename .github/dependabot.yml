@@ -266,7 +266,7 @@ updates:
       include: "scope"
     # Helm provider v3 changed helm_release set/set_list/set_sensitive from
     # nested blocks to attributes and reshaped the provider config, so this
-    # module (and the provider config generated in tf-io-sec) is v2-only.
+    # module (and any provider config generated in the environment repo) is v2-only.
     # Widening to 3.x fails terraform validate (upstream #176). Revisit with a
     # deliberate v3 migration.
     ignore:

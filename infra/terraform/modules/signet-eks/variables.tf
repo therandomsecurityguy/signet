@@ -5,7 +5,7 @@ variable "namespace" {
 }
 
 variable "create_namespace" {
-  description = "Create the namespace. Prefer false when the environment repo (tf-io-sec) owns the namespace."
+  description = "Create the namespace. Prefer false when the environment repo owns the namespace."
   type        = bool
   default     = false
 }

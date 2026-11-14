@@ -7,9 +7,9 @@ How to connect any MCP-capable agent harness to the Signet registry via
 - **Auth:** `Authorization: Bearer <token>` (Stage 1 API key)
 - **Health:** `GET http://localhost:3000/healthz`
 
-> **Deployed (security-prod):** `https://signet-mcp.example.com/mcp`
+> **Deployed:** `https://signet-mcp.example.com/mcp`
 > behind Cloudflare Access. See `adoption.md` for the CF-Access service-token
-> headers required for non-WARP machine clients.
+> headers required for machine clients outside the edge access layer.
 
 ## 1. Create an API key
 

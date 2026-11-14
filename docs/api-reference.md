@@ -10,7 +10,7 @@ source of truth for the typed SDK.
 - **Auth:** `Authorization: Bearer <token>` on all write routes (and reads that
   require a principal)
 
-> **Deployed (security-prod):** `https://signet-api.example.com` behind
+> **Deployed:** `https://signet-api.example.com` behind
 > Cloudflare Access. See `adoption.md` for the CF-Access service-token headers
 > and API-key setup.
 

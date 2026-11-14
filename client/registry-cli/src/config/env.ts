@@ -29,7 +29,7 @@ const EnvSchema = z.object({
   WEBAPP_ENV_FILE: z.string().default(defaultWebappEnvFile()),
   MCP_ENV_FILE: z.string().default(defaultMcpEnvFile()),
   // Cloudflare Access service-token headers for the deployed tunnels
-  // (non-WARP machine clients). Both must be set to take effect.
+  // (machine clients outside the edge access layer). Both must be set to take effect.
   SIGNET_CF_ACCESS_CLIENT_ID: z.string().optional(),
   SIGNET_CF_ACCESS_CLIENT_SECRET: z.string().optional(),
 });

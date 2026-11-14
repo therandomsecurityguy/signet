@@ -12,14 +12,7 @@ bad() { printf 'FAIL %s\n' "$1"; fail=1; }
 
 echo "== secret sentinels =="
 
-# 1. No platform-provisioned wiring should remain.
-if grep -rIn "platform.together.ai/aws-access" "$root/charts/signet/templates" >/dev/null 2>&1; then
-  bad "charts still reference the platform AWS-access annotation"
-else
-  ok "no platform AWS-access annotation"
-fi
-
-# 2. Chart must not ship a namespace-level static AWS key provider.
+# 1. Chart must not ship a namespace-level static AWS key provider.
 if grep -rIn "aws static\|accessKeyID:\|secretAccessKey:" "$root/charts/signet/templates/externalsecret.yaml" >/dev/null 2>&1; then
   bad "SecretStore appears to use static AWS credentials"
 else

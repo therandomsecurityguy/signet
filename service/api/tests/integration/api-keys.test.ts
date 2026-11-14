@@ -14,7 +14,7 @@ async function buildTestApp(overrides: Record<string, string> = {}) {
     LOG_LEVEL: 'silent',
     AUTH_MODE: 'dual',
     OKTA_MODE: 'mock',
-    OKTA_ADMIN_GROUPS: 'app_cachet_admin',
+    OKTA_ADMIN_GROUPS: 'app_signet_admin',
     DATABASE_URL: `file:${path.join(tmp, 'api.db')}`,
     REGISTRY_GRAPH_BACKEND: 'memory',
     REGISTRY_OBJECTS_DIR: path.join(tmp, 'objects'),

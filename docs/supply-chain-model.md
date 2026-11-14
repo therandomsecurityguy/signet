@@ -125,8 +125,9 @@ consumer:
   the release.
 - `scripts/verify-release-signatures.sh <tag>` verifies the manifest bundle,
   every image, and the chart against the release workflow's OIDC identity.
-  The tf-io-sec kube plan runs the same check on every PR touching a signet
-  unit, and the runbook makes it a stop before manual applies.
+  A CI gate in the environment repo should run the same check on every PR
+  touching a signet unit, and the runbook makes it a stop before manual
+  applies.
 - **Threat-intel advisories**: `POST /v1/advisories` accepts signed advisory
   documents (signature over the JCS-canonical bytes, verified against trusted
   keys), maps them to publications by exact artifact digest first and

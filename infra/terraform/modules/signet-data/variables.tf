@@ -200,7 +200,7 @@ variable "alert_email_subscriptions" {
 }
 
 variable "health_checks" {
-  description = "External HTTPS endpoints monitored via Route53 health checks, as name => full URL (e.g. { api = \"https://signet.tunnel.together.ai/healthz\" }). Empty disables them."
+  description = "External HTTPS endpoints monitored via Route53 health checks, as name => full URL (e.g. { api = \"https://signet.example.com/healthz\" }). Empty disables them."
   type        = map(string)
   default     = {}
 }

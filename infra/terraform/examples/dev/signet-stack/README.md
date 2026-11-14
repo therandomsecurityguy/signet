@@ -1,7 +1,7 @@
 # signet-stack (dev example)
 
 Composes the three signet modules (registry, data, eks) for a single
-environment. Copy this into the environment repo (`tf-io-sec`) and adjust.
+environment. Copy this into your environment repo and adjust.
 
 ## Apply order
 

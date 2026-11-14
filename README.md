@@ -441,7 +441,7 @@ Current implementation status (incremental):
 - `service/mcp` now includes an opt-in cognitive layer that estimates tool-result token cost and summarizes payloads that exceed a configured LLM context budget, with ephemeral summary caching.
 - the repo now includes Terraform for a locked-down shared S3 bucket seam, Aurora/Secrets Manager wiring for the Tessera AWS backend state, and optional `tessera-sidecar` / `tessera-runtime` companions for future transparency-backend experiments.
 - publish/certify flows can now stage real publication/governance append intents through the sidecar and preserve the returned S3 references in the trust model when the sidecar is configured.
-- Note: external warehouse connections and Okta validation may run in **MOCK** mode in early worksessions to stay unblocked (documented under `../_devagents/signet/projects/` and `service/mcp/README.md`).
+- Note: external warehouse connections and Okta validation may run in **MOCK** mode in early phases to stay unblocked (documented in `service/mcp/README.md`).
 
 ### Agent integration surfaces
 Signet is designed to be available to every agent workflow. The current surfaces:
@@ -466,7 +466,7 @@ Signet is designed to be available to every agent workflow. The current surfaces
 - This repo ships release-tagged artifacts only: immutable, digest-pinned images
   and the Helm chart (`charts/signet`), published to signet-owned ECR by
   `.github/workflows/release.yaml` using GitHub OIDC (no static AWS keys).
-- The environment repo (`tf-io-sec`) owns Terraform state and applies the pinned
+- The environment repo that owns Terraform state applies the pinned
   chart via the `signet-eks` module.
 - Reusable Terraform modules live under `infra/terraform/modules/`:
   - `signet-registry` — immutable ECR repos + GitHub OIDC publish role
@@ -486,7 +486,6 @@ Signet is designed to be available to every agent workflow. The current surfaces
 - MCP onboarding: `docs/mcp-onboarding.md`
 - beta-v1 readiness and scope: `docs/beta-v1-readiness.md`
 - docs index: `docs/README.md`
-- Session 18 architecture package: `../_devagents/signet/projects/worksession-18/`
 
 ### Service entrypoints
 - `service/mcp/README.md`
