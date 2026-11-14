@@ -583,9 +583,9 @@ describe('knowledge-manager app', () => {
         listAgents: async () => ({
           agents: [
             {
-              agent_urn: 'urn:sg:agent:cursor:cachet-security-agent',
-              agent_key: 'cursor:cachet-security-agent',
-              display_name: 'Cachet Security Agent',
+              agent_urn: 'urn:sg:agent:cursor:signet-security-agent',
+              agent_key: 'cursor:signet-security-agent',
+              display_name: 'Signet Security Agent',
             },
           ],
         }),
@@ -609,7 +609,7 @@ describe('knowledge-manager app', () => {
     // a hardcoded demo URN.
     const auto = await app.request('/graph');
     expect(auto.status).toBe(200);
-    expect(await auto.text()).toContain('urn:sg:agent:cursor:cachet-security-agent');
+    expect(await auto.text()).toContain('urn:sg:agent:cursor:signet-security-agent');
 
     // Missing root: honest error plus a pick-list, never a dead end.
     const page = await app.request('/graph?root_urn=urn%3Asg%3Aagent%3Acursor%3Amissing');
@@ -617,7 +617,7 @@ describe('knowledge-manager app', () => {
     const text = await page.text();
     expect(text).toContain('Graph root not found.');
     expect(text).toContain('Pick an existing root:');
-    expect(text).toContain('Cachet Security Agent');
+    expect(text).toContain('Signet Security Agent');
     expect(text).toContain('Argo CD Break-Glass');
   });
 });

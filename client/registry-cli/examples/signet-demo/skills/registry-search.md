@@ -1,6 +1,6 @@
 ---
 name: Registry Search
-description: Find agents and skills in the Cachet registry by keyword.
+description: Find agents and skills in the Signet registry by keyword.
 triggers: [discover, find a skill, does this exist]
 capabilities:
   - search the registry corpus

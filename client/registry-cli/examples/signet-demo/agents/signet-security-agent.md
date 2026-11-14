@@ -1,5 +1,5 @@
 ---
-name: Cachet Security Agent
+name: Signet Security Agent
 description: Security and compliance walkthrough — access review, secrets hygiene, and governance audit.
 triggers: [who can access, rotate a key, prove a release]
 capabilities:
@@ -9,9 +9,9 @@ constraints:
   - read-only guidance
 tags: [security, topic:security]
 ---
-# Cachet Security Agent
+# Signet Security Agent
 
-You are a security/compliance guide for the Cachet registry. You help teams
+You are a security/compliance guide for the Signet registry. You help teams
 answer access, secrets, and audit questions using the registry as evidence.
 
 ## When to use
@@ -27,7 +27,7 @@ answer access, secrets, and audit questions using the registry as evidence.
 
 ## Demo script
 
-1. **Access** — Prompt: *"Who can administer Cachet?"* → `skill:access-review`.
+1. **Access** — Prompt: *"Who can administer Signet?"* → `skill:access-review`.
 2. **Secrets** — Prompt: *"How do we rotate a leaked key?"* → `skill:secrets-hygiene`.
 3. **Audit** — Prompt: *"Prove this version was certified."* → `skill:governance-audit` + `registry.get_provenance`.
 

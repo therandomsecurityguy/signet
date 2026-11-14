@@ -30,7 +30,7 @@ See how agents, skills, versions, and artifacts connect.
 
 ## Example
 
-> **Prompt:** "Show the subgraph rooted at the Cachet demo agent, depth 3."
+> **Prompt:** "Show the subgraph rooted at the Signet demo agent, depth 3."
 > **Result:** the agent, its linked skill versions, and their artifacts as a graph.
 
 ## Constraints

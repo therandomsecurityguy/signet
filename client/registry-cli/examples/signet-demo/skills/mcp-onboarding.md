@@ -11,7 +11,7 @@ tags: [registry, mcp, topic:registry]
 ---
 # MCP Onboarding
 
-Point an MCP-capable harness at Cachet and load real artifacts.
+Point an MCP-capable harness at Signet and load real artifacts.
 
 ## When to use
 
@@ -31,7 +31,7 @@ Point an MCP-capable harness at Cachet and load real artifacts.
 
 ## Example
 
-> **Prompt:** "Load the Cachet demo agent and its skills."
+> **Prompt:** "Load the Signet demo agent and its skills."
 > **Result:** the agent plus its linked skill URNs and artifact bodies.
 
 ## Constraints

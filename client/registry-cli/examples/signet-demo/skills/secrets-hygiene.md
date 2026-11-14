@@ -26,7 +26,7 @@ Issue, store, and rotate registry credentials without leaking them.
 ## Steps
 
 1. Store secrets in 1Password or the environment secret manager.
-2. Service token: taint `cloudflare_zero_trust_access_service_token.cachet_machines`, then update clients.
+2. Service token: taint `cloudflare_zero_trust_access_service_token.signet_machines`, then update clients.
 3. API key: `POST /v1/api-keys/{keyId}/rotate`; revoke with `DELETE /v1/api-keys/{keyId}`.
 
 ## Example

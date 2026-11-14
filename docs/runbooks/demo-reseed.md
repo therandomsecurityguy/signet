@@ -2,7 +2,7 @@
 
 Reset the demo registry and reseed the demo pack (2 agents / 10 skills). This
 clears the registry graph and re-seeds from
-`client/registry-cli/examples/cachet-demo/cachet-demo.manifest.json`.
+`client/registry-cli/examples/signet-demo/signet-demo.manifest.json`.
 
 > Only do this on the demo environment, or when you intend to clear registry
 > state. It is non-destructive to the CAS artifact bucket (orphaned objects are
@@ -53,7 +53,7 @@ kill %1
 kubectl -n cachet port-forward svc/cachet-api 3100:3100 & sleep 5
 API_ORIGIN=http://127.0.0.1:3100 \
 node client/registry-cli/dist/main.js seed bootstrap \
-  --manifest client/registry-cli/examples/cachet-demo/cachet-demo.manifest.json \
+  --manifest client/registry-cli/examples/signet-demo/signet-demo.manifest.json \
   --profile default --api-token "<agk_…>"
 kill %1
 ```

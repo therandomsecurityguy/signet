@@ -20,7 +20,7 @@ Attest who can read or administer the registry, and prune stale credentials.
 
 ## Inputs → Outputs
 
-- **In:** the Okta groups `app_cachet_admin` / `app_cachet_viewer`.
+- **In:** the Okta groups `app_signet_admin` / `app_signet_viewer`.
 - **Out:** an access attestation plus a list of revoked stale keys.
 
 ## Steps
@@ -31,7 +31,7 @@ Attest who can read or administer the registry, and prune stale credentials.
 
 ## Example
 
-> **Prompt:** "Who administers Cachet, and which API keys are stale?"
+> **Prompt:** "Who administers Signet, and which API keys are stale?"
 > **Result:** the admin roster plus keys flagged for revocation.
 
 ## Constraints

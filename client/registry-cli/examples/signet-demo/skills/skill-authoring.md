@@ -36,5 +36,5 @@ Turn a markdown file into a versioned, certified registry skill.
 
 ## Constraints
 
-- Writes require Okta `app_cachet_admin` or a write-scoped `agk_` key.
+- Writes require Okta `app_signet_admin` or a write-scoped `agk_` key.
 - Validation failures are recorded and block the `draft → validated` transition.
