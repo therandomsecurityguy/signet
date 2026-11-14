@@ -1,4 +1,5 @@
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
+import { promisify } from 'node:util';
 
 import type { ApiKeyStore } from '../../application/ports/api-key-store.js';
 import type { ApiKeyPrincipal } from '../../domain/principal/principal.js';
@@ -29,14 +30,25 @@ export class SqliteApiKeyStore implements ApiKeyStore {
       parsed.keyId,
     );
 
-    const storedBuf = Buffer.from(row?.key_hash ?? dummyHashHex(), 'hex');
-    const matched = secretHashCandidates(parsed.secret, this.options.pepper).some((hex) => {
-      const candidateBuf = Buffer.from(hex, 'hex');
-      return candidateBuf.length === storedBuf.length && timingSafeEqual(candidateBuf, storedBuf);
-    });
+    // Always perform a constant-time comparison (against a dummy when absent)
+    // so timing does not reveal whether the key id exists.
+    const storedHash = row?.key_hash ?? dummyHashHex();
+    const matched = await verifySecret(parsed.secret, this.options.pepper, storedHash);
 
     if (!row || !matched || row.revoked_at !== null) return null;
     if (row.expires_at && Date.parse(row.expires_at) <= Date.now()) return null;
+
+    if (isLegacyHash(storedHash)) {
+      // Opportunistic migration: re-hash the verified secret with the per-key
+      // salt scheme so legacy rows upgrade on their first successful use.
+      await db
+        .run(
+          'UPDATE api_keys SET key_hash = ? WHERE key_id = ?',
+          await hashSecret(parsed.secret, this.options.pepper),
+          row.key_id,
+        )
+        .catch(() => undefined);
+    }
 
     return {
       type: 'api_key',
@@ -63,7 +75,7 @@ INSERT INTO api_keys (key_id, key_hash, owner_label, scopes, created_at, revoked
 VALUES (?, ?, ?, '[]', ?, NULL)
 `.trim(),
       keyId,
-      hashSecret(secret, this.options.pepper),
+      await hashSecret(secret, this.options.pepper),
       input.owner_label,
       new Date().toISOString(),
     );
@@ -112,15 +124,45 @@ function parseApiKeyToken(token: string): { keyId: string; secret: string } | nu
   return { keyId, secret };
 }
 
-function hashSecret(secret: string, pepper: string | undefined): string {
-  // Strong KDF (scrypt); the pepper (required in production) is the salt, with
-  // a dev-only fallback.
-  const salt = pepper ?? 'signet-dev-pepper';
-  return scryptSync(secret, salt, 32).toString('hex');
+const scryptAsync = promisify(scrypt);
+
+const HASH_SCHEME = 'scrypt';
+const PER_KEY_SALT_BYTES = 16;
+
+async function hashSecret(secret: string, pepper: string | undefined): Promise<string> {
+  // scrypt$<saltHex>$<hashHex> with a random per-key salt; the pepper
+  // (required in production) is mixed into the salt material so a database
+  // leak alone cannot verify guesses. Computed asynchronously so auth load
+  // cannot block the event loop.
+  const salt = randomBytes(PER_KEY_SALT_BYTES).toString('hex');
+  const derived = (await scryptAsync(secret, `${salt}:${pepper ?? 'signet-dev-pepper'}`, 32)) as Buffer;
+  return `${HASH_SCHEME}$${salt}$${derived.toString('hex')}`;
 }
 
-function secretHashCandidates(secret: string, pepper: string | undefined): string[] {
-  return [hashSecret(secret, pepper)];
+function isLegacyHash(stored: string): boolean {
+  return !stored.startsWith(`${HASH_SCHEME}$`);
+}
+
+async function verifySecret(
+  secret: string,
+  pepper: string | undefined,
+  stored: string,
+): Promise<boolean> {
+  const pepperMaterial = pepper ?? 'signet-dev-pepper';
+  if (isLegacyHash(stored)) {
+    // Legacy format: the pepper (or dev constant) was the salt.
+    const derived = (await scryptAsync(secret, pepperMaterial, 32)) as Buffer;
+    return timingSafeHexEquals(derived, stored);
+  }
+  const [, salt, expectedHex] = stored.split('$');
+  if (!salt || !expectedHex) return false;
+  const derived = (await scryptAsync(secret, `${salt}:${pepperMaterial}`, 32)) as Buffer;
+  return timingSafeHexEquals(derived, expectedHex);
+}
+
+function timingSafeHexEquals(derived: Buffer, expectedHex: string): boolean {
+  const expected = Buffer.from(expectedHex, 'hex');
+  return derived.length === expected.length && timingSafeEqual(derived, expected);
 }
 
 function dummyHashHex(): string {
