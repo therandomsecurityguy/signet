@@ -251,8 +251,10 @@ Admin-only and Okta-authenticated — API keys cannot manage API keys.
 
 Create body: `{ owner_label, scopes?: ["read"|"write"|"lifecycle"|<area>:write], ttl_days? }`.
 Default scope is `read`; default TTL is `API_KEY_DEFAULT_TTL_DAYS`. Secrets are
-stored only as `HMAC-SHA256(API_KEY_PEPPER, secret)` (keyed digest; the pepper is
-required in production); the plaintext token (`agk_<key_id>_<secret>`) is
+stored only as `scrypt` hashes with a random per-key salt and the
+`API_KEY_PEPPER` mixed into the salt material (the pepper is required in
+production); legacy pepper-salted hashes are verified and upgraded in place on
+their first successful use. The plaintext token (`agk_<key_id>_<secret>`) is
 returned once.
 
 **Write scopes** are fine-grained per area: `skills:write`, `agents:write`,

@@ -39,18 +39,27 @@ export class SqliteApiKeyStore implements ApiKeyStore {
 
     // Always perform a constant-time comparison (against a dummy when absent)
     // so timing does not reveal whether the key id exists.
-    const storedBuf = Buffer.from(row?.key_hash ?? dummyHashHex(), 'hex');
-    const candidateHashes = await secretHashCandidates(parsed.secret, this.options.pepper);
-    const matched = candidateHashes.some((hex) => {
-      const candidateBuf = Buffer.from(hex, 'hex');
-      return candidateBuf.length === storedBuf.length && timingSafeEqual(candidateBuf, storedBuf);
-    });
+    const storedHash = row?.key_hash ?? dummyHashHex();
+    const matched = await verifySecret(parsed.secret, this.options.pepper, storedHash);
 
     if (!row || !matched || row.revoked_at !== null) return null;
     if (row.expires_at && Date.parse(row.expires_at) <= Date.now()) return null;
 
     const now = new Date().toISOString();
-    await db.run('UPDATE api_keys SET last_used_at = ? WHERE key_id = ?', now, row.key_id).catch(() => undefined);
+    if (isLegacyHash(storedHash)) {
+      // Opportunistic migration: re-hash the verified secret with the per-key
+      // salt scheme so legacy rows upgrade on their first successful use.
+      await db
+        .run(
+          'UPDATE api_keys SET key_hash = ?, last_used_at = ? WHERE key_id = ?',
+          await hashSecret(parsed.secret, this.options.pepper),
+          now,
+          row.key_id,
+        )
+        .catch(() => undefined);
+    } else {
+      await db.run('UPDATE api_keys SET last_used_at = ? WHERE key_id = ?', now, row.key_id).catch(() => undefined);
+    }
 
     return toPrincipal(row, parsed.keyId);
   }
@@ -195,19 +204,43 @@ function parseApiKeyToken(token: string): { keyId: string; secret: string } | nu
 
 const scryptAsync = promisify(scrypt);
 
+const HASH_SCHEME = 'scrypt';
+const PER_KEY_SALT_BYTES = 16;
+
 async function hashSecret(secret: string, pepper: string | undefined): Promise<string> {
-  // Strong KDF (scrypt) so the stored value is not a fast SHA-based digest,
-  // computed asynchronously so auth load cannot block the event loop.
-  // The pepper (required in production) is the salt; the constant is a
-  // dev-only fallback.
-  const salt = pepper ?? 'signet-dev-pepper';
-  const derived = (await scryptAsync(secret, salt, 32)) as Buffer;
-  return derived.toString('hex');
+  // scrypt$<saltHex>$<hashHex> with a random per-key salt; the pepper
+  // (required in production) is mixed into the salt material so a database
+  // leak alone cannot verify guesses. Computed asynchronously so auth load
+  // cannot block the event loop.
+  const salt = randomBytes(PER_KEY_SALT_BYTES).toString('hex');
+  const derived = (await scryptAsync(secret, `${salt}:${pepper ?? 'signet-dev-pepper'}`, 32)) as Buffer;
+  return `${HASH_SCHEME}$${salt}$${derived.toString('hex')}`;
 }
 
-/** Hex hashes of a presented secret to compare against the stored hash. */
-async function secretHashCandidates(secret: string, pepper: string | undefined): Promise<string[]> {
-  return [await hashSecret(secret, pepper)];
+function isLegacyHash(stored: string): boolean {
+  return !stored.startsWith(`${HASH_SCHEME}$`);
+}
+
+async function verifySecret(
+  secret: string,
+  pepper: string | undefined,
+  stored: string,
+): Promise<boolean> {
+  const pepperMaterial = pepper ?? 'signet-dev-pepper';
+  if (isLegacyHash(stored)) {
+    // Legacy format: the pepper (or dev constant) was the salt.
+    const derived = (await scryptAsync(secret, pepperMaterial, 32)) as Buffer;
+    return timingSafeHexEquals(derived, stored);
+  }
+  const [, salt, expectedHex] = stored.split('$');
+  if (!salt || !expectedHex) return false;
+  const derived = (await scryptAsync(secret, `${salt}:${pepperMaterial}`, 32)) as Buffer;
+  return timingSafeHexEquals(derived, expectedHex);
+}
+
+function timingSafeHexEquals(derived: Buffer, expectedHex: string): boolean {
+  const expected = Buffer.from(expectedHex, 'hex');
+  return derived.length === expected.length && timingSafeEqual(derived, expected);
 }
 
 function dummyHashHex(): string {
