@@ -1,8 +1,12 @@
 import { createHash } from 'node:crypto';
 
+const ARTIFACT_SHA256_PATTERN = /^[0-9a-f]{64}$/;
+
 export function parseArtifactSha256(artifactUrn: string): string | undefined {
   const prefix = 'urn:sg:artifact:sha256:';
-  return artifactUrn.startsWith(prefix) ? artifactUrn.slice(prefix.length) : undefined;
+  if (!artifactUrn.startsWith(prefix)) return undefined;
+  const sha256 = artifactUrn.slice(prefix.length);
+  return ARTIFACT_SHA256_PATTERN.test(sha256) ? sha256 : undefined;
 }
 
 export function parseHarnessName(harnessUrnValue: string): string | undefined {

@@ -140,6 +140,14 @@ const app = new OpenAPIHono<AppEnv>({
   app.use('/v1/transparency-logs/*', writeAuth);
   app.use('/v1/time-aware', writeAuth);
   app.use('/v1/time-aware/*', writeAuth);
+  app.use('/v1/policy-packages', writeAuth);
+  app.use('/v1/policy-packages/*', writeAuth);
+  app.use('/v1/ontology-packages', writeAuth);
+  app.use('/v1/ontology-packages/*', writeAuth);
+  app.use('/v1/compile', writeAuth);
+  app.use('/v1/compile/*', writeAuth);
+  app.use('/v1/de-facto-terms', writeAuth);
+  app.use('/v1/de-facto-terms/*', writeAuth);
   app.use('/v1/session', sessionAuth);
   // API-key management: Okta admin only; API keys cannot manage API keys.
   app.use('/v1/api-keys', buildApiKeyPrincipalGuard({ audit: deps.audit }));

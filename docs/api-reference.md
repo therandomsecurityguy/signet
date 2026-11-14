@@ -257,13 +257,15 @@ returned once.
 
 **Write scopes** are fine-grained per area: `skills:write`, `agents:write`,
 `advisories:write`, `attestations:write`, `public-keys:write`,
-`transparency-logs:write`, `time-aware:write`. A write requires the scope for
+`transparency-logs:write`, `time-aware:write`, `ontologies:write`,
+`policies:write`. A write requires the scope for
 its area; the legacy coarse scopes `write`/`lifecycle` (and keys stored
 without any scopes) grant full write access. Reads are not scope-gated.
 
-Enforcement is controlled by `SCOPE_ENFORCEMENT`: `warn` (default) records a
-`scope_warning` auth event and allows the request so missed scopes are
-visible before rollout; `enforce` rejects with `403 INSUFFICIENT_SCOPE`.
+Enforcement is controlled by `SCOPE_ENFORCEMENT`: `enforce` (default) rejects
+writes from keys missing the required scope with `403 INSUFFICIENT_SCOPE`;
+`warn` records a `scope_warning` auth event and allows the request (compat
+mode for migration windows).
 
 ## Lifecycle states
 

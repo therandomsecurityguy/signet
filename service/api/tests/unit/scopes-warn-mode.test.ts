@@ -36,6 +36,7 @@ describe('scope mapping', () => {
     expect(requiredWriteScopeForPath('/v1/transparency-logs/reconcile')).toBe('transparency-logs:write');
     expect(requiredWriteScopeForPath('/v1/ontology-packages')).toBe('ontologies:write');
     expect(requiredWriteScopeForPath('/v1/de-facto-terms/otel/review')).toBe('ontologies:write');
+    expect(requiredWriteScopeForPath('/v1/policy-packages')).toBe('policies:write');
     expect(requiredWriteScopeForPath('/v1/compile/skill')).toBe('skills:write');
     expect(requiredWriteScopeForPath('/v1/openapi.json')).toBeNull();
     expect(requiredWriteScopeForPath('/v1/reviews/pending')).toBeNull();
@@ -50,9 +51,9 @@ describe('scope mapping', () => {
   });
 });
 
-describe('scope warn mode (default)', () => {
+describe('scope warn mode (opt-in)', () => {
   it('allows the write, records a scope_warning auth event, and leaves reads alone', async () => {
-    const { app, deps } = await buildTestApp();
+    const { app, deps } = await buildTestApp({ SCOPE_ENFORCEMENT: 'warn' });
     const { token } = await deps.apiKeys.create({ owner_label: 'narrow-key', scopes: ['skills:write'] });
 
     // Missing advisories:write -> passes the guard (warn) and then fails body

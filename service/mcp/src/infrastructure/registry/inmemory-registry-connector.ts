@@ -389,9 +389,13 @@ export class InMemoryRegistryConnector implements RegistryConnector {
   }
 }
 
+const ARTIFACT_SHA256_PATTERN = /^[0-9a-f]{64}$/;
+
 function parseArtifactSha256(artifactUrn: string): string | undefined {
   const prefix = 'urn:sg:artifact:sha256:';
-  return artifactUrn.startsWith(prefix) ? artifactUrn.slice(prefix.length) : undefined;
+  if (!artifactUrn.startsWith(prefix)) return undefined;
+  const sha256 = artifactUrn.slice(prefix.length);
+  return ARTIFACT_SHA256_PATTERN.test(sha256) ? sha256 : undefined;
 }
 
 function parseHarnessName(harnessUrn: string): string | undefined {

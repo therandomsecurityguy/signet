@@ -55,10 +55,10 @@ const EnvSchema = z.object({
   // comma-separated list of PEM file paths (roots/intermediates);
   // KEYLESS_ALLOWED_ISSUERS and KEYLESS_ALLOWED_SUBJECTS are comma-separated
   // exact values / regular expressions.
-  // API-key write-scope enforcement: `warn` records scope_warning auth
-  // events (and allows) so missed scopes can be observed before flipping to
-  // `enforce`, which rejects with 403 INSUFFICIENT_SCOPE.
-  SCOPE_ENFORCEMENT: z.enum(['warn', 'enforce']).default('warn'),
+  // API-key write-scope enforcement: `enforce` (default) rejects writes whose
+  // key lacks the required fine-grained scope with 403 INSUFFICIENT_SCOPE;
+  // `warn` records scope_warning auth events and allows (compat/migration mode).
+  SCOPE_ENFORCEMENT: z.enum(['warn', 'enforce']).default('enforce'),
   KEYLESS_TRUSTED_ROOTS: z.string().optional(),
   KEYLESS_ALLOWED_ISSUERS: z.string().optional(),
   KEYLESS_ALLOWED_SUBJECTS: z.string().optional(),

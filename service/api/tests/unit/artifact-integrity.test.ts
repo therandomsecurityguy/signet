@@ -91,3 +91,42 @@ describe('CAS digest verification on read', () => {
     });
   });
 });
+
+describe('CAS content-address validation', () => {
+  it('rejects non-sha256 keys before they can reach the filesystem', async () => {
+    const dir = await makeTempDir();
+    const store = new FsCasArtifactStore(dir);
+    const record = await store.put({ bytes: Buffer.from('target payload', 'utf8') });
+
+    const payloads = [
+      '../../../../etc/passwd',
+      '..',
+      '../'.repeat(4) + 'etc/passwd',
+      record.sha256.toUpperCase(),
+      record.sha256.slice(0, 63),
+      `${record.sha256}0`,
+      `urn:sg:artifact:sha256:${record.sha256}`,
+    ];
+    for (const payload of payloads) {
+      expect(await store.getBySha256(payload), payload).toBeNull();
+    }
+
+    // The intact object is still reachable, so the validation is not blanket.
+    expect((await store.getBySha256(record.sha256))?.digest_verified).toBe(true);
+  });
+
+  it('rejects traversal payloads through the registry core getArtifact paths', async () => {
+    const dir = await makeTempDir();
+    const core = buildRegistryCore({
+      graph_backend: 'memory',
+      artifact_backend: 'fs',
+      objects_dir: dir,
+    });
+
+    expect(await core.service.getArtifact({ sha256: '../../../../etc/passwd' })).toBeNull();
+    expect(
+      await core.service.getArtifact({ artifact_urn: 'urn:sg:artifact:sha256:../../../../etc/passwd' }),
+    ).toBeNull();
+    expect(await core.service.getArtifactBytes({ sha256: '../'.repeat(4) + 'etc/passwd' })).toBeNull();
+  });
+});
