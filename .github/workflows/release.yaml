@@ -45,23 +45,19 @@ jobs:
       tag_name: ${{ steps.release.outputs.tag_name }}
       version: ${{ steps.release.outputs.version }}
     steps:
-      # Mint an SDLC_BOT app token so the release commit + tag created by
-      # release-please can trigger downstream workflows (the default GITHUB_TOKEN
-      # cannot trigger other workflow runs).
-      - uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
-        id: app-token
-        with:
-          app-id: ${{ secrets.SDLC_BOT_ID }}
-          private-key: ${{ secrets.SDLC_BOT_PRIVATE_KEY }}
-          # Scope the token to only what release-please needs (contents + PRs),
-          # rather than inheriting the app's blanket installation permissions.
-          permission-contents: write
-          permission-pull-requests: write
-
+      # Uses the default GITHUB_TOKEN (job permissions grant contents+PR
+      # write; the repo setting "Allow GitHub Actions to create and approve
+      # pull requests" must be enabled for the release PR to be opened).
+      # Tradeoff: PRs, tags, and releases created with GITHUB_TOKEN do not
+      # trigger other workflow runs (GitHub suppression), so release PRs do
+      # not auto-run CI checks. Publishing is unaffected: the publish job
+      # chains off this job's outputs in the same run rather than off a
+      # tag-push event. If release-PR checks are wanted later, mint a
+      # GitHub App token here instead.
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
         with:
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
 
