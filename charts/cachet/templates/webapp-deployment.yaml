@@ -1,0 +1,97 @@
+{{- if .Values.webapp.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cachet.fullname" . }}-webapp
+  labels:
+    {{- include "cachet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webapp
+spec:
+  replicas: {{ .Values.webapp.replicas | default .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cachet.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: webapp
+  template:
+    metadata:
+      labels:
+        {{- include "cachet.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: webapp
+      {{- if .Values.metrics.prometheusScrape }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.webapp.port }}"
+      {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      containers:
+        - name: webapp
+          image: {{ include "cachet.image" (dict "repository" .Values.webapp.image.repository "tag" .Values.webapp.image.tag "digest" .Values.webapp.image.digest "registry" .Values.image.registry "Chart" .Chart) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.webapp.port }}
+          env:
+            - name: PORT
+              value: {{ .Values.webapp.port | quote }}
+            - name: NODE_ENV
+              value: production
+            - name: API_ORIGIN
+              value: http://{{ include "cachet.fullname" . }}-api:{{ .Values.api.port }}
+            - name: FUSEKI_URL
+              value: http://{{ include "cachet.fullname" . }}-fuseki:3030
+            - name: API_DOCS_URL
+              value: {{ .Values.webapp.apiDocsUrl | default (printf "https://cachet-api.tunnel.together.ai/v1/docs") | quote }}
+            - name: MCP_URL
+              value: {{ .Values.webapp.mcpUrl | default (printf "https://cachet-mcp.tunnel.together.ai/mcp") | quote }}
+            {{- if .Values.webapp.vocbenchUiUrl }}
+            - name: VOCBENCH_UI_URL
+              value: {{ .Values.webapp.vocbenchUiUrl | quote }}
+            {{- end }}
+            {{- if .Values.webapp.semanticTurkey.baseUrl }}
+            - name: SEMANTIC_TURKEY_BASE_URL
+              value: {{ .Values.webapp.semanticTurkey.baseUrl | quote }}
+            {{- end }}
+            {{- if .Values.webapp.semanticTurkey.email }}
+            - name: SEMANTIC_TURKEY_EMAIL
+              value: {{ .Values.webapp.semanticTurkey.email | quote }}
+            {{- end }}
+            - name: AUTH_MODE
+              value: {{ .Values.auth.mode | quote }}
+            - name: OKTA_MODE
+              value: {{ .Values.auth.oktaMode | quote }}
+            - name: OKTA_ISSUER
+              value: {{ .Values.auth.oktaIssuer | quote }}
+            - name: OKTA_CLIENT_ID
+              value: {{ .Values.auth.oktaClientId | quote }}
+            - name: OKTA_REDIRECT_URI
+              value: {{ .Values.auth.oktaRedirectUri | quote }}
+            - name: OKTA_SCOPES
+              value: {{ .Values.auth.oktaScopes | quote }}
+            - name: OKTA_ADMIN_GROUPS
+              value: {{ .Values.auth.oktaAdminGroups | quote }}
+            - name: OKTA_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: okta-client-secret
+            {{- range $k, $v := .Values.webapp.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+{{- end }}

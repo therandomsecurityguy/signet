@@ -1,0 +1,7 @@
+name: AGENT_VERSION-VALIDATED-BY-ARTIFACT
+doc: Agent publication snapshot points to the validation-report artifact produced by the publish gate.
+from: AGENT_VERSION
+to: ARTIFACT
+predicate: "tg:validatedBy"
+inverse: "ARTIFACT-VALIDATES-AGENT_VERSION"
+cardinality: "N:1"

@@ -1,0 +1,660 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "cachet chart values",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "image"
+  ],
+  "properties": {
+    "env": {
+      "type": "string",
+      "description": "Environment name (dev/staging/prod). Drives the default Secrets Manager prefix cachet-<env>/runtime.",
+      "enum": [
+        "",
+        "dev",
+        "staging",
+        "prod"
+      ]
+    },
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "registry": {
+          "type": "string"
+        },
+        "pullPolicy": {
+          "type": "string"
+        }
+      }
+    },
+    "api": {
+      "$ref": "#/$defs/component"
+    },
+    "mcp": {
+      "$ref": "#/$defs/component"
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sslRootCert": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "keyless": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "allowedIssuers": {
+          "type": "string"
+        },
+        "allowedSubjects": {
+          "type": "string"
+        },
+        "rekorLogId": {
+          "type": "string",
+          "pattern": "^$|^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "webapp": {
+      "$ref": "#/$defs/component"
+    },
+    "tesseraSidecar": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowUnauthenticated": {
+          "type": "boolean",
+          "description": "Local-development only: allow /v1/* without a bearer token. Never enable in deployed environments."
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repository": {
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^$|^sha256:[a-f0-9]{64}$"
+            }
+          }
+        },
+        "logOrigin": {
+          "type": "string",
+          "description": "Signed-checkpoint note origin for the native companion log."
+        },
+        "logPrivateKeyFromSecret": {
+          "type": "boolean",
+          "description": "Inject TESSERA_LOG_PRIVATE_KEY from the release Secret. The signer identity must never differ across replicas or deployments."
+        },
+        "logPublicKeyPem": {
+          "type": "string",
+          "description": "PEM content of the native log checkpoint public key; enables registry-side transparency reconciliation."
+        },
+        "port": {
+          "type": "integer"
+        },
+        "replicas": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Replica override; keep at 1 \u2014 the native log is single-writer."
+        }
+      }
+    },
+    "fuseki": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repository": {
+              "type": "string"
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^$|^sha256:[a-f0-9]{64}$"
+            },
+            "tag": {
+              "type": "string"
+            }
+          }
+        },
+        "port": {
+          "type": "integer"
+        },
+        "jvmArgs": {
+          "type": "string",
+          "description": "JVM heap args for Fuseki (e.g. -Xmx768m)."
+        },
+        "datasetName": {
+          "type": "string",
+          "description": "Fuseki dataset name (api/mcp use /<name>/sparql and /<name>/update)."
+        },
+        "resources": {
+          "$ref": "#/properties/resources"
+        },
+        "persistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "size": {
+              "type": "string"
+            },
+            "storageClass": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "api_key",
+            "okta",
+            "dual"
+          ]
+        },
+        "oktaMode": {
+          "enum": [
+            "mock",
+            "real"
+          ]
+        },
+        "oktaIssuer": {
+          "type": "string"
+        },
+        "oktaAudience": {
+          "type": "string"
+        },
+        "oktaClientId": {
+          "type": "string"
+        },
+        "oktaRedirectUri": {
+          "type": "string"
+        },
+        "oktaScopes": {
+          "type": "string"
+        },
+        "oktaAdminGroups": {
+          "type": "string"
+        },
+        "corsAllowedOrigins": {
+          "type": "string"
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "backend": {
+          "enum": [
+            "fs",
+            "s3"
+          ]
+        },
+        "integrityMode": {
+          "enum": [
+            "warn",
+            "enforce"
+          ]
+        },
+        "s3": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "bucket": {
+              "type": "string"
+            },
+            "prefix": {
+              "type": "string"
+            },
+            "region": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "secrets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "oktaClientSecret": {
+          "type": "string"
+        },
+        "databaseUrl": {
+          "type": "string"
+        },
+        "fusekiAdminPassword": {
+          "type": "string"
+        },
+        "apiKeyPepper": {
+          "type": "string",
+          "description": "HMAC pepper for self-serve API-key hashing; required in production."
+        },
+        "redisUrl": {
+          "type": "string"
+        },
+        "tesseraLogPrivateKey": {
+          "type": "string",
+          "description": "Transparency-log signer key. Byte-identical across the migration cutover; prefer ESO."
+        },
+        "external": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "createSecretStore": {
+              "type": "boolean",
+              "description": "Render a namespace-scoped SecretStore with IRSA JWT auth (no platform-provisioned store)."
+            },
+            "secretStoreName": {
+              "type": "string"
+            },
+            "secretStoreRef": {
+              "type": "string"
+            },
+            "serviceAccountName": {
+              "type": "string"
+            },
+            "region": {
+              "type": "string",
+              "description": "AWS region for the Secrets Manager endpoint. Empty falls back to artifacts.s3.region."
+            },
+            "prefix": {
+              "type": "string"
+            },
+            "refreshInterval": {
+              "type": "string"
+            }
+          }
+        },
+        "tesseraSidecarAuthToken": {
+          "type": "string",
+          "description": "Shared bearer token for registry <-> tessera-sidecar calls; empty disables sidecar auth (local dev only). Prefer ESO."
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "roleArn": {
+          "type": "string"
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prometheusScrape": {
+          "type": "boolean"
+        },
+        "prometheusRule": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "availabilityTarget": {
+              "type": "number"
+            },
+            "latencyP99Seconds": {
+              "type": "number"
+            }
+          }
+        },
+        "serviceMonitor": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "path": {
+              "type": "string"
+            },
+            "interval": {
+              "type": "string"
+            },
+            "scrapeTimeout": {
+              "type": "string"
+            },
+            "labels": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "cpu": {
+              "type": "string"
+            },
+            "memory": {
+              "type": "string"
+            }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "cpu": {
+              "type": "string"
+            },
+            "memory": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "terminationGracePeriodSeconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "podDisruptionBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "minAvailable": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "autoscaling": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "minReplicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxReplicas": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "targetCPUUtilizationPercentage": {
+          "type": "integer"
+        }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "className": {
+          "type": "string"
+        },
+        "host": {
+          "type": "string"
+        },
+        "tls": {
+          "type": "boolean"
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        }
+      }
+    },
+    "networkPolicies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "egressCidrs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "cidr",
+              "ports"
+            ],
+            "properties": {
+              "cidr": {
+                "type": "string"
+              },
+              "except": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "ports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "protocol",
+                    "port"
+                  ],
+                  "properties": {
+                    "protocol": {
+                      "enum": [
+                        "TCP",
+                        "UDP",
+                        "SCTP"
+                      ]
+                    },
+                    "port": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "dns": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "namespaceSelector": {
+              "type": "object"
+            },
+            "podSelector": {
+              "type": "object"
+            }
+          }
+        },
+        "metricsNamespace": {
+          "type": "string",
+          "description": "Namespace label value of the platform Prometheus for sidecar scrape ingress when network policies are enabled."
+        }
+      }
+    },
+    "sidecarWatchdog": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "schedule": {
+          "type": "string"
+        }
+      }
+    },
+    "fusekiBackup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "schedule": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "apiDocsUrl": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
+          }
+        },
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repository": {
+              "type": "string"
+            },
+            "tag": {
+              "type": "string"
+            },
+            "digest": {
+              "type": "string",
+              "pattern": "^$|^sha256:[a-f0-9]{64}$"
+            }
+          }
+        },
+        "mcpUrl": {
+          "type": "string"
+        },
+        "port": {
+          "type": "integer"
+        },
+        "readGates": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "denyRevoked": {
+              "type": "boolean"
+            },
+            "requireVerified": {
+              "type": "boolean"
+            }
+          }
+        },
+        "replicas": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Replica override for this component; falls back to replicaCount when unset."
+        },
+        "semanticTurkey": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "baseUrl": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string"
+            }
+          }
+        },
+        "vocbenchUiUrl": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+aws_region         = "us-west-2"
+environment        = "dev"
+bucket_name        = "replace-with-unique-bucket-name"
+cluster_identifier = "agents-registry-tessera-dev"
+vpc_id             = "vpc-0123456789abcdef0"
+subnet_ids = [
+  "subnet-0123456789abcdef0",
+  "subnet-0123456789abcdef1",
+]
+
+# Prefer security-group allow lists over CIDRs when possible.
+allowed_security_group_ids = []
+allowed_cidr_blocks        = ["10.0.0.0/16"]
+
+database_name           = "tessera"
+master_username         = "tessera"
+engine_version          = "8.0.mysql_aurora.3.08.0"
+serverless_min_capacity = 0.5
+serverless_max_capacity = 4
+instance_count          = 1
+backup_retention_period = 7
+deletion_protection     = false
+skip_final_snapshot     = true
+
+registry_artifact_prefix = "registry/artifacts/dev"
+tessera_tiles_prefix     = "tessera/tiles/dev"
+tessera_requests_prefix  = "tessera/requests/dev"
+ssm_parameter_prefix     = "/agents-registry/dev"

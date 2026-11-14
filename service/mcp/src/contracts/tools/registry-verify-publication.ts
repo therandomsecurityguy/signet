@@ -1,0 +1,120 @@
+import { z } from 'zod';
+
+export const RegistryVerifyPublicationInputSchema = z.object({
+  version_urn: z.string().min(1),
+});
+
+export const RegistryVerifyPublicationOutputSchema = z.object({
+  publication_urn: z.string(),
+  logical_urn: z.string(),
+  entity_type: z.enum(['SKILL_VERSION', 'AGENT_VERSION']),
+  canonical_json_sha256: z.string(),
+  canonicalization_algorithm: z.enum(['jcs-rfc8785', 'json-key-sort-v1']),
+  publication_envelope_artifact_urn: z.string().optional(),
+  publication_envelope_sha256: z.string().optional(),
+  canonical_json_sha256_matches: z.boolean(),
+  canonical_rdf_sha256_matches: z.boolean().nullable(),
+  publication_envelope_artifact_present: z.boolean(),
+  publication_envelope_artifact_sha256_matches: z.boolean().nullable(),
+  live_envelope_matches_frozen_artifact: z.boolean().nullable(),
+  all_detached_signatures_match_envelope: z.boolean(),
+  all_detached_signatures_resolve_trusted_key: z.boolean(),
+  all_detached_signatures_verify_cryptographically: z.boolean(),
+  all_detached_signatures_verified: z.boolean(),
+  all_detached_signatures_have_inclusion_proof: z.boolean(),
+  all_detached_signatures_validate_transparency_proof: z.boolean(),
+  signature_checks: z.array(
+    z.object({
+      artifact_urn: z.string(),
+      key_ref: z.string(),
+      signature_algorithm: z.string(),
+      signed_payload: z.enum(['canonical_json', 'canonical_rdf']),
+      signature_kind: z.enum(['trusted_key', 'keyless']),
+      envelope_sha256_matches: z.boolean(),
+      trusted_public_key_resolved: z.boolean(),
+      trusted_public_key_urn: z.string().optional(),
+      cryptographic_verification_passed: z.boolean(),
+      keyless: z
+        .object({
+          identity: z.string().optional(),
+          issuer: z.string().optional(),
+          verified: z.boolean(),
+          failure_kind: z.string().optional(),
+          error: z.string().optional(),
+          validity_evaluated_at: z.string().optional(),
+          tlog: z
+            .object({
+              present: z.boolean(),
+              verified: z.boolean(),
+              body_bound: z.boolean(),
+              integrated_time_verified: z.boolean(),
+              log_index: z.number().optional(),
+              integrated_time: z.string().optional(),
+              failure_kind: z.string().optional(),
+              error: z.string().optional(),
+            })
+            .optional(),
+        })
+        .optional(),
+      transparency_log_ref: z.string().optional(),
+      inclusion_proof_ref: z.string().optional(),
+      inclusion_proof_present: z.boolean(),
+      checkpoint_key_resolved: z.boolean(),
+      checkpoint_signature_valid: z.boolean(),
+      transparency_proof_resolved: z.boolean(),
+      transparency_proof_validated: z.boolean(),
+      transparency_verification_status: z.enum(['verified', 'missing', 'reference_only', 'mismatch', 'invalid']),
+      verification_status: z.enum([
+        'verified',
+        'signature_mismatch',
+        'missing_trusted_key',
+        'cryptographic_failure',
+        'untrusted_certificate',
+        'expired_certificate',
+        'identity_policy_failed',
+        'keyless_not_configured',
+        'tlog_inclusion_promise_failed',
+        'tlog_not_configured',
+      ]),
+    }),
+  ),
+  append_intent_verification_status: z.enum([
+    'not_configured',
+    'staged_only',
+    'submission_failed',
+    'partial',
+    'committed',
+  ]),
+  transparency_verification_status: z.enum(['verified', 'missing', 'reference_only', 'mismatch', 'invalid']),
+  attestations: z.array(
+    z.object({
+      artifact_urn: z.string(),
+      sha256: z.string(),
+      signer: z.string(),
+      key_ref: z.string(),
+      algorithm: z.string(),
+      predicate_type: z.string(),
+      signature_valid: z.boolean(),
+      subject_bound: z.boolean(),
+      subject_digests: z.array(z.string()),
+      attached_at: z.string(),
+    }),
+  ),
+  all_attestation_signatures_valid: z.boolean(),
+  verification_status: z.enum([
+    'verified',
+    'digest_mismatch',
+    'signature_mismatch',
+    'missing_trusted_key',
+    'cryptographic_failure',
+    'untrusted_certificate',
+    'expired_certificate',
+    'identity_policy_failed',
+    'keyless_not_configured',
+    'tlog_inclusion_promise_failed',
+    'tlog_not_configured',
+  ]),
+});
+
+export type RegistryVerifyPublicationInput = z.infer<typeof RegistryVerifyPublicationInputSchema>;
+export type RegistryVerifyPublicationOutput = z.infer<typeof RegistryVerifyPublicationOutputSchema>;

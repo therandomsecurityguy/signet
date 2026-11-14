@@ -1,0 +1,1 @@
+How to connect harnesses via mcp usage - skills .md for agents to use and install it, also to use it going onwards - ala self-assembly agent for the MCP in each tool.

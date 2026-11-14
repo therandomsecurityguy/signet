@@ -1,0 +1,7 @@
+name: RETENTION_ROOT-KEEPS-COMMIT
+doc: A retention root keeps a commit reachable and therefore protected from cleanup.
+from: RETENTION_ROOT
+to: COMMIT
+predicate: "tg:keepsCommit"
+inverse: "COMMIT-KEPT-BY-RETENTION_ROOT"
+cardinality: "M:N"

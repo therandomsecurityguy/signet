@@ -1,0 +1,9 @@
+name: REF
+doc: A mutable operational pointer to a commit.
+urn_template: "urn:tg:ref:{ref_name}"
+key_fields:
+  - ref_name
+aspects:
+  - RefProperties
+  - Ownership
+  - Tags

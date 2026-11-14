@@ -1,0 +1,8 @@
+name: SKILL-IMPLEMENTED-BY-ARTIFACT
+doc: Skill implementation content is stored as a content-addressed artifact.
+from: SKILL
+to: ARTIFACT
+predicate: "tg:implementedBy"
+inverse: "ARTIFACT-IMPLEMENTS-SKILL"
+cardinality: "M:1"
+

@@ -1,0 +1,218 @@
+name: agents-registry-local
+
+services:
+  mcp:
+    build:
+      context: ..
+      dockerfile: service/mcp/infra/Dockerfile
+    image: agents-registry/mcp:dev
+    container_name: agents-registry-mcp
+    working_dir: /workspace/service/mcp
+    command:
+      - sh
+      - -lc
+      - |
+        if [ ! -f package-lock.json ]; then
+          npm install
+        elif [ ! -d node_modules ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
+          npm ci
+        fi
+        npm run dev
+    env_file:
+      - ../service/mcp/infra/.env
+    ports:
+      - "${MCP_PORT:-3000}:3000"
+    volumes:
+      - ../service/mcp:/workspace/service/mcp
+      - ../service/registry:/workspace/service/registry
+      - ../data:/workspace/data
+      - mcp_node_modules:/workspace/service/mcp/node_modules
+    networks:
+      - agents_registry_net
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: service/api/infra/Dockerfile
+    image: agents-registry/api:dev
+    container_name: agents-registry-api
+    working_dir: /workspace/service/api
+    command:
+      - sh
+      - -lc
+      - |
+        if [ ! -f package-lock.json ]; then
+          npm install
+        elif [ ! -d node_modules ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
+          npm ci
+        fi
+        npm run dev
+    env_file:
+      - ../service/api/infra/.env
+    ports:
+      - "${API_PORT:-3100}:3100"
+    volumes:
+      - ../service/api:/workspace/service/api
+      - ../service/registry:/workspace/service/registry
+      - ../data:/workspace/data
+      - api_node_modules:/workspace/service/api/node_modules
+    networks:
+      - agents_registry_net
+    restart: unless-stopped
+
+  webapp:
+    build:
+      context: ..
+      dockerfile: service/webapp/knowledge-manager/infra/Dockerfile
+    image: agents-registry/webapp-knowledge-manager:dev
+    container_name: agents-registry-webapp
+    working_dir: /workspace/service/webapp/knowledge-manager
+    command:
+      - sh
+      - -lc
+      - |
+        if [ ! -f package-lock.json ]; then
+          npm install
+        elif [ ! -d node_modules ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
+          npm ci
+        fi
+        npm run dev
+    env_file:
+      - ../service/webapp/knowledge-manager/infra/.env
+    depends_on:
+      - api
+    ports:
+      - "${WEBAPP_PORT:-3200}:3200"
+    volumes:
+      - ../service/webapp/knowledge-manager:/workspace/service/webapp/knowledge-manager
+      - ../data:/workspace/data
+      - webapp_node_modules:/workspace/service/webapp/knowledge-manager/node_modules
+    networks:
+      - agents_registry_net
+    restart: unless-stopped
+
+  registry-graph:
+    image: stain/jena-fuseki:latest
+    container_name: agents-registry-registry-graph
+    env_file:
+      - ../service/registry/infra/fuseki.env
+    ports:
+      - "${FUSEKI_PORT:-3030}:3030"
+    volumes:
+      - registry_fuseki_data:/fuseki
+    networks:
+      - agents_registry_net
+    restart: unless-stopped
+
+  registry:
+    build:
+      context: ..
+      dockerfile: service/registry/infra/Dockerfile
+    image: agents-registry/registry:dev
+    container_name: agents-registry-registry
+    working_dir: /workspace/service/registry
+    env_file:
+      - ../service/registry/infra/.env
+    volumes:
+      - ../service/registry:/workspace/service/registry
+      - ../service/mcp:/workspace/service/mcp
+      - ../data:/workspace/data
+    networks:
+      - agents_registry_net
+    restart: unless-stopped
+
+  tessera-sidecar:
+    build:
+      context: ..
+      dockerfile: service/tessera-sidecar/infra/Dockerfile
+    image: agents-registry/tessera-sidecar:dev
+    container_name: agents-registry-tessera-sidecar
+    profiles:
+      - tessera
+    working_dir: /workspace/service/tessera-sidecar
+    command:
+      - sh
+      - -lc
+      - |
+        if [ ! -f package-lock.json ]; then
+          npm install
+        elif [ ! -d node_modules ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
+          npm ci
+        fi
+        npm run dev
+    env_file:
+      - ../service/tessera-sidecar/infra/.env
+    ports:
+      - "${TESSERA_SIDECAR_PORT:-3400}:3400"
+    volumes:
+      - ../service/tessera-sidecar:/workspace/service/tessera-sidecar
+      - ../data:/workspace/data
+    networks:
+      - agents_registry_net
+    depends_on:
+      - tessera-runtime
+    restart: unless-stopped
+
+  tessera-db:
+    image: mysql:8.4
+    container_name: agents-registry-tessera-db
+    profiles:
+      - tessera
+    environment:
+      MYSQL_DATABASE: tessera
+      MYSQL_USER: tessera
+      MYSQL_PASSWORD: tessera-dev-change-me
+      MYSQL_ROOT_PASSWORD: tessera-dev-change-me
+    ports:
+      - "${TESSERA_DB_PORT:-3307}:3306"
+    volumes:
+      - tessera_mysql_data:/var/lib/mysql
+    networks:
+      - agents_registry_net
+    restart: unless-stopped
+
+  tessera-runtime:
+    build:
+      context: ..
+      dockerfile: service/tessera-runtime/infra/Dockerfile
+    image: agents-registry/tessera-runtime:dev
+    container_name: agents-registry-tessera-runtime
+    profiles:
+      - tessera
+    env_file:
+      - ../service/tessera-runtime/infra/.env
+    ports:
+      - "${TESSERA_RUNTIME_PORT:-2024}:2024"
+    networks:
+      - agents_registry_net
+    depends_on:
+      - tessera-db
+    restart: unless-stopped
+
+  vocbench:
+    build:
+      context: ..
+      dockerfile: service/webapp/knowledge-manager/infra/vocbench.Dockerfile
+    image: agents-registry/vocbench:dev
+    container_name: agents-registry-vocbench
+    profiles:
+      - knowledge
+    ports:
+      - "${VOCBENCH_PORT:-1979}:1979"
+    volumes:
+      - ../tools/vocbench:/workspace/tools/vocbench
+    networks:
+      - agents_registry_net
+    restart: unless-stopped
+
+networks:
+  agents_registry_net:
+    driver: bridge
+
+volumes:
+  mcp_node_modules:
+  api_node_modules:
+  webapp_node_modules:
+  registry_fuseki_data:
+  tessera_mysql_data:

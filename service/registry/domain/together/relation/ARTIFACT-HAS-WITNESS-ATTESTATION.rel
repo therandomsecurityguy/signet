@@ -1,0 +1,7 @@
+name: ARTIFACT-HAS-WITNESS-ATTESTATION
+doc: Checkpoint artifact points to witness attestation artifacts that counter-sign the checkpoint.
+from: ARTIFACT
+to: ARTIFACT
+predicate: "tg:hasWitnessAttestation"
+inverse: "ARTIFACT-IS-WITNESS-ATTESTATION-FOR"
+cardinality: "N:N"

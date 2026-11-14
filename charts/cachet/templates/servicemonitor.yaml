@@ -1,0 +1,32 @@
+{{- if .Values.metrics.serviceMonitor.enabled }}
+{{- range $component := list "api" "mcp" "webapp" "tessera-sidecar" }}
+{{- $enabled := true }}
+{{- if eq $component "api" }}{{ $enabled = $.Values.api.enabled }}{{ end }}
+{{- if eq $component "mcp" }}{{ $enabled = $.Values.mcp.enabled }}{{ end }}
+{{- if eq $component "webapp" }}{{ $enabled = $.Values.webapp.enabled }}{{ end }}
+{{- if eq $component "tessera-sidecar" }}{{ $enabled = $.Values.tesseraSidecar.enabled }}{{ end }}
+{{- if $enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "cachet.fullname" $ }}-{{ $component }}
+  labels:
+    {{- include "cachet.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+    {{- with $.Values.metrics.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "cachet.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $component }}
+  endpoints:
+    - port: http
+      path: {{ $.Values.metrics.serviceMonitor.path }}
+      interval: {{ $.Values.metrics.serviceMonitor.interval }}
+      scrapeTimeout: {{ $.Values.metrics.serviceMonitor.scrapeTimeout }}
+---
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,2 @@
+Our entities for the graph.
+I think we should rename the files that are .md in this same folder to .ent and .dim (.ent is latest view as normal er dbms, .dim is dimensions ala SCD2 so we know changes over time of it, we can get latest, and has aggregations and hydrations as needed)

@@ -1,0 +1,7 @@
+name: ARTIFACT-HAS-CONSISTENCY-PROOF
+doc: Checkpoint artifact points to a consistency-proof artifact proving append-only growth from a previous checkpoint.
+from: ARTIFACT
+to: ARTIFACT
+predicate: "tg:hasConsistencyProof"
+inverse: "ARTIFACT-IS-CONSISTENCY-PROOF-FOR"
+cardinality: "N:N"

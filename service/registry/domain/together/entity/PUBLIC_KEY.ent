@@ -1,0 +1,23 @@
+name: PUBLIC_KEY
+doc: Trusted public key record used to verify detached publication signatures.
+fields:
+  - name: key_ref
+    type: string
+  - name: algorithm
+    type: string
+  - name: trust_status
+    type: string
+  - name: owner
+    type: string
+    optional: true
+  - name: trust_scope
+    type: string
+    optional: true
+  - name: created_at
+    type: string
+  - name: transparency_log_ref
+    type: string
+    optional: true
+  - name: inclusion_proof_ref
+    type: string
+    optional: true

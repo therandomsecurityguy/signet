@@ -1,0 +1,75 @@
+{{- if .Values.fuseki.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "cachet.fullname" . }}-fuseki
+  labels:
+    {{- include "cachet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: fuseki
+spec:
+  serviceName: {{ include "cachet.fullname" . }}-fuseki
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "cachet.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: fuseki
+  template:
+    metadata:
+      labels:
+        {{- include "cachet.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: fuseki
+    spec:
+      # The image's entrypoint copies shiro.ini into the data volume; run as
+      # root so the copy into the PVC succeeds (fsGroup alone was insufficient
+      # for the fuseki user). See chart release notes.
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      containers:
+        - name: fuseki
+          image: {{ if .Values.fuseki.image.digest }}{{ .Values.fuseki.image.repository }}@{{ .Values.fuseki.image.digest }}{{ else }}{{ .Values.fuseki.image.repository }}:{{ .Values.fuseki.image.tag }}{{ end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.fuseki.port }}
+          env:
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: fuseki-admin-password
+            # The entrypoint creates this dataset (TDB) on startup; the api/mcp
+            # services query /<name>/sparql and /<name>/update.
+            - name: FUSEKI_DATASET_1
+              value: {{ .Values.fuseki.datasetName | quote }}
+            - name: TDB
+              value: "2"
+            {{- if .Values.fuseki.jvmArgs }}
+            - name: JVM_ARGS
+              value: {{ .Values.fuseki.jvmArgs | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml (.Values.fuseki.resources | default .Values.resources) | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /$/ping
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /$/ping
+              port: http
+          volumeMounts:
+            - name: data
+              mountPath: /fuseki
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.fuseki.persistence.storageClass }}
+        storageClassName: {{ .Values.fuseki.persistence.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.fuseki.persistence.size }}
+{{- end }}

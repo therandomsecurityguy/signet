@@ -1,0 +1,8 @@
+name: ARTIFACT
+doc: A content-addressed blob (sha256) storing the bytes of an agent/skill file.
+urn_template: "urn:tg:artifact:sha256:{sha256}"
+key_fields:
+  - sha256
+aspects:
+  - ArtifactProperties
+

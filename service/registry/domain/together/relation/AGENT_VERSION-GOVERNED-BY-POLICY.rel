@@ -1,0 +1,7 @@
+name: AGENT_VERSION-GOVERNED-BY-POLICY
+doc: Agent publication snapshot points to the policy-package artifact that governed its publication.
+from: AGENT_VERSION
+to: ARTIFACT
+predicate: "tg:governedByPolicy"
+inverse: "ARTIFACT-GOVERNS-AGENT_VERSION"
+cardinality: "N:1"

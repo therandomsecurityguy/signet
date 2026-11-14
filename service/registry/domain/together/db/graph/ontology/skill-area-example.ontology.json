@@ -1,0 +1,22 @@
+{
+  "kind": "skill_area",
+  "concepts": [
+    { "id": "data-processing", "label": "Data Processing" },
+    { "id": "data-read", "label": "Data Read", "parents": ["data-processing"] },
+    { "id": "data-write", "label": "Data Write", "parents": ["data-processing"] },
+    { "id": "pii-handling", "label": "PII Handling", "parents": ["data-processing"] },
+    { "id": "public-data", "label": "Public Data Only", "parents": ["data-processing"] },
+    { "id": "content-pipeline", "label": "Content Pipeline" },
+    { "id": "markdown-authoring", "label": "Markdown Authoring", "parents": ["content-pipeline"] },
+    { "id": "analytics", "label": "Analytics" },
+    { "id": "reporting", "label": "Reporting", "parents": ["analytics"] },
+    { "id": "platform-operations", "label": "Platform Operations" },
+    { "id": "registry-administration", "label": "Registry Administration", "parents": ["platform-operations"] },
+    { "id": "autonomous-action", "label": "Autonomous Action", "parents": ["platform-operations"] },
+    { "id": "human-supervised", "label": "Human Supervised", "parents": ["platform-operations"] }
+  ],
+  "disjoint": [
+    ["pii-handling", "public-data"],
+    ["autonomous-action", "human-supervised"]
+  ]
+}

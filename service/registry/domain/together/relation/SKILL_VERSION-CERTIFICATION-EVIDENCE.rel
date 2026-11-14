@@ -1,0 +1,7 @@
+name: SKILL_VERSION-CERTIFICATION-EVIDENCE
+doc: Skill publication snapshot points to the certification-evidence artifact created during certification.
+from: SKILL_VERSION
+to: ARTIFACT
+predicate: "tg:certificationEvidence"
+inverse: "ARTIFACT-CERTIFIES-SKILL_VERSION"
+cardinality: "N:1"

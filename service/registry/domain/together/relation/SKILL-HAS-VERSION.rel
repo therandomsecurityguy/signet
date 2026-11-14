@@ -1,0 +1,7 @@
+name: SKILL-HAS-VERSION
+doc: Logical skill points to one of its managed versions.
+from: SKILL
+to: SKILL_VERSION
+predicate: "tg:hasVersion"
+inverse: "SKILL_VERSION-VERSION-OF-SKILL"
+cardinality: "1:N"

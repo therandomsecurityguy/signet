@@ -1,0 +1,31 @@
+{
+  "kind": "registry_shape",
+  "concepts": [
+    { "id": "logical-identity", "label": "Logical Identity" },
+    { "id": "agent", "label": "Agent", "parents": ["logical-identity"] },
+    { "id": "skill", "label": "Skill", "parents": ["logical-identity"] },
+    { "id": "publication-snapshot", "label": "Publication Snapshot" },
+    { "id": "agent-version", "label": "Agent Version", "parents": ["publication-snapshot"] },
+    { "id": "skill-version", "label": "Skill Version", "parents": ["publication-snapshot"] },
+    { "id": "lifecycle-state", "label": "Lifecycle State" },
+    { "id": "draft", "label": "Draft", "parents": ["lifecycle-state"] },
+    { "id": "validated", "label": "Validated", "parents": ["lifecycle-state"] },
+    { "id": "rejected", "label": "Rejected", "parents": ["lifecycle-state"] },
+    { "id": "published", "label": "Published", "parents": ["lifecycle-state"] },
+    { "id": "certified", "label": "Certified", "parents": ["lifecycle-state"] },
+    { "id": "deprecated", "label": "Deprecated", "parents": ["lifecycle-state"] },
+    { "id": "revoked", "label": "Revoked", "parents": ["lifecycle-state"] },
+    { "id": "archived", "label": "Archived", "parents": ["lifecycle-state"] },
+    { "id": "evidence", "label": "Evidence" },
+    { "id": "policy-package", "label": "Policy Package", "parents": ["evidence"] },
+    { "id": "ontology-package", "label": "Ontology Package", "parents": ["evidence"] },
+    { "id": "validation-report", "label": "Validation Report", "parents": ["evidence"] },
+    { "id": "certification-evidence", "label": "Certification Evidence", "parents": ["evidence"] },
+    { "id": "detached-signature", "label": "Detached Signature", "parents": ["evidence"] }
+  ],
+  "disjoint": [
+    ["draft", "published"],
+    ["validated", "rejected"],
+    ["certified", "revoked"]
+  ]
+}

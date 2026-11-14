@@ -1,0 +1,8 @@
+name: AGENT-RUNS-ON-HARNESS
+doc: Agent is intended to run under a given harness/runtime environment.
+from: AGENT
+to: HARNESS
+predicate: "tg:runsOn"
+inverse: "HARNESS-RUNS-AGENT"
+cardinality: "M:N"
+

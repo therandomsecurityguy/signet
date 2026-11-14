@@ -1,0 +1,7 @@
+name: AGENT_VERSION-RUNS-ON-HARNESS
+doc: Agent publication snapshot runs on a specific harness.
+from: AGENT_VERSION
+to: HARNESS
+predicate: "tg:runsOn"
+inverse: "HARNESS-RUNS-AGENT_VERSION"
+cardinality: "N:1"

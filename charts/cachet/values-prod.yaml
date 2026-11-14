@@ -1,0 +1,75 @@
+# Per-env overrides for the Cachet chart (prod, served at the zone apex).
+# Non-secret values are set here; secrets live in the cachet-owned Secrets
+# Manager prefix and are injected by ESO via IRSA; never committed.
+
+image:
+  registry: <account>.dkr.ecr.us-west-2.amazonaws.com
+
+api:
+  image:
+    repository: cachet/api
+
+mcp:
+  image:
+    repository: cachet/mcp
+
+webapp:
+  image:
+    repository: cachet/webapp
+
+tesseraSidecar:
+  image:
+    repository: cachet/tessera-sidecar
+
+auth:
+  mode: okta
+  oktaMode: real
+  oktaIssuer: <okta-issuer>
+  oktaAudience: https://cachet.internal.together.ai
+  oktaClientId: <okta-client-id>
+  oktaRedirectUri: https://cachet.internal.together.ai/session/callback
+  oktaScopes: "openid profile email groups offline_access"
+  oktaAdminGroups: app_cachet_admin
+  corsAllowedOrigins: "https://cachet.security.internal.together.ai"
+
+artifacts:
+  backend: s3
+  s3:
+    bucket: <artifacts-bucket>
+    prefix: cachet/prod
+    region: us-west-2
+
+secrets:
+  create: false
+  name: cachet
+  external:
+    enabled: true
+    createSecretStore: true
+    prefix: cachet-prod/runtime
+
+serviceAccount:
+  roleArn: <irsa-role-arn>
+
+ingress:
+  enabled: true
+  className: alb
+  host: cachet.security.internal.together.ai
+  tls: true
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+
+networkPolicies:
+  enabled: true
+  # VPC CIDRs hosting RDS/ElastiCache/VPC endpoints; filled by tf-io-sec.
+  egressCidrs:
+    - cidr: <vpc-cidr>
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+
+metrics:
+  serviceMonitor:
+    enabled: true

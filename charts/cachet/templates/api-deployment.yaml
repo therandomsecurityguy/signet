@@ -1,0 +1,165 @@
+{{- if .Values.api.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cachet.fullname" . }}-api
+  labels:
+    {{- include "cachet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicas | default .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cachet.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "cachet.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+      {{- if .Values.metrics.prometheusScrape }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.api.port }}"
+      {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- if or .Values.database.sslRootCert.enabled .Values.keyless.enabled }}
+      volumes:
+        {{- if .Values.database.sslRootCert.enabled }}
+        - name: database-ssl
+          configMap:
+            name: {{ include "cachet.fullname" . }}-database-ssl
+        {{- end }}
+        {{- if .Values.keyless.enabled }}
+        - name: keyless-trust
+          configMap:
+            name: {{ include "cachet.fullname" . }}-keyless
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: api
+          image: {{ include "cachet.image" (dict "repository" .Values.api.image.repository "tag" .Values.api.image.tag "digest" .Values.api.image.digest "registry" .Values.image.registry "Chart" .Chart) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.port }}
+          env:
+            - name: PORT
+              value: {{ .Values.api.port | quote }}
+            - name: NODE_ENV
+              value: production
+            - name: AUTH_MODE
+              value: {{ .Values.auth.mode | quote }}
+            - name: OKTA_MODE
+              value: {{ .Values.auth.oktaMode | quote }}
+            - name: OKTA_ISSUER
+              value: {{ .Values.auth.oktaIssuer | quote }}
+            - name: OKTA_AUDIENCE
+              value: {{ .Values.auth.oktaAudience | quote }}
+            - name: OKTA_ADMIN_GROUPS
+              value: {{ .Values.auth.oktaAdminGroups | quote }}
+            - name: CORS_ALLOWED_ORIGINS
+              value: {{ .Values.auth.corsAllowedOrigins | quote }}
+            - name: REGISTRY_GRAPH_BACKEND
+              value: sparql
+            - name: REGISTRY_SPARQL_QUERY_URL
+              value: http://{{ include "cachet.fullname" . }}-fuseki:3030/{{ .Values.fuseki.datasetName }}/sparql
+            - name: REGISTRY_SPARQL_UPDATE_URL
+              value: http://{{ include "cachet.fullname" . }}-fuseki:3030/{{ .Values.fuseki.datasetName }}/update
+            - name: REGISTRY_SPARQL_USERNAME
+              value: admin
+            - name: REGISTRY_SPARQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: fuseki-admin-password
+            - name: REGISTRY_ARTIFACT_BACKEND
+              value: {{ .Values.artifacts.backend | quote }}
+            - name: REGISTRY_ARTIFACT_INTEGRITY_MODE
+              value: {{ .Values.artifacts.integrityMode | quote }}
+            - name: REGISTRY_S3_BUCKET
+              value: {{ .Values.artifacts.s3.bucket | quote }}
+            - name: REGISTRY_S3_PREFIX
+              value: {{ .Values.artifacts.s3.prefix | quote }}
+            - name: REGISTRY_S3_REGION
+              value: {{ .Values.artifacts.s3.region | quote }}
+            {{- if .Values.tesseraSidecar.logPublicKeyPem }}
+            - name: TESSERA_LOG_PUBLIC_KEY
+              value: {{ .Values.tesseraSidecar.logPublicKeyPem | quote }}
+            {{- end }}
+            # Shared bearer token presented to the tessera-sidecar; optional so
+            # environments without the key keep working (local dev only).
+            - name: TESSERA_SIDECAR_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: tessera-sidecar-auth-token
+                  optional: true
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: database-url
+            {{- if .Values.database.sslRootCert.enabled }}
+            - name: DATABASE_SSL_ROOT_CERT
+              value: /etc/cachet/database-ssl/us-west-2-bundle.pem
+            {{- end }}
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: redis-url
+            - name: API_KEY_PEPPER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: api-key-pepper
+                  optional: true
+            {{- if .Values.keyless.enabled }}
+            - name: KEYLESS_TRUSTED_ROOTS
+              value: /etc/cachet/keyless/fulcio-roots.pem
+            - name: KEYLESS_ALLOWED_ISSUERS
+              value: {{ .Values.keyless.allowedIssuers | quote }}
+            - name: KEYLESS_ALLOWED_SUBJECTS
+              value: {{ .Values.keyless.allowedSubjects | quote }}
+            {{- if .Values.keyless.rekorLogId }}
+            - name: KEYLESS_REKOR_PUBLIC_KEY
+              value: /etc/cachet/keyless/rekor-public-key.pem
+            - name: KEYLESS_REKOR_LOG_ID
+              value: {{ .Values.keyless.rekorLogId | quote }}
+            {{- end }}
+            {{- end }}
+            {{- range $k, $v := .Values.api.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          {{- if or .Values.database.sslRootCert.enabled .Values.keyless.enabled }}
+          volumeMounts:
+            {{- if .Values.database.sslRootCert.enabled }}
+            - name: database-ssl
+              mountPath: /etc/cachet/database-ssl
+              readOnly: true
+            {{- end }}
+            {{- if .Values.keyless.enabled }}
+            - name: keyless-trust
+              mountPath: /etc/cachet/keyless
+              readOnly: true
+            {{- end }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+{{- end }}

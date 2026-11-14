@@ -1,0 +1,7 @@
+name: TRANSPARENCY_LOG-TRUSTED-BY-WITNESS
+doc: Transparency log is trusted by one or more witness identities for multi-party log trust.
+from: TRANSPARENCY_LOG
+to: TRANSPARENCY_WITNESS
+predicate: "tg:trustedByWitness"
+inverse: "TRANSPARENCY_WITNESS-TRUSTS-TRANSPARENCY_LOG"
+cardinality: "N:N"

@@ -1,0 +1,8 @@
+name: ARTIFACT_MANIFEST
+doc: A logical manifest describing one version or bundle as a set of content-addressed blobs.
+urn_template: "urn:tg:artifact-manifest:{manifest_id}"
+key_fields:
+  - manifest_id
+aspects:
+  - ArtifactManifestProperties
+  - Tags

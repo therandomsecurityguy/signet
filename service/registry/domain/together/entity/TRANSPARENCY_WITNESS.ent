@@ -1,0 +1,20 @@
+name: TRANSPARENCY_WITNESS
+doc: Trusted witness identity that co-signs checkpoints for multi-party transparency trust.
+fields:
+  - name: witness_id
+    type: string
+  - name: key_ref
+    type: string
+  - name: trust_status
+    type: string
+  - name: witness_type
+    type: string
+    optional: true
+  - name: valid_from
+    type: string
+    optional: true
+  - name: valid_to
+    type: string
+    optional: true
+  - name: created_at
+    type: string

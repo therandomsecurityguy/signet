@@ -1,0 +1,7 @@
+name: COMMIT-INCLUDES-MANIFEST
+doc: A commit includes or references one artifact manifest that helps reproduce semantic state.
+from: COMMIT
+to: ARTIFACT_MANIFEST
+predicate: "tg:includesManifest"
+inverse: "ARTIFACT_MANIFEST-INCLUDED-IN-COMMIT"
+cardinality: "M:N"

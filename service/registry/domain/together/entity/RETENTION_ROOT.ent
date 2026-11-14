@@ -1,0 +1,9 @@
+name: RETENTION_ROOT
+doc: A policy or live reference that keeps commits and artifacts reachable for retention purposes.
+urn_template: "urn:tg:retention-root:{root_id}"
+key_fields:
+  - root_id
+aspects:
+  - RetentionRootProperties
+  - Ownership
+  - Tags

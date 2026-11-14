@@ -1,0 +1,46 @@
+{
+  "name": "@together-ai/registry-sdk",
+  "version": "0.1.1",
+  "description": "Typed read-first client SDK for the Cachet registry API.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/togethercomputer/cachet.git",
+    "directory": "client/registry-sdk"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "openapi.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "generate:types": "openapi-typescript openapi.json -o src/generated/api.ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.13.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.5",
+    "@typescript-eslint/eslint-plugin": "^8.71.1",
+    "@typescript-eslint/parser": "^8.71.2",
+    "eslint": "^10.12.0",
+    "openapi-typescript": "^7.6.1",
+    "typescript": "^5.8.2",
+    "vitest": "^5.0.5"
+  }
+}

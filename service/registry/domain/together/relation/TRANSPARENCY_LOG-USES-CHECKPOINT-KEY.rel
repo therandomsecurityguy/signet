@@ -1,0 +1,7 @@
+name: TRANSPARENCY_LOG-USES-CHECKPOINT-KEY
+doc: Transparency log identity points to the trusted public key used to verify its checkpoints.
+from: TRANSPARENCY_LOG
+to: PUBLIC_KEY
+predicate: "tg:usesCheckpointKey"
+inverse: "PUBLIC_KEY-VERIFIES-TRANSPARENCY_LOG"
+cardinality: "N:1"

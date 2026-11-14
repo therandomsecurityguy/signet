@@ -1,0 +1,9 @@
+name: WORKSPACE
+doc: A mutable draft overlay on top of a base commit or ref.
+urn_template: "urn:tg:workspace:{workspace_id}"
+key_fields:
+  - workspace_id
+aspects:
+  - WorkspaceProperties
+  - Ownership
+  - Tags

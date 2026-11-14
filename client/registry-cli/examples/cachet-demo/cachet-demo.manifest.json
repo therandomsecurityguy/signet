@@ -1,0 +1,219 @@
+{
+  "pack": {
+    "pack_id": "cachet-demo-pack",
+    "version": "0.2.0",
+    "description": "Demo pack for Cachet: two agents plus skills across registry operations, security & compliance, and platform topics.",
+    "owner": "registry-operator",
+    "tags": ["demo", "cachet", "registry", "security", "platform"]
+  },
+  "defaults": {
+    "skill": {
+      "author": "registry-operator",
+      "artifact_media_type": "text/markdown",
+      "validate_note": "validated during cachet demo seed",
+      "publish_note": "published during cachet demo seed",
+      "certify": true,
+      "certify_note": "certified during cachet demo seed"
+    },
+    "agent": {
+      "artifact_media_type": "text/markdown"
+    }
+  },
+  "signing": {
+    "enabled": true,
+    "owner": "registry-operator"
+  },
+  "profiles": {
+    "default": {
+      "description": "Seed all Cachet demo skills and both agents.",
+      "skill_item_ids": [
+        "skill_registry_search",
+        "skill_skill_authoring",
+        "skill_provenance_audit",
+        "skill_mcp_onboarding",
+        "skill_certification_workflow",
+        "skill_access_review",
+        "skill_secrets_hygiene",
+        "skill_governance_audit",
+        "skill_graph_explorer",
+        "skill_policy_authoring"
+      ],
+      "agent_item_ids": ["agent_cachet_demo", "agent_cachet_security"]
+    },
+    "registry": {
+      "description": "Registry-operations topic: the demo agent and its skills.",
+      "skill_item_ids": [
+        "skill_registry_search",
+        "skill_skill_authoring",
+        "skill_provenance_audit",
+        "skill_mcp_onboarding",
+        "skill_certification_workflow"
+      ],
+      "agent_item_ids": ["agent_cachet_demo"]
+    },
+    "security": {
+      "description": "Security & compliance topic: the security agent and its skills.",
+      "skill_item_ids": ["skill_access_review", "skill_secrets_hygiene", "skill_governance_audit"],
+      "agent_item_ids": ["agent_cachet_security"]
+    },
+    "platform": {
+      "description": "Platform topic: graph exploration and policy authoring skills.",
+      "skill_item_ids": ["skill_graph_explorer", "skill_policy_authoring"],
+      "agent_item_ids": []
+    }
+  },
+  "skills": [
+    {
+      "item_id": "skill_registry_search",
+      "skill_key": "skill:registry-search",
+      "artifact_path": "skills/registry-search.md",
+      "tags": ["registry", "discovery", "topic:registry"],
+      "display_name": "Registry Search",
+      "description": "Discover agents and skills in the Cachet registry by keyword.",
+      "source_path": "client/registry-cli/examples/cachet-demo/skills/registry-search.md",
+      "commit_sha": "cachet-demo-registry-search-001",
+      "git_tag": "cachet-demo-v0-registry-search"
+    },
+    {
+      "item_id": "skill_skill_authoring",
+      "skill_key": "skill:skill-authoring",
+      "artifact_path": "skills/skill-authoring.md",
+      "tags": ["registry", "lifecycle", "topic:registry"],
+      "display_name": "Skill Authoring",
+      "description": "Author a new skill and drive it through the lifecycle.",
+      "source_path": "client/registry-cli/examples/cachet-demo/skills/skill-authoring.md",
+      "commit_sha": "cachet-demo-skill-authoring-001",
+      "git_tag": "cachet-demo-v0-skill-authoring"
+    },
+    {
+      "item_id": "skill_provenance_audit",
+      "skill_key": "skill:provenance-audit",
+      "artifact_path": "skills/provenance-audit.md",
+      "tags": ["registry", "trust", "topic:registry"],
+      "display_name": "Provenance Audit",
+      "description": "Inspect the PROV-O provenance and certification evidence for a version.",
+      "source_path": "client/registry-cli/examples/cachet-demo/skills/provenance-audit.md",
+      "commit_sha": "cachet-demo-provenance-audit-001",
+      "git_tag": "cachet-demo-v0-provenance-audit"
+    },
+    {
+      "item_id": "skill_mcp_onboarding",
+      "skill_key": "skill:mcp-onboarding",
+      "artifact_path": "skills/mcp-onboarding.md",
+      "tags": ["registry", "mcp", "topic:registry"],
+      "display_name": "MCP Onboarding",
+      "description": "Connect an MCP harness to the registry and load an artifact.",
+      "source_path": "client/registry-cli/examples/cachet-demo/skills/mcp-onboarding.md",
+      "commit_sha": "cachet-demo-mcp-onboarding-001",
+      "git_tag": "cachet-demo-v0-mcp-onboarding"
+    },
+    {
+      "item_id": "skill_certification_workflow",
+      "skill_key": "skill:certification-workflow",
+      "artifact_path": "skills/certification-workflow.md",
+      "tags": ["registry", "lifecycle", "topic:registry"],
+      "display_name": "Certification Workflow",
+      "description": "Validate, publish, and certify a version against policy and ontology packages.",
+      "source_path": "client/registry-cli/examples/cachet-demo/skills/certification-workflow.md",
+      "commit_sha": "cachet-demo-certification-workflow-001",
+      "git_tag": "cachet-demo-v0-certification-workflow"
+    },
+    {
+      "item_id": "skill_access_review",
+      "skill_key": "skill:access-review",
+      "artifact_path": "skills/access-review.md",
+      "tags": ["security", "access", "topic:security"],
+      "display_name": "Access Review",
+      "description": "Run periodic Okta group and API-key access reviews for the registry.",
+      "source_path": "client/registry-cli/examples/cachet-demo/skills/access-review.md",
+      "commit_sha": "cachet-demo-access-review-001",
+      "git_tag": "cachet-demo-v0-access-review"
+    },
+    {
+      "item_id": "skill_secrets_hygiene",
+      "skill_key": "skill:secrets-hygiene",
+      "artifact_path": "skills/secrets-hygiene.md",
+      "tags": ["security", "secrets", "topic:security"],
+      "display_name": "Secrets Hygiene",
+      "description": "Handle Cloudflare Access service tokens and API keys safely.",
+      "source_path": "client/registry-cli/examples/cachet-demo/skills/secrets-hygiene.md",
+      "commit_sha": "cachet-demo-secrets-hygiene-001",
+      "git_tag": "cachet-demo-v0-secrets-hygiene"
+    },
+    {
+      "item_id": "skill_governance_audit",
+      "skill_key": "skill:governance-audit",
+      "artifact_path": "skills/governance-audit.md",
+      "tags": ["security", "audit", "topic:security"],
+      "display_name": "Governance Audit",
+      "description": "Audit the governance log and transparency checkpoints.",
+      "source_path": "client/registry-cli/examples/cachet-demo/skills/governance-audit.md",
+      "commit_sha": "cachet-demo-governance-audit-001",
+      "git_tag": "cachet-demo-v0-governance-audit"
+    },
+    {
+      "item_id": "skill_graph_explorer",
+      "skill_key": "skill:graph-explorer",
+      "artifact_path": "skills/graph-explorer.md",
+      "tags": ["platform", "graph", "topic:platform"],
+      "display_name": "Graph Explorer",
+      "description": "Explore the registry graph via SPARQL.",
+      "source_path": "client/registry-cli/examples/cachet-demo/skills/graph-explorer.md",
+      "commit_sha": "cachet-demo-graph-explorer-001",
+      "git_tag": "cachet-demo-v0-graph-explorer"
+    },
+    {
+      "item_id": "skill_policy_authoring",
+      "skill_key": "skill:policy-authoring",
+      "artifact_path": "skills/policy-authoring.md",
+      "tags": ["platform", "policy", "topic:platform"],
+      "display_name": "Policy Authoring",
+      "description": "Author policy packages that gate the skill/agent lifecycle.",
+      "source_path": "client/registry-cli/examples/cachet-demo/skills/policy-authoring.md",
+      "commit_sha": "cachet-demo-policy-authoring-001",
+      "git_tag": "cachet-demo-v0-policy-authoring"
+    }
+  ],
+  "agents": [
+    {
+      "item_id": "agent_cachet_demo",
+      "tags": ["registry", "topic:registry"],
+      "depends_on": [
+        "skill_registry_search",
+        "skill_skill_authoring",
+        "skill_provenance_audit",
+        "skill_mcp_onboarding",
+        "skill_certification_workflow"
+      ],
+      "agent_key": "opencode:cachet-demo-agent",
+      "harness_name": "opencode",
+      "display_name": "Cachet Demo Agent",
+      "description": "A demo agent that links the Cachet discovery, authoring, provenance, MCP, and certification skills.",
+      "source_path": "client/registry-cli/examples/cachet-demo/agents/cachet-demo-agent.md",
+      "artifact_path": "agents/cachet-demo-agent.md",
+      "skill_refs": [
+        { "skill_item_id": "skill_registry_search" },
+        { "skill_item_id": "skill_skill_authoring" },
+        { "skill_item_id": "skill_provenance_audit" },
+        { "skill_item_id": "skill_mcp_onboarding" },
+        { "skill_item_id": "skill_certification_workflow" }
+      ]
+    },
+    {
+      "item_id": "agent_cachet_security",
+      "tags": ["security", "topic:security"],
+      "depends_on": ["skill_access_review", "skill_secrets_hygiene", "skill_governance_audit"],
+      "agent_key": "cursor:cachet-security-agent",
+      "harness_name": "cursor",
+      "display_name": "Cachet Security Agent",
+      "description": "A security/compliance demo agent linking access review, secrets hygiene, and governance audit skills.",
+      "source_path": "client/registry-cli/examples/cachet-demo/agents/cachet-security-agent.md",
+      "artifact_path": "agents/cachet-security-agent.md",
+      "skill_refs": [
+        { "skill_item_id": "skill_access_review" },
+        { "skill_item_id": "skill_secrets_hygiene" },
+        { "skill_item_id": "skill_governance_audit" }
+      ]
+    }
+  ]
+}

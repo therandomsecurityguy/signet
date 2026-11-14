@@ -1,0 +1,107 @@
+{
+  "pack": {
+    "pack_id": "bootstrap-pack-local",
+    "version": "0.1.0",
+    "description": "A richer local bootstrap pack for registry-operator.",
+    "owner": "registry-operator",
+    "tags": ["bootstrap", "local", "example"]
+  },
+  "defaults": {
+    "skill": {
+      "author": "registry-operator",
+      "artifact_media_type": "text/markdown",
+      "validate_note": "validated during local bootstrap",
+      "publish_note": "published during local bootstrap"
+    },
+    "agent": {
+      "artifact_media_type": "text/markdown"
+    }
+  },
+  "profiles": {
+    "minimal": {
+      "description": "Only the base skill and one agent.",
+      "skill_item_ids": ["skill_base"],
+      "agent_item_ids": ["agent_cursor"]
+    },
+    "full": {
+      "description": "Seed the full local example pack.",
+      "skill_item_ids": ["skill_base", "skill_ops"],
+      "agent_item_ids": ["agent_cursor", "agent_claude"]
+    }
+  },
+  "skills": [
+    {
+      "item_id": "skill_base",
+      "skill_key": "skill:bootstrap-example",
+      "artifact_path": "skills/bootstrap-example.md",
+      "display_name": "Bootstrap Example Skill",
+      "description": "A first lifecycle-seeded skill for local bootstrap verification.",
+      "source_path": "client/registry-cli/examples/bootstrap/skills/bootstrap-example.md",
+      "commit_sha": "bootstrap-commit-001",
+      "git_tag": "bootstrap-v1",
+      "artifact_signature": "bootstrap-sig-001",
+      "validate_note": "validated during local bootstrap",
+      "publish_note": "published during local bootstrap",
+      "certify": true,
+      "certify_note": "certified during local bootstrap",
+      "lineage": {
+        "upstream_skill_version_urns": [],
+        "openlineage": {
+          "job_namespace": "registry-operator",
+          "job_name": "bootstrap-seed",
+          "run_id": "bootstrap-run-001"
+        }
+      }
+    },
+    {
+      "item_id": "skill_ops",
+      "depends_on": ["skill_base"],
+      "tags": ["ops", "advanced"],
+      "skill_key": "skill:bootstrap-ops",
+      "artifact_path": "skills/bootstrap-ops.md",
+      "display_name": "Bootstrap Ops Skill",
+      "description": "A second lifecycle-seeded skill that depends on the base bootstrap skill.",
+      "source_path": "client/registry-cli/examples/bootstrap/skills/bootstrap-ops.md",
+      "commit_sha": "bootstrap-commit-002",
+      "git_tag": "bootstrap-v1-ops",
+      "artifact_signature": "bootstrap-sig-ops",
+      "certify": false,
+      "lineage": {
+        "upstream_skill_version_urns": [],
+        "openlineage": {
+          "job_namespace": "registry-operator",
+          "job_name": "bootstrap-seed-ops",
+          "run_id": "bootstrap-run-ops"
+        }
+      }
+    }
+  ],
+  "agents": [
+    {
+      "item_id": "agent_cursor",
+      "agent_key": "cursor:bootstrap-example",
+      "harness_name": "cursor",
+      "display_name": "Bootstrap Example Agent",
+      "description": "A first agent referencing the bootstrap example skill.",
+      "source_path": "client/registry-cli/examples/bootstrap/agents/bootstrap-agent.md",
+      "artifact_path": "agents/bootstrap-agent.md",
+      "skill_refs": [
+        { "skill_item_id": "skill_base" }
+      ]
+    },
+    {
+      "item_id": "agent_claude",
+      "depends_on": ["agent_cursor", "skill_ops"],
+      "agent_key": "claudecode:bootstrap-ops",
+      "harness_name": "claudecode",
+      "display_name": "Bootstrap Ops Agent",
+      "description": "A second agent referencing both bootstrap skills.",
+      "source_path": "client/registry-cli/examples/bootstrap/agents/bootstrap-ops-agent.md",
+      "artifact_path": "agents/bootstrap-ops-agent.md",
+      "skill_refs": [
+        { "skill_item_id": "skill_base" },
+        { "skill_item_id": "skill_ops" }
+      ]
+    }
+  ]
+}
