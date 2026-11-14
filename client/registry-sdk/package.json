@@ -3,6 +3,12 @@
   "version": "0.1.1",
   "description": "Typed read-first client SDK for the Signet registry API.",
   "license": "BSD-3-Clause",
+  "contributors": [
+    {
+      "name": "Pablo Ferrari",
+      "url": "https://github.com/pabshazon"
+    }
+  ],
   "type": "module",
   "repository": {
     "type": "git",

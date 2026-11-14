@@ -3,6 +3,12 @@
   "version": "0.1.3",
   "description": "Operator/assistant CLI for the Signet registry: bootstrap, seed, and verify agents and skills.",
   "license": "BSD-3-Clause",
+  "contributors": [
+    {
+      "name": "Pablo Ferrari",
+      "url": "https://github.com/pabshazon"
+    }
+  ],
   "type": "module",
   "repository": {
     "type": "git",
