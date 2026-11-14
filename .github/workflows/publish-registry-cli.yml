@@ -8,7 +8,7 @@ on:
 
 jobs:
   publish:
-    name: Publish @signet/registry-operator to npm
+    name: Publish @signet-registry/operator to npm
     runs-on: ubuntu-latest
     permissions:
       contents: read

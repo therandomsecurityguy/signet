@@ -111,12 +111,12 @@ curl -s https://signet-api.example.com/v1/skills \
   -H "Authorization: Bearer $SIGNET_KEY"
 ```
 
-### SDK (`@signet/registry-sdk`)
+### SDK (`@signet-registry/sdk`)
 
 Pass the CF-Access headers via the `headers` option:
 
 ```ts
-import { RegistryClient } from '@signet/registry-sdk';
+import { RegistryClient } from '@signet-registry/sdk';
 
 const client = new RegistryClient({
   baseUrl: 'https://signet-api.example.com',
@@ -132,7 +132,7 @@ const skills = await client.listSkills();
 
 (If you prefer, the client also accepts a custom `fetch` that injects the same headers.)
 
-### CLI (`@signet/registry-operator`)
+### CLI (`@signet-registry/operator`)
 
 Set the Cloudflare Access service-token headers as env vars (applied to both the
 API and MCP clients):
@@ -205,7 +205,7 @@ Verify before you load, in this order:
    `publication_envelope_artifact_sha256_matches: true`. Live drift
    (`live_envelope_matches_frozen_artifact: false`) is expected after evidence
    is attached and does not invalidate the published bytes.
-3. **Reproduce the verdict locally** — with `@signet/registry-sdk`:
+3. **Reproduce the verdict locally** — with `@signet-registry/sdk`:
    `verifyEnvelopeSignatures` recomputes the canonical JSON digest and checks
    every detached signature against trusted keys (fetch their PEM from CAS with
    `fetchArtifact`). Offline equivalents for the CLI:

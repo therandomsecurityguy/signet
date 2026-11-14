@@ -1,4 +1,4 @@
-# `@signet/registry-sdk`
+# `@signet-registry/sdk`
 
 Typed, **read-first** client SDK for the Signet registry API.
 
@@ -8,13 +8,13 @@ It is generated from the OpenAPI 3.1 spec served by `service/api` at
 ## Install
 
 ```bash
-npm install @signet/registry-sdk
+npm install @signet-registry/sdk
 ```
 
 ## Quick start
 
 ```ts
-import { RegistryClient } from '@signet/registry-sdk';
+import { RegistryClient } from '@signet-registry/sdk';
 
 const client = new RegistryClient({
   baseUrl: 'http://localhost:3100',
@@ -96,7 +96,7 @@ import {
   verifyEnvelopeSignatures,
   verifyRfc6962InclusionProof,
   rfc6962LeafHash,
-} from '@signet/registry-sdk';
+} from '@signet-registry/sdk';
 
 const client = new RegistryClient({ baseUrl, apiToken });
 const envelope = await client.getSkillPublicationEnvelope('skill:access-review', 1);

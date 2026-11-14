@@ -1,6 +1,6 @@
 # `client/registry-cli/release/`
 
-Pre-built release tarballs of the `@signet/registry-operator` CLI are packaged
+Pre-built release tarballs of the `@signet-registry/operator` CLI are packaged
 here via `npm pack`.
 
 ## Produce a release tarball

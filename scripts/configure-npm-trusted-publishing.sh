@@ -35,8 +35,8 @@ process.exit(major > 11 || (major === 11 && minor >= 15) ? 0 : 1);
 fi
 
 packages=(
-  "@signet/registry-sdk publish-registry-sdk.yml"
-  "@signet/registry-operator publish-registry-cli.yml"
+  "@signet-registry/sdk publish-registry-sdk.yml"
+  "@signet-registry/operator publish-registry-cli.yml"
 )
 
 for entry in "${packages[@]}"; do

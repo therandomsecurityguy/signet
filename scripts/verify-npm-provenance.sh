@@ -14,7 +14,7 @@ if [[ -z "$version" ]]; then
   exit 2
 fi
 
-packages=("@signet/registry-sdk" "@signet/registry-operator")
+packages=("@signet-registry/sdk" "@signet-registry/operator")
 
 for pkg in "${packages[@]}"; do
   echo "== ${pkg}@${version} =="
