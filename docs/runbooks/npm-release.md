@@ -1,4 +1,4 @@
-# Client npm releases (`@together-ai/registry-sdk`, `@together-ai/registry-operator`)
+# Client npm releases (`@signet/registry-sdk`, `@signet/registry-operator`)
 
 Where this goes: the **public npm registry** (`https://registry.npmjs.org`),
 scope `@together-ai`. Both packages are world-readable (`--access public`); they
@@ -47,7 +47,7 @@ npm run build              # build from the reviewed source
 npm pack --ignore-scripts  # artifact == exactly what you inspected
 tar -tzf together-ai-registry-sdk-0.1.0.tgz | sort
 npm publish ./together-ai-registry-sdk-0.1.0.tgz --access public --ignore-scripts
-npm view @together-ai/registry-sdk@0.1.0 dist.integrity   # must equal the local
+npm view @signet/registry-sdk@0.1.0 dist.integrity   # must equal the local
 npm pack --json --ignore-scripts                        # integrity of the tarball
 git worktree remove /tmp/cachet-publish
 ```

@@ -1,11 +1,11 @@
 {
-  "name": "@together-ai/registry-operator",
+  "name": "@signet/registry-operator",
   "version": "0.1.3",
   "description": "Operator/assistant CLI for the Cachet registry: bootstrap, seed, and verify agents and skills.",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/togethercomputer/cachet.git",
+    "url": "git+https://github.com/therandomsecurityguy/signet.git",
     "directory": "client/registry-cli"
   },
   "engines": {

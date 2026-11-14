@@ -44,19 +44,19 @@ Its first job is local-first bootstrap:
 
 ### Install / use as a CLI
 
-The CLI is published as the npm package `@together-ai/registry-operator` with a
+The CLI is published as the npm package `@signet/registry-operator` with a
 `registry-operator` bin.
 
 Run without installing (npx):
 
 ```bash
-npx @together-ai/registry-operator --help
+npx @signet/registry-operator --help
 ```
 
 Or install globally:
 
 ```bash
-npm install -g @together-ai/registry-operator
+npm install -g @signet/registry-operator
 registry-operator --help
 ```
 

@@ -50,7 +50,7 @@ curl -s -X POST http://localhost:3100/v1/skills \
 ### Use the typed SDK
 
 ```ts
-import { RegistryClient } from '@together-ai/registry-sdk';
+import { RegistryClient } from '@signet/registry-sdk';
 
 const client = new RegistryClient({ baseUrl: 'http://localhost:3100', apiToken: '<token>' });
 const skills = await client.listSkills();

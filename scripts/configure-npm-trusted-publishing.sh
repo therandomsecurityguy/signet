@@ -7,7 +7,7 @@
 #
 # Prerequisites:
 #   - npm >= 11.15.0 (the version that added `npm trust`)
-#   - npm login as a maintainer with write access to the @together scope and
+#   - npm login as a maintainer with write access to the @signet scope and
 #     account-level 2FA (the 2FA prompt opens in the browser)
 #   - the packages already exist on npm (publish 0.1.0 first; see the runbook)
 #
@@ -35,8 +35,8 @@ process.exit(major > 11 || (major === 11 && minor >= 15) ? 0 : 1);
 fi
 
 packages=(
-  "@together-ai/registry-sdk publish-registry-sdk.yml"
-  "@together-ai/registry-operator publish-registry-cli.yml"
+  "@signet/registry-sdk publish-registry-sdk.yml"
+  "@signet/registry-operator publish-registry-cli.yml"
 )
 
 for entry in "${packages[@]}"; do

@@ -1,11 +1,11 @@
 {
-  "name": "@together-ai/registry-sdk",
+  "name": "@signet/registry-sdk",
   "version": "0.1.1",
   "description": "Typed read-first client SDK for the Cachet registry API.",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/togethercomputer/cachet.git",
+    "url": "git+https://github.com/therandomsecurityguy/signet.git",
     "directory": "client/registry-sdk"
   },
   "engines": {

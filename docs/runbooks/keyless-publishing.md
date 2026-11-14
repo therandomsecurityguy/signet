@@ -52,7 +52,7 @@ permissions:
 steps:
   - name: Publish the skill keylessly
     run: |
-      npx @together-ai/registry-operator sign keyless \
+      npx @signet/registry-operator sign keyless \
         --skill skill:registry-search --version 2 \
         --author "$GITHUB_WORKFLOW" \
         --api-token "$REGISTRY_API_TOKEN" \
