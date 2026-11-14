@@ -68,7 +68,8 @@ export function buildApp(deps: KnowledgeManagerDeps) {
       c.header('content-type', 'application/javascript; charset=utf-8');
       return c.body(content);
     } catch {
-      return c.redirect('https://unpkg.com/cytoscape@3.33.1/dist/cytoscape.min.js', 302);
+      // No third-party CDN fallback: executable JS must come from the image.
+      return c.text('Asset not found.', 404);
     }
   });
 

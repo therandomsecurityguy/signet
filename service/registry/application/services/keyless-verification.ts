@@ -4,6 +4,7 @@ import type { KeyObject } from 'node:crypto';
 import { bundleFromJSON, type Bundle } from '@sigstore/bundle';
 import { HashAlgorithm } from '@sigstore/protobuf-specs';
 import { X509Certificate, crypto as sigstoreCrypto, json as sigstoreJson } from '@sigstore/core';
+import { RE2JS } from 're2js';
 
 // Keyless (sigstore) publication signatures: the signer presents an X.509
 // certificate issued by a configured Fulcio-compatible CA, bound to an OIDC
@@ -429,7 +430,10 @@ export function verifyKeylessBundle(input: {
   }
   const subjectAllowed = policy.allowed_subject_patterns.some((pattern) => {
     try {
-      return new RegExp(pattern).test(identity);
+      // RE2 (linear time, no backtracking) so an admin-supplied pattern cannot
+      // ReDoS on attacker-influenced certificate SANs. RE2 find() is the
+      // partial-match equivalent of RegExp.test().
+      return RE2JS.compile(pattern).matcher(identity).find();
     } catch {
       return false;
     }
