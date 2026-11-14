@@ -44,20 +44,31 @@ jobs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
       version: ${{ steps.release.outputs.version }}
+    env:
+      # Optional GitHub App for release-please. With an App token, the release
+      # PR, tag, and release are app-authored and DO trigger other workflow
+      # runs (release PR CI, tag-driven workflows) — the default GITHUB_TOKEN
+      # suppresses those triggers. Configure with repository secrets
+      # RELEASE_APP_ID + RELEASE_APP_PRIVATE_KEY (App needs contents: write
+      # and pull-requests: write, installed on this repository). Without the
+      # secrets the job falls back to GITHUB_TOKEN and stays functional.
+      RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
     steps:
-      # Uses the default GITHUB_TOKEN (job permissions grant contents+PR
-      # write; the repo setting "Allow GitHub Actions to create and approve
-      # pull requests" must be enabled for the release PR to be opened).
-      # Tradeoff: PRs, tags, and releases created with GITHUB_TOKEN do not
-      # trigger other workflow runs (GitHub suppression), so release PRs do
-      # not auto-run CI checks. Publishing is unaffected: the publish job
-      # chains off this job's outputs in the same run rather than off a
-      # tag-push event. If release-PR checks are wanted later, mint a
-      # GitHub App token here instead.
+      - uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
+        id: app-token
+        if: env.RELEASE_APP_ID != ''
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          # Scope the token to only what release-please needs (contents + PRs),
+          # rather than inheriting the app's blanket installation permissions.
+          permission-contents: write
+          permission-pull-requests: write
+
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
 
