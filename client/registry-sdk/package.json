@@ -2,6 +2,7 @@
   "name": "@signet/registry-sdk",
   "version": "0.1.1",
   "description": "Typed read-first client SDK for the Signet registry API.",
+  "license": "BSD-3-Clause",
   "type": "module",
   "repository": {
     "type": "git",
