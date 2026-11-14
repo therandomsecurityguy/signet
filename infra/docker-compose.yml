@@ -93,7 +93,7 @@ services:
     restart: unless-stopped
 
   registry-graph:
-    image: stain/jena-fuseki:latest
+    image: stain/jena-fuseki:latest@sha256:b1d0c96f19adddef417520184471ac816cf36c6e72936a88ea02b29f4305929a
     container_name: signet-registry-graph
     env_file:
       - ../service/registry/infra/fuseki.env

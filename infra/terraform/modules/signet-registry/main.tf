@@ -19,6 +19,9 @@ resource "aws_iam_openid_connect_provider" "github" {
 
   client_id_list = ["sts.amazonaws.com"]
 
+  # Legacy field: AWS ignores thumbprints for well-known CAs (it uses its own
+  # CA bundle for token.actions.githubusercontent.com). Kept for compatibility
+  # with older provider versions.
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
 
   tags = local.common_tags
