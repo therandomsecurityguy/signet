@@ -31,10 +31,11 @@ const EnvSchema = z.object({
   SEMANTIC_TURKEY_EMAIL: z.string().optional(),
   SEMANTIC_TURKEY_PASSWORD: z.string().optional(),
 }).superRefine((env, ctx) => {
-  // Mock auth is dev/test-only: staging, prod, or any unrecognized NODE_ENV
-  // requires an explicit opt-in.
+  // Mock auth is dev/test-only when Okta auth is actually selected: staging,
+  // prod, or any unrecognized NODE_ENV requires an explicit opt-in.
   if (
     env.OKTA_MODE === 'mock' &&
+    (env.AUTH_MODE === 'okta' || env.AUTH_MODE === 'dual') &&
     env.NODE_ENV !== 'test' &&
     env.NODE_ENV !== 'development' &&
     env.ALLOW_MOCK_AUTH !== 'true'

@@ -102,10 +102,11 @@ const EnvSchema = z.object({
   // '*' (dev only); production must set an explicit allowlist.
   CORS_ALLOWED_ORIGINS: z.string().optional(),
 }).superRefine((env, ctx) => {
-  // Mock auth is dev/test-only: staging, prod, or any unrecognized NODE_ENV
-  // requires an explicit opt-in.
+  // Mock auth is dev/test-only when Okta auth is actually selected: staging,
+  // prod, or any unrecognized NODE_ENV requires an explicit opt-in.
   if (
     env.OKTA_MODE === 'mock' &&
+    (env.AUTH_MODE === 'okta' || env.AUTH_MODE === 'dual') &&
     env.NODE_ENV !== 'test' &&
     env.NODE_ENV !== 'development' &&
     env.ALLOW_MOCK_AUTH !== 'true'

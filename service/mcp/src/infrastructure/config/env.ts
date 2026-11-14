@@ -123,10 +123,11 @@ const EnvSchema = z.object({
   COGNITIVE_CACHE_TTL_MS: z.coerce.number().int().positive().default(300_000),
   COGNITIVE_CACHE_MAX_ENTRIES: z.coerce.number().int().positive().default(500),
 }).superRefine((env, ctx) => {
-  // Mock auth is dev/test-only: staging, prod, or any unrecognized NODE_ENV
-  // requires an explicit opt-in.
+  // Mock auth is dev/test-only when Okta auth is actually selected: staging,
+  // prod, or any unrecognized NODE_ENV requires an explicit opt-in.
   if (
     env.OKTA_MODE === 'mock' &&
+    (env.AUTH_MODE === 'okta' || env.AUTH_MODE === 'dual') &&
     env.NODE_ENV !== 'test' &&
     env.NODE_ENV !== 'development' &&
     env.ALLOW_MOCK_AUTH !== 'true'
