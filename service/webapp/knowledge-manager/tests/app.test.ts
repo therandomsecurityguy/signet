@@ -28,6 +28,16 @@ const env: Env = {
 };
 
 describe('knowledge-manager app', () => {
+  async function csrfTokenFor(app: ReturnType<typeof buildApp>, cookie: string): Promise<string> {
+    const page = await app.request('/', { headers: { cookie } });
+    const html = await page.text();
+    const match = html.match(/name="_csrf" value="([^"]+)"/);
+    if (!match?.[1]) {
+      throw new Error('CSRF token not found on the home page.');
+    }
+    return match[1];
+  }
+
   it('reports health and readiness', async () => {
     const app = buildApp({
       env,
@@ -250,6 +260,7 @@ describe('knowledge-manager app', () => {
     expect(login.status).toBe(303);
     const cookie = login.headers.get('set-cookie');
     expect(cookie).toContain(env.SESSION_COOKIE_NAME);
+    const csrf = await csrfTokenFor(app, cookie ?? '');
 
     const submit = await app.request('/skills/skill%3Aexample/versions/2/publish', {
       method: 'POST',
@@ -258,6 +269,7 @@ describe('knowledge-manager app', () => {
         cookie: cookie ?? '',
       },
       body: new URLSearchParams({
+        _csrf: csrf,
         author: 'Jane Doe',
         note: 'ready for release',
       }).toString(),
@@ -296,6 +308,7 @@ describe('knowledge-manager app', () => {
       }).toString(),
     });
     const cookie = login.headers.get('set-cookie');
+    const csrf = await csrfTokenFor(app, cookie ?? '');
 
     const submit = await app.request('/skills/skill%3Aexample/versions/1/publish', {
       method: 'POST',
@@ -304,6 +317,7 @@ describe('knowledge-manager app', () => {
         cookie: cookie ?? '',
       },
       body: new URLSearchParams({
+        _csrf: csrf,
         author: 'Jane Doe',
         note: 'publish now',
       }).toString(),
@@ -331,6 +345,7 @@ describe('knowledge-manager app', () => {
       }).toString(),
     });
     const cookie = login.headers.get('set-cookie');
+    const csrf = await csrfTokenFor(app, cookie ?? '');
 
     const logout = await app.request('/session/logout', {
       method: 'POST',
@@ -339,6 +354,7 @@ describe('knowledge-manager app', () => {
         cookie: cookie ?? '',
       },
       body: new URLSearchParams({
+        _csrf: csrf,
         return_to: '/',
       }).toString(),
     });
@@ -449,6 +465,7 @@ describe('knowledge-manager app', () => {
     });
     expect(login.status).toBe(303);
     const cookie = login.headers.get('set-cookie') ?? '';
+    const csrf = await csrfTokenFor(app, cookie);
 
     const submit = await app.request('/ontology-projects/terms/otel/review', {
       method: 'POST',
@@ -456,7 +473,7 @@ describe('knowledge-manager app', () => {
         'content-type': 'application/x-www-form-urlencoded',
         cookie,
       },
-      body: new URLSearchParams({ action: 'promote' }).toString(),
+      body: new URLSearchParams({ _csrf: csrf, action: 'promote' }).toString(),
     });
     expect(submit.status).toBe(303);
     expect(submit.headers.get('location')).toContain('session_flash');
@@ -464,6 +481,155 @@ describe('knowledge-manager app', () => {
     expect(calls[0]?.term).toBe('otel');
     expect(calls[0]?.action).toBe('promote');
     expect(calls[0]?.token).toContain('webapp-okta-');
+  });
+
+  it('rejects state-changing requests with a missing or wrong CSRF token', async () => {
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient(),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const login = await app.request('/session/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ return_to: '/' }).toString(),
+    });
+    const cookie = login.headers.get('set-cookie') ?? '';
+
+    const missing = await app.request('/agents/new', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', cookie },
+      body: new URLSearchParams({ agent_key: 'cursor:csrf-test', harness_name: 'cursor' }).toString(),
+    });
+    expect(missing.status).toBe(403);
+
+    const csrf = await csrfTokenFor(app, cookie);
+    const wrong = await app.request('/agents/new', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', cookie },
+      body: new URLSearchParams({
+        _csrf: `wrong-${csrf}`,
+        agent_key: 'cursor:csrf-test',
+        harness_name: 'cursor',
+      }).toString(),
+    });
+    expect(wrong.status).toBe(403);
+
+    const crossOrigin = await app.request('/agents/new', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', cookie, origin: 'https://evil.example' },
+      body: new URLSearchParams({
+        _csrf: csrf,
+        agent_key: 'cursor:csrf-test',
+        harness_name: 'cursor',
+      }).toString(),
+    });
+    expect(crossOrigin.status).toBe(403);
+  });
+
+  it('requires admin rights (Okta group or write scope) for governance actions', async () => {
+    const reviewedTerms: string[] = [];
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        getSession: async (apiToken) => ({
+          auth: { mode: apiToken.startsWith('agk_') ? 'api_key' : 'dual', okta_mode: 'mock' },
+          principal: {
+            type: apiToken.startsWith('agk_') ? 'api_key' : 'okta_user',
+            id: apiToken.startsWith('agk_') ? 'api-key-principal' : 'okta-principal',
+            auth_method: apiToken.startsWith('agk_') ? 'api_key' : 'okta_access_token',
+            // Read-only key scope and a non-admin Okta group: neither session
+            // may promote governance terms.
+            scopes: apiToken.startsWith('agk_') ? ['read'] : ['registry.write'],
+            groups: apiToken.startsWith('agk_') ? [] : ['mock-group'],
+          },
+        }),
+        reviewDeFactoTerm: async (term, input) => {
+          reviewedTerms.push(`${term}:${input.action}`);
+          return {
+            urn: `urn:sg:de-facto-term:${term}`,
+            term,
+            status: 'promoted',
+            first_seen_at: '',
+            last_seen_at: '',
+            seen_count: 1,
+            example_publication_urns: [],
+          };
+        },
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const oktaLogin = await app.request('/session/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ return_to: '/ontology-projects' }).toString(),
+    });
+    const oktaCookie = oktaLogin.headers.get('set-cookie') ?? '';
+    const oktaCsrf = await csrfTokenFor(app, oktaCookie);
+    const oktaAttempt = await app.request('/ontology-projects/terms/otel/review', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: oktaCookie },
+      body: new URLSearchParams({ _csrf: oktaCsrf, action: 'promote' }).toString(),
+    });
+    expect(oktaAttempt.status).toBe(303);
+    expect(oktaAttempt.headers.get('location')).toContain('session_error');
+    expect(reviewedTerms).toHaveLength(0);
+
+    const apiKeyApp = buildApp({
+      env: { ...env, AUTH_MODE: 'api_key' },
+      registryApi: makeRegistryApiClient({
+        getSession: async () => ({
+          auth: { mode: 'api_key', okta_mode: 'mock' },
+          principal: {
+            type: 'api_key',
+            id: 'api-key-principal',
+            auth_method: 'api_key',
+            scopes: ['read'],
+            groups: [],
+          },
+        }),
+        reviewDeFactoTerm: async (term, input) => {
+          reviewedTerms.push(`${term}:${input.action}`);
+          return {
+            urn: `urn:sg:de-facto-term:${term}`,
+            term,
+            status: 'promoted',
+            first_seen_at: '',
+            last_seen_at: '',
+            seen_count: 1,
+            example_publication_urns: [],
+          };
+        },
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const keyLogin = await apiKeyApp.request('/session/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ api_token: 'agk_test_readonly', return_to: '/ontology-projects' }).toString(),
+    });
+    const keyCookie = keyLogin.headers.get('set-cookie') ?? '';
+    const keyCsrf = await csrfTokenFor(apiKeyApp, keyCookie);
+    const keyAttempt = await apiKeyApp.request('/ontology-projects/terms/otel/review', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: keyCookie },
+      body: new URLSearchParams({ _csrf: keyCsrf, action: 'promote' }).toString(),
+    });
+    expect(keyAttempt.status).toBe(303);
+    expect(keyAttempt.headers.get('location')).toContain('session_error');
+    expect(reviewedTerms).toHaveLength(0);
   });
 
   it('exposes ontology project JSON and html views', async () => {
