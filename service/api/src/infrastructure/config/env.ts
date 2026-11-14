@@ -25,8 +25,9 @@ const EnvSchema = z.object({
   OKTA_REQUIRED_SCOPES: z.string().optional(),
   OKTA_GROUPS_CLAIM: z.string().default('groups'),
   OKTA_ADMIN_GROUPS: z.string().optional(),
-  // Self-serve API keys. The pepper is mixed into the key hash (HMAC-SHA256) so
-  // a database leak alone cannot verify guesses; it is required in production.
+  // Self-serve API keys. The pepper is the salt for the scrypt-based key hash
+  // so a database leak alone cannot verify guesses; it is required in
+  // production.
   // TTL is the default expiry applied to newly minted keys (days).
   API_KEY_PEPPER: z.string().optional(),
   API_KEY_DEFAULT_TTL_DAYS: z.coerce.number().int().positive().default(90),
@@ -97,6 +98,10 @@ const EnvSchema = z.object({
   AUTH_FAILURE_LIMIT: z.coerce.number().int().positive().default(20),
   AUTH_FAILURE_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60_000),
   REDIS_URL: z.string().optional(),
+  // Optional bearer token protecting /metrics. When unset, /metrics stays
+  // open and must be restricted at the network layer (the chart's
+  // NetworkPolicies allow only ingress-controller and Prometheus namespaces).
+  METRICS_AUTH_TOKEN: z.string().optional(),
 
   // CORS. Comma-separated allowlist of origins. When unset, CORS falls back to
   // '*' (dev only); production must set an explicit allowlist.

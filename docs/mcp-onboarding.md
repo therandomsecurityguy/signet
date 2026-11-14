@@ -53,9 +53,12 @@ Two environment flags harden the read path:
   referencing publication verifies. Whether verification strictness is required
   is a deployment policy, so it stays opt-in.
 
-Setting both gives a full default-deny posture. `registry.verify_publication`
-is never gated: verification is how a reader discovers that something is
-revoked or unverified.
+Setting both gives a full default-deny posture. Enumeration paths are filtered
+too: `registry.search` and `registry.list_skills` / `registry.list_agents`
+omit entries whose active publication is denied by the enabled gates, so a
+denied publication is not discoverable through search or listing.
+`registry.verify_publication` is never gated: verification is how a reader
+discovers that something is revoked or unverified.
 
 ### Data (warehouse, read-only)
 - `data.query`

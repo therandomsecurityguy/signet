@@ -109,6 +109,10 @@ const EnvSchema = z.object({
   RATE_LIMIT_REQUESTS: z.coerce.number().int().positive().default(100),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   REDIS_URL: z.string().optional(),
+  // Optional bearer token protecting /metrics. When unset, /metrics stays
+  // open and must be restricted at the network layer (the chart's
+  // NetworkPolicies allow only ingress-controller and Prometheus namespaces).
+  METRICS_AUTH_TOKEN: z.string().optional(),
 
   // CORS. Comma-separated allowlist of origins. When unset, CORS falls back to
   // '*' (dev only); production must set an explicit allowlist.

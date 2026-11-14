@@ -346,6 +346,32 @@ describe('MCP registry read gates', () => {
       await rm(tmp, { recursive: true, force: true });
     }
   });
+
+  it('filters revoked publications out of search and list enumeration', async () => {
+    const { baseUrl, token, tmp } = await buildGatedApp();
+    try {
+      const search = await callTool(baseUrl, token, 'registry.search', { query: 'gated' });
+      expect(search.status).toBe(200);
+      const searchKeys = (search.body.result as { skills: Array<{ skill_key: string }> }).skills.map(
+        (skill) => skill.skill_key,
+      );
+      expect(searchKeys).toContain('skill:gated-clean');
+      expect(searchKeys).not.toContain('skill:gated-revoked');
+      // The verification gate is opt-in, so an unverified publication stays
+      // visible under the default posture.
+      expect(searchKeys).toContain('skill:gated-unverified');
+
+      const list = await callTool(baseUrl, token, 'registry.list_skills', {});
+      expect(list.status).toBe(200);
+      const listKeys = (list.body.result as { skills: Array<{ skill_key: string }> }).skills.map(
+        (skill) => skill.skill_key,
+      );
+      expect(listKeys).toContain('skill:gated-clean');
+      expect(listKeys).not.toContain('skill:gated-revoked');
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  });
 });
 
 async function startServer(app: ReturnType<typeof buildApp>) {

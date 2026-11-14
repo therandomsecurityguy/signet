@@ -56,14 +56,17 @@ export class RegistryServiceConnector implements RegistryConnector {
       ...(typeof input.limit === 'number' ? { limit: input.limit } : {}),
       ...(typeof input.offset === 'number' ? { offset: input.offset } : {}),
     });
-    return {
-      agents: result.agents.map((agent) => ({
+    const agents: RegistryListAgentsOutput['agents'] = [];
+    for (const agent of result.agents) {
+      if (this.readGate.enabled && !(await this.agentReadable(agent.agent_urn))) continue;
+      agents.push({
         agent_urn: agent.agent_urn,
         agent_key: agent.agent_key,
         ...(agent.harness_name ? { harness_name: agent.harness_name } : {}),
         ...(agent.source_path ? { source_path: agent.source_path } : {}),
-      })),
-    };
+      });
+    }
+    return { agents };
   }
 
   async getAgent(input: RegistryGetAgentInput, _ctx: ExecutionContext): Promise<RegistryGetAgentOutput> {
@@ -87,13 +90,16 @@ export class RegistryServiceConnector implements RegistryConnector {
       ...(typeof input.limit === 'number' ? { limit: input.limit } : {}),
       ...(typeof input.offset === 'number' ? { offset: input.offset } : {}),
     });
-    return {
-      skills: result.skills.map((skill) => ({
+    const skills: RegistryListSkillsOutput['skills'] = [];
+    for (const skill of result.skills) {
+      if (this.readGate.enabled && !(await this.skillReadable(skill.skill_urn))) continue;
+      skills.push({
         skill_urn: skill.skill_urn,
         skill_key: skill.skill_key,
         ...(skill.source_path ? { source_path: skill.source_path } : {}),
-      })),
-    };
+      });
+    }
+    return { skills };
   }
 
   async getSkill(input: RegistryGetSkillInput, _ctx: ExecutionContext): Promise<RegistryGetSkillOutput> {
@@ -230,6 +236,7 @@ export class RegistryServiceConnector implements RegistryConnector {
         const sourcePath = skill.source_path;
         const haystack = [skill.skill_urn, key, sourcePath].filter(Boolean).join(' ').toLowerCase();
         if (!haystack.includes(needle)) continue;
+        if (this.readGate.enabled && !(await this.skillReadable(skill.skill_urn))) continue;
         skills.push({
           skill_urn: skill.skill_urn,
           skill_key: key,
@@ -247,6 +254,7 @@ export class RegistryServiceConnector implements RegistryConnector {
         const sourcePath = agent.source_path;
         const haystack = [agent.agent_urn, key, harnessName, sourcePath].filter(Boolean).join(' ').toLowerCase();
         if (!haystack.includes(needle)) continue;
+        if (this.readGate.enabled && !(await this.agentReadable(agent.agent_urn))) continue;
         agents.push({
           agent_urn: agent.agent_urn,
           agent_key: key,
@@ -257,5 +265,38 @@ export class RegistryServiceConnector implements RegistryConnector {
     }
 
     return { query: input.query, skills, agents };
+  }
+
+  // Enumeration paths (search/list) honor the same gates as get_*: a revoked
+  // (or, under the strict gate, unverified) active publication is not
+  // discoverable. Only runs when a gate is enabled; bounded by tool limits.
+  private async skillReadable(skillUrnValue: string): Promise<boolean> {
+    try {
+      const got = await this.service.getSkillByUrn({ skill_urn: skillUrnValue });
+      if (!got) return false;
+      await this.readGate.assertPublicationReadable({
+        publication_urn: got.active_version?.skill_version.urn,
+        properties: got.active_version?.skill_version.properties,
+      });
+      return true;
+    } catch (err) {
+      if (err instanceof DomainError) return false;
+      throw err;
+    }
+  }
+
+  private async agentReadable(agentUrnValue: string): Promise<boolean> {
+    try {
+      const got = await this.service.getAgentByUrn({ agent_urn: agentUrnValue });
+      if (!got) return false;
+      await this.readGate.assertPublicationReadable({
+        publication_urn: got.active_version?.agent_version.urn,
+        properties: got.active_version?.agent_version.properties,
+      });
+      return true;
+    } catch (err) {
+      if (err instanceof DomainError) return false;
+      throw err;
+    }
   }
 }

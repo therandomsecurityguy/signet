@@ -1,3 +1,5 @@
+import { timingSafeEqual } from 'node:crypto';
+
 import type { Logger } from 'pino';
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
@@ -49,8 +51,16 @@ export type AppEnv = {
   };
 };
 
+function metricsAuthorized(expectedToken: string | undefined, header: string | undefined): boolean {
+  if (!expectedToken) return true;
+  const token = header?.startsWith('Bearer ') ? header.slice(7) : (header ?? '');
+  const provided = Buffer.from(token);
+  const expected = Buffer.from(expectedToken);
+  return provided.length === expected.length && timingSafeEqual(provided, expected);
+}
+
 export function buildApp(deps: AppDependencies) {
-const app = new OpenAPIHono<AppEnv>({
+  const app = new OpenAPIHono<AppEnv>({
     defaultHook: (result, c) => {
       if (!result.success) {
         return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid request.' } }, 400);
@@ -101,6 +111,9 @@ const app = new OpenAPIHono<AppEnv>({
   app.get('/healthz', (c) => c.json({ ok: true }));
   app.get('/readyz', (c) => c.json({ ok: true }));
   app.get('/metrics', async (c) => {
+    if (!metricsAuthorized(deps.env.METRICS_AUTH_TOKEN, c.req.header('authorization'))) {
+      return c.json({ error: { code: 'AUTH_UNAUTHENTICATED', message: 'Unauthorized.' } }, 401);
+    }
     c.header('content-type', registry.contentType);
     return c.body(await registry.metrics());
   });
