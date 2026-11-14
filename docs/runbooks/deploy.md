@@ -62,6 +62,11 @@ that owns Terraform state and applies them.
    the images, chart, and manifest keyless (GitHub OIDC via cosign), creates
    GitHub build-provenance attestations for the images and chart, and attaches
    SPDX SBOMs (syft) to the images and to the GitHub release.
+   Until `SIGNET_AWS_ROLE_ARN` is configured, publishing is dormant: the tag
+   and GitHub release are still created and the workflow emits a
+   `Release publish skipped` notice instead of failing; re-run the Release
+   workflow (`workflow_dispatch` with `version=vX.Y.Z`) after setting the
+   variables to publish the existing tag.
 4. In the environment repo, bump the pinned chart version and apply.
 
 Required repo variables: `SIGNET_AWS_ROLE_ARN` (required), `SIGNET_AWS_REGION`
