@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.48](https://github.com/therandomsecurityguy/signet/compare/v0.1.47...v0.1.48) (2026-11-14)
+
+
+### Bug Fixes
+
+* **security:** final hardening — RE2 regex, fetch, S3 TLS, mock-auth gating, release clobber ([8ff2eac](https://github.com/therandomsecurityguy/signet/commit/8ff2eacd07380b8b94ea76f55c3df9ae5cc495e4))
+* **security:** MCP data-plane entitlements, auth-failure budget, query timeouts ([e494129](https://github.com/therandomsecurityguy/signet/commit/e494129e0f9ded4154ef7b9f397162710054d9e0))
+* **security:** MCP data-plane entitlements, auth-failure budget, query timeouts ([836184f](https://github.com/therandomsecurityguy/signet/commit/836184f97dc1b60ce7ddf535e9229e28258aedab))
+* **security:** misc lows — RE2 keyless regex, fetch hardening, S3 TLS, secrets ([612539e](https://github.com/therandomsecurityguy/signet/commit/612539ec50d9e91d5432dd7d21ed84f453f87501))
+* **security:** mock-auth gating, strict read-gate flags, release asset clobber ([ef2b5e9](https://github.com/therandomsecurityguy/signet/commit/ef2b5e9f706793dba28812a05acb9499ae32bd9f))
+* **security:** scope mock-auth guard to okta/dual auth selection ([12f1bb0](https://github.com/therandomsecurityguy/signet/commit/12f1bb0ffb0a4347208692afa07d6c7523433dd5))
+
 ## [0.1.47](https://github.com/therandomsecurityguy/signet/compare/v0.1.46...v0.1.47) (2026-11-14)
 
 
