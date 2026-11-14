@@ -72,16 +72,42 @@ jobs:
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
 
+  # Explains an intentionally skipped publish while the release pipeline is
+  # not wired to an AWS account yet (SIGNET_AWS_ROLE_ARN unset). Releases are
+  # still tagged; artifacts get published once the variables exist.
+  publish-skipped:
+    needs: [release-please]
+    if: >-
+      always() && !cancelled() &&
+      github.event_name == 'push' &&
+      needs.release-please.outputs.release_created == 'true' &&
+      vars.SIGNET_AWS_ROLE_ARN == ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Announce skipped publish
+        env:
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          echo "::notice title=Release publish skipped::${TAG} was tagged, but images/chart were NOT published: SIGNET_AWS_ROLE_ARN is not configured. See docs/runbooks/deploy.md; after setting the repo variables, re-run the Release workflow (workflow_dispatch) with version=${TAG}."
+
   # On a release, publish each component image (digest-pinned, immutable ECR) and
   # the Helm chart to signet-owned ECR using GitHub OIDC. Also runnable manually
   # to re-publish an existing tag (workflow_dispatch). The environment repo
   # (or equivalent environment repo) then pins the released chart version and applies. No static AWS
   # credentials and no shared org reusable workflow.
+  #
+  # Publishing is dormant until SIGNET_AWS_ROLE_ARN is configured: tagged
+  # releases still get created, and the skip is announced with a notice
+  # (publish-skipped below). A manual workflow_dispatch still fails loudly
+  # because dispatching is an explicit intent to publish.
   publish:
     needs: [release-please]
     if: >-
       always() && !cancelled() &&
       (github.event_name == 'push' && needs.release-please.outputs.release_created == 'true'
+        && vars.SIGNET_AWS_ROLE_ARN != ''
        || github.event_name == 'workflow_dispatch' && inputs.dry_run != true)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
