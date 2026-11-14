@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.52](https://github.com/therandomsecurityguy/signet/compare/v0.1.51...v0.1.52) (2026-11-14)
+
+
+### Bug Fixes
+
+* **scripts:** treat npm trust list empty-state as no configuration ([e6862fc](https://github.com/therandomsecurityguy/signet/commit/e6862fcc58e562eeae8ab631dd10df6a52f9f2bc))
+* **scripts:** treat npm trust list empty-state as no configuration ([b617e83](https://github.com/therandomsecurityguy/signet/commit/b617e83551f30c2e19f81e5084c68d0b02e78cbf))
+
 ## [0.1.51](https://github.com/therandomsecurityguy/signet/compare/v0.1.50...v0.1.51) (2026-11-14)
 
 
