@@ -7,6 +7,8 @@ export interface RateLimitResult {
 
 export interface RateLimitStore {
   increment(key: string, windowMs: number): Promise<RateLimitResult>;
+  /** Read the current window without incrementing (count 0 when absent). */
+  peek(key: string): Promise<RateLimitResult>;
 }
 
 export class MemoryRateLimitStore implements RateLimitStore {
@@ -40,6 +42,15 @@ export class MemoryRateLimitStore implements RateLimitStore {
     const entry = { count: 1, resetAt: now + windowMs };
     this.entries.set(key, entry);
     return { count: 1, resetAt: entry.resetAt };
+  }
+
+  async peek(key: string): Promise<RateLimitResult> {
+    const now = Date.now();
+    const existing = this.entries.get(key);
+    if (!existing || now > existing.resetAt) {
+      return { count: 0, resetAt: now };
+    }
+    return { count: existing.count, resetAt: existing.resetAt };
   }
 
   // Periodically drop expired windows so stale keys cannot accumulate without
@@ -101,6 +112,14 @@ export class ResilientRateLimitStore implements RateLimitStore {
       return await this.fallback.increment(key, windowMs);
     }
   }
+
+  async peek(key: string): Promise<RateLimitResult> {
+    try {
+      return await this.primary.peek(key);
+    } catch {
+      return await this.fallback.peek(key);
+    }
+  }
 }
 
 // Atomic fixed-window increment: INCR the counter, set the expiry on the first
@@ -132,5 +151,19 @@ export class RedisRateLimitStore implements RateLimitStore {
     )) as [number, number];
     const effectiveTtl = ttl > 0 ? ttl : windowMs;
     return { count, resetAt: Date.now() + effectiveTtl };
+  }
+
+  async peek(key: string): Promise<RateLimitResult> {
+    const keyName = `${this.keyPrefix}:${key}`;
+    const results = await this.client.multi().get(keyName).pttl(keyName).exec();
+    const raw = results?.[0]?.[1] as string | null | undefined;
+    const ttl = results?.[1]?.[1] as number | null | undefined;
+    if (!raw) {
+      return { count: 0, resetAt: Date.now() };
+    }
+    return {
+      count: Number(raw),
+      resetAt: Date.now() + (typeof ttl === 'number' && ttl > 0 ? ttl : 0),
+    };
   }
 }

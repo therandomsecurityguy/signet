@@ -63,6 +63,7 @@ describe('ResilientRateLimitStore', () => {
   it('uses the primary store when it succeeds', async () => {
     const primary: RateLimitStore = {
       increment: async (_key, windowMs) => ({ count: 42, resetAt: Date.now() + windowMs }),
+      peek: async () => ({ count: 0, resetAt: Date.now() }),
     };
     const store = new ResilientRateLimitStore(primary, new MemoryRateLimitStore());
 
@@ -72,6 +73,9 @@ describe('ResilientRateLimitStore', () => {
   it('falls back to the in-memory store (still enforcing) when the primary errors', async () => {
     const failing: RateLimitStore = {
       increment: async () => {
+        throw new Error('redis unavailable');
+      },
+      peek: async () => {
         throw new Error('redis unavailable');
       },
     };
