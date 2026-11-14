@@ -417,11 +417,11 @@ export function renderFusekiQueries(input: {
     {
       title: 'Count Nodes By Entity Type',
       description: 'Quickly see how many agents, skills, skill versions, artifacts, and tasks are present.',
-      query: `PREFIX tgmeta: <urn:tg:meta:>
+      query: `PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?entity_type (COUNT(?urn) AS ?count)
 WHERE {
-  ?urn tgmeta:entityType ?entity_type .
+  ?urn sgmeta:entityType ?entity_type .
 }
 GROUP BY ?entity_type
 ORDER BY ?entity_type`,
@@ -429,50 +429,50 @@ ORDER BY ?entity_type`,
     {
       title: 'List Agents',
       description: 'Show the logical agent nodes and their JSON property blobs.',
-      query: `PREFIX tgmeta: <urn:tg:meta:>
+      query: `PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?urn ?props
 WHERE {
-  ?urn tgmeta:entityType "AGENT" ;
-       tgmeta:properties ?props .
+  ?urn sgmeta:entityType "AGENT" ;
+       sgmeta:properties ?props .
 }
 ORDER BY STR(?urn)`,
     },
     {
       title: 'List Skills',
       description: 'Show the logical skill nodes and their JSON property blobs.',
-      query: `PREFIX tgmeta: <urn:tg:meta:>
+      query: `PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?urn ?props
 WHERE {
-  ?urn tgmeta:entityType "SKILL" ;
-       tgmeta:properties ?props .
+  ?urn sgmeta:entityType "SKILL" ;
+       sgmeta:properties ?props .
 }
 ORDER BY STR(?urn)`,
     },
     {
       title: 'List Skill Versions',
       description: 'Inspect published/draft versions and see active version metadata.',
-      query: `PREFIX tgmeta: <urn:tg:meta:>
+      query: `PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?urn ?props
 WHERE {
-  ?urn tgmeta:entityType "SKILL_VERSION" ;
-       tgmeta:properties ?props .
+  ?urn sgmeta:entityType "SKILL_VERSION" ;
+       sgmeta:properties ?props .
 }
 ORDER BY STR(?urn)`,
     },
     {
       title: 'Artifact Linking Edges',
       description: 'See which agents or skill versions point at artifacts.',
-      query: `PREFIX tgmeta: <urn:tg:meta:>
+      query: `PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?from ?predicate ?to
 WHERE {
-  ?edge tgmeta:from ?from ;
-        tgmeta:to ?to ;
-        tgmeta:predicate ?predicate .
-  FILTER (?predicate IN ("tg:implementedBy", "tg:definedBy"))
+  ?edge sgmeta:from ?from ;
+        sgmeta:to ?to ;
+        sgmeta:predicate ?predicate .
+  FILTER (?predicate IN ("sg:implementedBy", "sg:definedBy"))
 }
 ORDER BY STR(?from) STR(?to)`,
     },

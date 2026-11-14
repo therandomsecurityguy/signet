@@ -44,14 +44,14 @@ export function buildTransparencySampleGraphSpec(input: SeedTransparencySampleGr
   const day = input.day ?? '2026-01-03';
   return {
     sampleSlug,
-    logId: `tg-${sampleSlug}-log`,
+    logId: `sg-${sampleSlug}-log`,
     checkpointKeyRef: `kms://registry/${sampleSlug}-checkpoint`,
     witnessAlphaKeyRef: `kms://registry/${sampleSlug}-witness-alpha`,
     witnessBetaKeyRef: `kms://registry/${sampleSlug}-witness-beta`,
     entryOneLabel: `${sampleSlug}-entry-1`,
     entryTwoLabel: `${sampleSlug}-entry-2`,
     entryTwoAltLabel: `${sampleSlug}-entry-2-alt`,
-    signerName: `tg-${sampleSlug}-cosignature`,
+    signerName: `sg-${sampleSlug}-cosignature`,
     observationOccurredAt: `${day}T00:10:00.000Z`,
     witnessAlphaObservationAt: `${day}T00:11:00.000Z`,
     witnessBetaObservationAt: `${day}T00:12:00.000Z`,
@@ -277,7 +277,7 @@ function signedCheckpointNote(
         keyHintBytes?: number[];
       }>,
 ) {
-  const entries = typeof signatures === 'string' ? [{ signer: 'tg-main-log', detachedSignature: signatures }] : signatures;
+  const entries = typeof signatures === 'string' ? [{ signer: 'sg-main-log', detachedSignature: signatures }] : signatures;
   const signatureLines = entries.map((entry, index) => {
     const raw = Buffer.from(entry.detachedSignature.replace(/^base64:/, ''), 'base64');
     const keyHint = Buffer.from(entry.keyHintBytes ?? [0, 0, 0, index]);

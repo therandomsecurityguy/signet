@@ -199,10 +199,10 @@ describe('transparency reconciliation', () => {
     });
 
     const versionPath = await publishSkill(app, token, 'skill:reconcile-verified');
-    const reconciled = await reconcile(app, token, 'urn:tg:skill-version:skill:reconcile-verified@v1');
+    const reconciled = await reconcile(app, token, 'urn:sg:skill-version:skill:reconcile-verified@v1');
     expect(reconciled.status).toBe(200);
     expect(reconciled.body).toMatchObject({
-      publication_urn: 'urn:tg:skill-version:skill:reconcile-verified@v1',
+      publication_urn: 'urn:sg:skill-version:skill:reconcile-verified@v1',
       log_id: 'cachet-governance',
       status: 'verified',
     });
@@ -223,7 +223,7 @@ describe('transparency reconciliation', () => {
         ]),
       );
     }
-    expect(reconciled.body['evidence_artifact_urn']).toMatch(/^urn:tg:/);
+    expect(reconciled.body['evidence_artifact_urn']).toMatch(/^urn:sg:/);
     expect(reconciled.body['evidence_sha256']).toMatch(/^[0-9a-f]{64}$/);
 
     // The same publication reconciles against the native log endpoints.
@@ -251,7 +251,7 @@ describe('transparency reconciliation', () => {
     });
 
     await publishSkill(app, token, 'skill:reconcile-staged');
-    const reconciled = await reconcile(app, token, 'urn:tg:skill-version:skill:reconcile-staged@v1');
+    const reconciled = await reconcile(app, token, 'urn:sg:skill-version:skill:reconcile-staged@v1');
     expect(reconciled.status).toBe(200);
     expect(reconciled.body['status']).toBe('incomplete');
     const outcomes = reconciled.body['outcomes'] as Array<Record<string, unknown>>;
@@ -273,7 +273,7 @@ describe('transparency reconciliation', () => {
     });
 
     await publishSkill(app, token, 'skill:reconcile-mismatch');
-    const reconciled = await reconcile(app, token, 'urn:tg:skill-version:skill:reconcile-mismatch@v1');
+    const reconciled = await reconcile(app, token, 'urn:sg:skill-version:skill:reconcile-mismatch@v1');
     expect(reconciled.status).toBe(200);
     expect(reconciled.body['status']).toBe('mismatch');
     const outcomes = reconciled.body['outcomes'] as Array<Record<string, unknown>>;
@@ -317,7 +317,7 @@ describe('transparency reconciliation', () => {
     leaf['record_key'] = 'tessera/tiles/test/cachet-governance/state.json';
     sidecar.objects.set(leafKey as string, Buffer.from(JSON.stringify(leaf), 'utf8'));
 
-    const reconciled = await reconcile(app, token, 'urn:tg:skill-version:skill:reconcile-tampered@v1');
+    const reconciled = await reconcile(app, token, 'urn:sg:skill-version:skill:reconcile-tampered@v1');
     expect(reconciled.status).toBe(200);
     expect(reconciled.body['status']).toBe('incomplete');
     const outcomes = reconciled.body['outcomes'] as Array<Record<string, unknown>>;
@@ -335,7 +335,7 @@ describe('transparency reconciliation', () => {
       body: JSON.stringify({
         log_id: 'cachet-governance',
         source_type: 'publication_envelope',
-        source_urn: 'urn:tg:skill-version:skill:ignored@v1',
+        source_urn: 'urn:sg:skill-version:skill:ignored@v1',
         digest: 'a'.repeat(64),
         digest_algorithm: 'sha256',
       }),
@@ -360,7 +360,7 @@ describe('transparency reconciliation', () => {
       TESSERA_SIDECAR_AUTH_TOKEN: 'e2e-sidecar-token',
     });
     await publishSkill(app, token, 'skill:reconcile-authed');
-    const reconciled = await reconcile(app, token, 'urn:tg:skill-version:skill:reconcile-authed@v1');
+    const reconciled = await reconcile(app, token, 'urn:sg:skill-version:skill:reconcile-authed@v1');
     expect(reconciled.status).toBe(200);
     expect(reconciled.body['status']).toBe('verified');
 
@@ -406,7 +406,7 @@ describe('transparency reconciliation', () => {
   it('returns 409 when reconciliation is not configured and 404 for unknown publications', async () => {
     const { app, token } = await buildTestApp();
 
-    const notConfigured = await reconcile(app, token, 'urn:tg:skill-version:skill:any@v1');
+    const notConfigured = await reconcile(app, token, 'urn:sg:skill-version:skill:any@v1');
     expect(notConfigured.status).toBe(409);
     expect(notConfigured.body).toMatchObject({
       error: { code: 'TRANSPARENCY_RECONCILIATION_NOT_CONFIGURED' },
@@ -419,11 +419,11 @@ describe('transparency reconciliation', () => {
       TESSERA_LOG_PUBLIC_KEY: sidecar.publicKeyPem,
     });
 
-    const missing = await reconcile(configured.app, configured.token, 'urn:tg:skill-version:skill:missing@v1');
+    const missing = await reconcile(configured.app, configured.token, 'urn:sg:skill-version:skill:missing@v1');
     expect(missing.status).toBe(404);
     expect(missing.body).toMatchObject({ error: { code: 'PUBLICATION_NOT_FOUND' } });
 
-    const unsupported = await reconcile(configured.app, configured.token, 'urn:tg:something-else:1');
+    const unsupported = await reconcile(configured.app, configured.token, 'urn:sg:something-else:1');
     expect(unsupported.status).toBe(404);
     expect(unsupported.body).toMatchObject({ error: { code: 'TRANSPARENCY_RECONCILIATION_INVALID' } });
   });

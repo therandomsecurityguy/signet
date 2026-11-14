@@ -138,7 +138,7 @@ describe('certification state machine', () => {
     expect(v1.skill_version.properties['lifecycle_status']).toBe('certified');
     expect(v1.skill_version.properties['publication_status']).toBe('superseded');
     expect(v1.skill_version.properties['superseded_by_version_urn']).toBe(
-      'urn:tg:skill-version:skill:cert-promote@v2',
+      'urn:sg:skill-version:skill:cert-promote@v2',
     );
     expect(v1.skill_version.properties['active']).toBe(false);
 

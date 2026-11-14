@@ -156,7 +156,7 @@ describe('transparency blackbox e2e', () => {
 });
 
 async function seedTransparencySampleGraph(baseUrl: string, token: string) {
-  const logId = 'tg-persistent-sample-log';
+  const logId = 'sg-persistent-sample-log';
   const checkpointKey = await createTrustedKey(baseUrl, token, {
     keyRef: 'kms://registry/sample-checkpoint',
     owner: 'security-team',
@@ -385,7 +385,7 @@ function signedCheckpointNote(
         keyHintBytes?: number[];
       }>,
 ) {
-  const entries = typeof signatures === 'string' ? [{ signer: 'tg-main-log', detachedSignature: signatures }] : signatures;
+  const entries = typeof signatures === 'string' ? [{ signer: 'sg-main-log', detachedSignature: signatures }] : signatures;
   const signatureLines = entries.map((entry, index) => {
     const raw = Buffer.from(entry.detachedSignature.replace(/^base64:/, ''), 'base64');
     const keyHint = Buffer.from(entry.keyHintBytes ?? [0, 0, 0, index]);

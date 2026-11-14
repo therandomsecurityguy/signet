@@ -119,7 +119,7 @@ describe('publication attestations', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        publication_urn: `urn:tg:skill-version:${skillKey}@v1`,
+        publication_urn: `urn:sg:skill-version:${skillKey}@v1`,
         signer: 'build-bot',
         key_ref: 'kms://build/attestation-key',
         algorithm: 'ed25519',
@@ -174,7 +174,7 @@ describe('publication attestations', () => {
       method: 'POST',
       headers: auth,
       body: JSON.stringify({
-        publication_urn: `urn:tg:skill-version:${skillKey}@v1`,
+        publication_urn: `urn:sg:skill-version:${skillKey}@v1`,
         signer: 'build-bot',
         key_ref: 'kms://build/guard-key',
         algorithm: 'ed25519',
@@ -194,7 +194,7 @@ describe('publication attestations', () => {
       method: 'POST',
       headers: auth,
       body: JSON.stringify({
-        publication_urn: `urn:tg:skill-version:${skillKey}@v1`,
+        publication_urn: `urn:sg:skill-version:${skillKey}@v1`,
         signer: 'build-bot',
         key_ref: 'kms://build/missing-key',
         algorithm: 'ed25519',
@@ -210,7 +210,7 @@ describe('publication attestations', () => {
       method: 'POST',
       headers: auth,
       body: JSON.stringify({
-        publication_urn: `urn:tg:skill-version:${skillKey}@v1`,
+        publication_urn: `urn:sg:skill-version:${skillKey}@v1`,
         signer: 'build-bot',
         key_ref: 'kms://build/guard-key',
         algorithm: 'ed25519',
@@ -239,7 +239,7 @@ describe('publication attestations', () => {
       method: 'POST',
       headers: auth,
       body: JSON.stringify({
-        publication_urn: 'urn:tg:skill-version:skill:attestation-draft@v1',
+        publication_urn: 'urn:sg:skill-version:skill:attestation-draft@v1',
         signer: 'build-bot',
         key_ref: 'kms://build/guard-key',
         algorithm: 'ed25519',
@@ -253,7 +253,7 @@ describe('publication attestations', () => {
       method: 'POST',
       headers: auth,
       body: JSON.stringify({
-        publication_urn: 'urn:tg:skill-version:skill:missing@v1',
+        publication_urn: 'urn:sg:skill-version:skill:missing@v1',
         signer: 'build-bot',
         key_ref: 'kms://build/guard-key',
         algorithm: 'ed25519',

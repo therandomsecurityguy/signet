@@ -113,7 +113,7 @@ describe('policy authz (phase 9)', () => {
     const decision = await policy.evaluate({
       tool_name: ToolName.RegistryGetAgent,
       principal,
-      parsed_input: { agent_urn: 'urn:tg:agent:cursor:blackbox' },
+      parsed_input: { agent_urn: 'urn:sg:agent:cursor:blackbox' },
     });
 
     expect(decision.effect).toBe('allow');
@@ -149,7 +149,7 @@ describe('policy authz (phase 9)', () => {
     const decision = await policy.evaluate({
       tool_name: ToolName.RegistryGetAgent,
       principal,
-      parsed_input: { agent_urn: 'urn:tg:agent:cursor:blackbox' },
+      parsed_input: { agent_urn: 'urn:sg:agent:cursor:blackbox' },
     });
 
     expect(decision.effect).toBe('deny');

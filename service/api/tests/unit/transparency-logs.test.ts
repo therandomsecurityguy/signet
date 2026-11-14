@@ -68,7 +68,7 @@ function signedCheckpointNote(
         keyHintBytes?: number[];
       }>,
 ) {
-  const entries = typeof signatures === 'string' ? [{ signer: 'tg-main-log', detachedSignature: signatures }] : signatures;
+  const entries = typeof signatures === 'string' ? [{ signer: 'sg-main-log', detachedSignature: signatures }] : signatures;
   const signatureLines = entries.map((entry, index) => {
     const raw = Buffer.from(entry.detachedSignature.replace(/^base64:/, ''), 'base64');
     const keyHint = Buffer.from(entry.keyHintBytes ?? [0, 0, 0, index]);
@@ -94,8 +94,8 @@ describe('transparency log routes', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        log_id: 'tg-main-log',
-        origin: 'tg-main-log',
+        log_id: 'sg-main-log',
+        origin: 'sg-main-log',
         checkpoint_key_ref: 'kms://registry/checkpoint-v1',
         log_type: 'tessera',
         witness_quorum: 1,
@@ -103,7 +103,7 @@ describe('transparency log routes', () => {
     });
     expect(createLog.status).toBe(201);
 
-    const attachWitness = await app.request('/v1/transparency-logs/tg-main-log/witnesses', {
+    const attachWitness = await app.request('/v1/transparency-logs/sg-main-log/witnesses', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -116,11 +116,11 @@ describe('transparency log routes', () => {
 
     const leafOne = leafHash('entry-1');
     const rootOne = `base64:${leafOne.toString('base64')}`;
-    const checkpointBodyOne = checkpointBody('tg-main-log', 1, rootOne);
+    const checkpointBodyOne = checkpointBody('sg-main-log', 1, rootOne);
     const checkpointSigOne = `base64:${signBytes(null, Buffer.from(checkpointBodyOne, 'utf8'), checkpointKeyV1).toString('base64')}`;
     const witnessSigOne = `base64:${signBytes(null, Buffer.from(checkpointBodyOne, 'utf8'), witnessKey).toString('base64')}`;
 
-    const createCheckpointOne = await app.request('/v1/transparency-logs/tg-main-log/checkpoints', {
+    const createCheckpointOne = await app.request('/v1/transparency-logs/sg-main-log/checkpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -134,11 +134,11 @@ describe('transparency log routes', () => {
     const leafTwo = leafHash('entry-2');
     const rootTwoHash = nodeHash(leafOne, leafTwo);
     const rootTwo = `base64:${rootTwoHash.toString('base64')}`;
-    const checkpointBodyTwo = checkpointBody('tg-main-log', 2, rootTwo);
+    const checkpointBodyTwo = checkpointBody('sg-main-log', 2, rootTwo);
     const checkpointSigTwo = `base64:${signBytes(null, Buffer.from(checkpointBodyTwo, 'utf8'), checkpointKeyV1).toString('base64')}`;
     const witnessSigTwo = `base64:${signBytes(null, Buffer.from(checkpointBodyTwo, 'utf8'), witnessKey).toString('base64')}`;
 
-    const createCheckpointTwo = await app.request('/v1/transparency-logs/tg-main-log/checkpoints', {
+    const createCheckpointTwo = await app.request('/v1/transparency-logs/sg-main-log/checkpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -156,9 +156,9 @@ describe('transparency log routes', () => {
 
     const leafTwoAlt = leafHash('entry-2-alt');
     const rootTwoAlt = `base64:${nodeHash(leafOne, leafTwoAlt).toString('base64')}`;
-    const checkpointBodyObserved = checkpointBody('tg-main-log', 2, rootTwoAlt);
+    const checkpointBodyObserved = checkpointBody('sg-main-log', 2, rootTwoAlt);
     const checkpointSigObserved = `base64:${signBytes(null, Buffer.from(checkpointBodyObserved, 'utf8'), checkpointKeyV1).toString('base64')}`;
-    const observeConflict = await app.request('/v1/transparency-logs/tg-main-log/observations', {
+    const observeConflict = await app.request('/v1/transparency-logs/sg-main-log/observations', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -170,7 +170,7 @@ describe('transparency log routes', () => {
     });
     expect(observeConflict.status).toBe(200);
 
-    const gossip = await app.request('/v1/transparency-logs/tg-main-log/gossip-events', {
+    const gossip = await app.request('/v1/transparency-logs/sg-main-log/gossip-events', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -181,18 +181,18 @@ describe('transparency log routes', () => {
     });
     expect(gossip.status).toBe(200);
     await expect(gossip.json()).resolves.toMatchObject({
-      log_id: 'tg-main-log',
+      log_id: 'sg-main-log',
       from_witness_id: 'witness-alpha',
       to_witness_id: 'witness-alpha',
       event_type: 'checkpoint_gossip',
     });
 
-    const getLog = await app.request('/v1/transparency-logs/tg-main-log');
+    const getLog = await app.request('/v1/transparency-logs/sg-main-log');
     expect(getLog.status).toBe(200);
     await expect(getLog.json()).resolves.toMatchObject({
       transparency_log: {
         properties: {
-          log_id: 'tg-main-log',
+          log_id: 'sg-main-log',
           checkpoint_key_ref: 'kms://registry/checkpoint-v1',
           witness_quorum: 1,
         },
@@ -215,7 +215,7 @@ describe('transparency log routes', () => {
       ],
     });
 
-    const verifyLog = await app.request('/v1/transparency-logs/tg-main-log/verification');
+    const verifyLog = await app.request('/v1/transparency-logs/sg-main-log/verification');
     expect(verifyLog.status).toBe(200);
     await expect(verifyLog.json()).resolves.toMatchObject({
       checkpoint_signature_valid: true,
@@ -239,12 +239,12 @@ describe('transparency log routes', () => {
       disagreements: expect.arrayContaining([
         expect.objectContaining({
           kind: 'same_size_different_root',
-          log_id: 'tg-main-log',
+          log_id: 'sg-main-log',
         }),
       ]),
       gossip_events: expect.arrayContaining([
         expect.objectContaining({
-          log_id: 'tg-main-log',
+          log_id: 'sg-main-log',
           from_witness_id: 'witness-alpha',
           to_witness_id: 'witness-alpha',
         }),
@@ -260,7 +260,7 @@ describe('transparency log routes', () => {
       ],
     });
 
-    const timeline = await app.request('/v1/transparency-logs/tg-main-log/timeline');
+    const timeline = await app.request('/v1/transparency-logs/sg-main-log/timeline');
     expect(timeline.status).toBe(200);
     await expect(timeline.json()).resolves.toMatchObject({
       events: expect.arrayContaining([
@@ -283,19 +283,19 @@ describe('transparency log routes', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        log_id: 'tg-note-log',
-        origin: 'tg-note-log',
+        log_id: 'sg-note-log',
+        origin: 'sg-note-log',
         checkpoint_key_ref: 'kms://registry/checkpoint-note',
       }),
     });
     expect(createLog.status).toBe(201);
 
     const root = `base64:${leafHash('entry-note').toString('base64')}`;
-    const body = checkpointBody('tg-note-log', 1, root);
+    const body = checkpointBody('sg-note-log', 1, root);
     const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
     const note = signedCheckpointNote(body, detachedSignature);
 
-    const createCheckpoint = await app.request('/v1/transparency-logs/tg-note-log/checkpoints', {
+    const createCheckpoint = await app.request('/v1/transparency-logs/sg-note-log/checkpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -309,7 +309,7 @@ describe('transparency log routes', () => {
       checkpoint_signature_valid: true,
     });
 
-    const verifyLog = await app.request('/v1/transparency-logs/tg-note-log/verification');
+    const verifyLog = await app.request('/v1/transparency-logs/sg-note-log/verification');
     expect(verifyLog.status).toBe(200);
     await expect(verifyLog.json()).resolves.toMatchObject({
       checkpoint_signature_valid: true,
@@ -327,19 +327,19 @@ describe('transparency log routes', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        log_id: 'tg-crlf-log',
-        origin: 'tg-crlf-log',
+        log_id: 'sg-crlf-log',
+        origin: 'sg-crlf-log',
         checkpoint_key_ref: 'kms://registry/checkpoint-crlf-note',
       }),
     });
     expect(createLog.status).toBe(201);
 
     const root = `base64:${leafHash('entry-crlf').toString('base64')}`;
-    const body = checkpointBody('tg-crlf-log', 1, root);
+    const body = checkpointBody('sg-crlf-log', 1, root);
     const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
     const note = signedCheckpointNote(body, detachedSignature).replace(/\n/g, '\r\n').replace('— ', '- ');
 
-    const createCheckpoint = await app.request('/v1/transparency-logs/tg-crlf-log/checkpoints', {
+    const createCheckpoint = await app.request('/v1/transparency-logs/sg-crlf-log/checkpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -365,19 +365,19 @@ describe('transparency log routes', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        log_id: 'tg-ambiguous-log',
-        origin: 'tg-ambiguous-log',
+        log_id: 'sg-ambiguous-log',
+        origin: 'sg-ambiguous-log',
         checkpoint_key_ref: 'kms://registry/checkpoint-ambiguous',
       }),
     });
     expect(createLog.status).toBe(201);
 
     const root = `base64:${leafHash('entry-ambiguous').toString('base64')}`;
-    const body = checkpointBody('tg-ambiguous-log', 1, root);
+    const body = checkpointBody('sg-ambiguous-log', 1, root);
     const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
     const note = signedCheckpointNote(body, detachedSignature);
 
-    const createCheckpoint = await app.request('/v1/transparency-logs/tg-ambiguous-log/checkpoints', {
+    const createCheckpoint = await app.request('/v1/transparency-logs/sg-ambiguous-log/checkpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -413,8 +413,8 @@ describe('transparency log routes', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        log_id: 'tg-temporal-log',
-        origin: 'tg-temporal-log',
+        log_id: 'sg-temporal-log',
+        origin: 'sg-temporal-log',
         checkpoint_key_ref: 'kms://registry/checkpoint-temporal',
         witness_quorum: 2,
       }),
@@ -425,7 +425,7 @@ describe('transparency log routes', () => {
       { witness_id: 'witness-alpha', key_ref: 'kms://registry/witness-alpha-temporal' },
       { witness_id: 'witness-beta', key_ref: 'kms://registry/witness-beta-temporal' },
     ]) {
-      const attachWitness = await app.request('/v1/transparency-logs/tg-temporal-log/witnesses', {
+      const attachWitness = await app.request('/v1/transparency-logs/sg-temporal-log/witnesses', {
         method: 'POST',
         headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -438,10 +438,10 @@ describe('transparency log routes', () => {
 
     const leafOne = leafHash('temporal-entry-1');
     const rootOne = `base64:${leafOne.toString('base64')}`;
-    const checkpointBodyOne = checkpointBody('tg-temporal-log', 1, rootOne);
+    const checkpointBodyOne = checkpointBody('sg-temporal-log', 1, rootOne);
     const checkpointSigOne = `base64:${signBytes(null, Buffer.from(checkpointBodyOne, 'utf8'), checkpointKey).toString('base64')}`;
     const witnessAlphaSigOne = `base64:${signBytes(null, Buffer.from(checkpointBodyOne, 'utf8'), witnessAlphaKey).toString('base64')}`;
-    const createCheckpointOne = await app.request('/v1/transparency-logs/tg-temporal-log/checkpoints', {
+    const createCheckpointOne = await app.request('/v1/transparency-logs/sg-temporal-log/checkpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -455,11 +455,11 @@ describe('transparency log routes', () => {
     const leafTwo = leafHash('temporal-entry-2');
     const rootTwoHash = nodeHash(leafOne, leafTwo);
     const rootTwo = `base64:${rootTwoHash.toString('base64')}`;
-    const checkpointBodyTwo = checkpointBody('tg-temporal-log', 2, rootTwo);
+    const checkpointBodyTwo = checkpointBody('sg-temporal-log', 2, rootTwo);
     const checkpointSigTwo = `base64:${signBytes(null, Buffer.from(checkpointBodyTwo, 'utf8'), checkpointKey).toString('base64')}`;
     const witnessAlphaSigTwo = `base64:${signBytes(null, Buffer.from(checkpointBodyTwo, 'utf8'), witnessAlphaKey).toString('base64')}`;
     const witnessBetaSigTwo = `base64:${signBytes(null, Buffer.from(checkpointBodyTwo, 'utf8'), witnessBetaKey).toString('base64')}`;
-    const createCheckpointTwo = await app.request('/v1/transparency-logs/tg-temporal-log/checkpoints', {
+    const createCheckpointTwo = await app.request('/v1/transparency-logs/sg-temporal-log/checkpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -480,7 +480,7 @@ describe('transparency log routes', () => {
 
     const leafTwoAlt = leafHash('temporal-entry-2-alt');
     const rootTwoAlt = `base64:${nodeHash(leafOne, leafTwoAlt).toString('base64')}`;
-    const checkpointBodyTwoAlt = checkpointBody('tg-temporal-log', 2, rootTwoAlt);
+    const checkpointBodyTwoAlt = checkpointBody('sg-temporal-log', 2, rootTwoAlt);
     const checkpointSigTwoAlt = `base64:${signBytes(null, Buffer.from(checkpointBodyTwoAlt, 'utf8'), checkpointKey).toString('base64')}`;
     const times = {
       witnessAlphaRootTwo: '2026-01-01T00:00:00.000Z',
@@ -519,7 +519,7 @@ describe('transparency log routes', () => {
         observed_at: times.witnessAlphaRegression,
       },
     ]) {
-      const createObservation = await app.request('/v1/transparency-logs/tg-temporal-log/observations', {
+      const createObservation = await app.request('/v1/transparency-logs/sg-temporal-log/observations', {
         method: 'POST',
         headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(observation),
@@ -527,7 +527,7 @@ describe('transparency log routes', () => {
       expect(createObservation.status).toBe(200);
     }
 
-    const verifyLog = await app.request('/v1/transparency-logs/tg-temporal-log/verification');
+    const verifyLog = await app.request('/v1/transparency-logs/sg-temporal-log/verification');
     expect(verifyLog.status).toBe(200);
     const verification = (await verifyLog.json()) as {
       verification_status: string;
@@ -573,13 +573,13 @@ describe('transparency log routes', () => {
         }),
         expect.objectContaining({
           kind: 'quorum_drift',
-          source_ids: ['tg-temporal-log'],
+          source_ids: ['sg-temporal-log'],
           reason: expect.stringContaining('2/2 valid witness attestations'),
         }),
       ]),
     );
 
-    const timeline = await app.request('/v1/transparency-logs/tg-temporal-log/timeline');
+    const timeline = await app.request('/v1/transparency-logs/sg-temporal-log/timeline');
     expect(timeline.status).toBe(200);
     await expect(timeline.json()).resolves.toMatchObject({
       events: expect.arrayContaining([
@@ -610,8 +610,8 @@ describe('transparency log routes', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        log_id: 'tg-provenance-log',
-        origin: 'tg-provenance-log',
+        log_id: 'sg-provenance-log',
+        origin: 'sg-provenance-log',
         checkpoint_key_ref: 'kms://registry/checkpoint-provenance',
       }),
     });
@@ -621,7 +621,7 @@ describe('transparency log routes', () => {
       { witness_id: 'witness-alpha', key_ref: 'kms://registry/witness-provenance-alpha' },
       { witness_id: 'witness-beta', key_ref: 'kms://registry/witness-provenance-beta' },
     ]) {
-      const attachWitness = await app.request('/v1/transparency-logs/tg-provenance-log/witnesses', {
+      const attachWitness = await app.request('/v1/transparency-logs/sg-provenance-log/witnesses', {
         method: 'POST',
         headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -633,12 +633,12 @@ describe('transparency log routes', () => {
     }
 
     const root = `base64:${leafHash('entry-provenance').toString('base64')}`;
-    const body = checkpointBody('tg-provenance-log', 1, root);
+    const body = checkpointBody('sg-provenance-log', 1, root);
     const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
     const note = signedCheckpointNote(body, detachedSignature);
     const expectedPayloadSha = createHash('sha256').update(note, 'utf8').digest('hex');
 
-    const createCheckpoint = await app.request('/v1/transparency-logs/tg-provenance-log/checkpoints', {
+    const createCheckpoint = await app.request('/v1/transparency-logs/sg-provenance-log/checkpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -648,7 +648,7 @@ describe('transparency log routes', () => {
     expect(createCheckpoint.status).toBe(200);
     const checkpointArtifactUrn = (await createCheckpoint.json() as { checkpoint_artifact_urn: string }).checkpoint_artifact_urn;
 
-    const createObservation = await app.request('/v1/transparency-logs/tg-provenance-log/observations', {
+    const createObservation = await app.request('/v1/transparency-logs/sg-provenance-log/observations', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -681,7 +681,7 @@ describe('transparency log routes', () => {
       source_checkpoint_occurred_at: '2026-01-02T00:00:00.000Z',
     });
 
-    const createGossip = await app.request('/v1/transparency-logs/tg-provenance-log/gossip-events', {
+    const createGossip = await app.request('/v1/transparency-logs/sg-provenance-log/gossip-events', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -708,7 +708,7 @@ describe('transparency log routes', () => {
       source_checkpoint_occurred_at: '2026-01-02T00:00:00.000Z',
     });
 
-    const verifyLog = await app.request('/v1/transparency-logs/tg-provenance-log/verification');
+    const verifyLog = await app.request('/v1/transparency-logs/sg-provenance-log/verification');
     expect(verifyLog.status).toBe(200);
     await expect(verifyLog.json()).resolves.toMatchObject({
       observations: expect.arrayContaining([
@@ -753,20 +753,20 @@ describe('transparency log routes', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        log_id: 'tg-multisig-log',
-        origin: 'tg-multisig-log',
+        log_id: 'sg-multisig-log',
+        origin: 'sg-multisig-log',
         checkpoint_key_ref: 'kms://registry/checkpoint-multisig',
       }),
     });
     expect(createLog.status).toBe(201);
 
     const root = `base64:${leafHash('entry-multisig').toString('base64')}`;
-    const body = checkpointBody('tg-multisig-log', 1, root);
+    const body = checkpointBody('sg-multisig-log', 1, root);
     const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
     const cosignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), cosignerKey).toString('base64')}`;
     const note = signedCheckpointNote(body, [
       {
-        signer: 'tg-multisig-log',
+        signer: 'sg-multisig-log',
         detachedSignature,
         keyHintBytes: [0, 0, 0, 1],
       },
@@ -777,7 +777,7 @@ describe('transparency log routes', () => {
       },
     ]);
 
-    const createCheckpoint = await app.request('/v1/transparency-logs/tg-multisig-log/checkpoints', {
+    const createCheckpoint = await app.request('/v1/transparency-logs/sg-multisig-log/checkpoints', {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -791,13 +791,13 @@ describe('transparency log routes', () => {
       checkpoint_signature_valid: true,
       note_format: 'raw_signed_note',
       signature_count: 2,
-      signed_note_signer: 'tg-multisig-log',
+      signed_note_signer: 'sg-multisig-log',
       signed_note_key_hint: 'base64:AAAAAQ==',
       signatures: [
         expect.objectContaining({
           signature_index: 0,
           signature_role: 'checkpoint',
-          signer: 'tg-multisig-log',
+          signer: 'sg-multisig-log',
           key_hint: 'base64:AAAAAQ==',
         }),
         expect.objectContaining({

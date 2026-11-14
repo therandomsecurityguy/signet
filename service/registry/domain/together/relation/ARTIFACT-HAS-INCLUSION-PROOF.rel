@@ -2,6 +2,6 @@ name: ARTIFACT-HAS-INCLUSION-PROOF
 doc: Detached signature artifact points to a transparency inclusion-proof artifact.
 from: ARTIFACT
 to: ARTIFACT
-predicate: "tg:hasInclusionProof"
+predicate: "sg:hasInclusionProof"
 inverse: "ARTIFACT-IS-INCLUSION-PROOF-FOR"
 cardinality: "N:N"

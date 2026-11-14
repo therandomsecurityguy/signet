@@ -136,10 +136,10 @@ describe('PROV-O provenance tracking', () => {
     // Derivation chain: v2 derives from v1.
     expect(body.entity.entity_type).toBe('SKILL_VERSION');
     expect(body.derivation_chain.map((link) => link.version_urn)).toEqual([
-      'urn:tg:skill-version:skill:prov@v2',
-      'urn:tg:skill-version:skill:prov@v1',
+      'urn:sg:skill-version:skill:prov@v2',
+      'urn:sg:skill-version:skill:prov@v1',
     ]);
-    expect(body.derivation_chain[0]?.was_derived_from).toEqual(['urn:tg:skill-version:skill:prov@v1']);
+    expect(body.derivation_chain[0]?.was_derived_from).toEqual(['urn:sg:skill-version:skill:prov@v1']);
     expect(body.derivation_chain[1]?.was_derived_from).toEqual([]);
 
     // v2 activities cover the lifecycle operations in order.

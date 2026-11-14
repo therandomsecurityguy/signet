@@ -2,6 +2,6 @@ name: AGENT-HAS-VERSION
 doc: Logical agent points to one of its managed publication snapshots.
 from: AGENT
 to: AGENT_VERSION
-predicate: "tg:hasVersion"
+predicate: "sg:hasVersion"
 inverse: "AGENT_VERSION-VERSION-OF-AGENT"
 cardinality: "1:N"

@@ -72,11 +72,11 @@ describe('API blackbox e2e', () => {
       expect(getAgent.status).toBe(200);
       await expect(getAgent.json()).resolves.toMatchObject({
         agent: {
-          urn: 'urn:tg:agent:cursor:blackbox',
+          urn: 'urn:sg:agent:cursor:blackbox',
         },
         skills: [
           {
-            skill_urn: 'urn:tg:skill:skill:blackbox',
+            skill_urn: 'urn:sg:skill:skill:blackbox',
           },
         ],
         artifacts: [

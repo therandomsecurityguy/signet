@@ -1,6 +1,6 @@
 name: AGENT_VERSION
 doc: An immutable or version-addressable publication snapshot of an agent release.
-urn_template: "urn:tg:agent-version:{agent_key}@v{version}"
+urn_template: "urn:sg:agent-version:{agent_key}@v{version}"
 key_fields:
   - agent_key
   - version

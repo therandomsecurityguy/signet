@@ -44,7 +44,7 @@ describe('skill routes', () => {
     expect(create.status).toBe(201);
     await expect(create.json()).resolves.toMatchObject({
       skill: {
-        urn: 'urn:tg:skill:skill:example-skill',
+        urn: 'urn:sg:skill:skill:example-skill',
         properties: {
           skill_key: 'skill:example-skill',
           display_name: 'Example Skill',
@@ -57,7 +57,7 @@ describe('skill routes', () => {
     expect(get.status).toBe(200);
     await expect(get.json()).resolves.toMatchObject({
       skill: {
-        urn: 'urn:tg:skill:skill:example-skill',
+        urn: 'urn:sg:skill:skill:example-skill',
       },
     });
   });

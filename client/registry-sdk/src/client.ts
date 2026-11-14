@@ -4,7 +4,7 @@ import type { paths } from './generated/api.js';
 import { sha256Hex } from './verify.js';
 
 function parseArtifactSha256(urn: string): string | null {
-  const match = /^urn:tg:artifact:sha256:([0-9a-f]{64})$/.exec(urn);
+  const match = /^urn:sg:artifact:sha256:([0-9a-f]{64})$/.exec(urn);
   return match?.[1] ?? null;
 }
 

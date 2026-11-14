@@ -73,25 +73,25 @@ describe('graph routes', () => {
     await deps.graph.upsertEdge({
       from_urn: agent,
       to_urn: harness,
-      predicate: 'tg:runsOn',
+      predicate: 'sg:runsOn',
       properties: {},
     });
     await deps.graph.upsertEdge({
       from_urn: agent,
       to_urn: skill,
-      predicate: 'tg:usesSkill',
+      predicate: 'sg:usesSkill',
       properties: {},
     });
     await deps.graph.upsertEdge({
       from_urn: skill,
       to_urn: version,
-      predicate: 'tg:hasVersion',
+      predicate: 'sg:hasVersion',
       properties: {},
     });
     await deps.graph.upsertEdge({
       from_urn: version,
       to_urn: artifact,
-      predicate: 'tg:implementedBy',
+      predicate: 'sg:implementedBy',
       properties: {},
     });
 
@@ -109,9 +109,9 @@ describe('graph routes', () => {
         expect.objectContaining({ urn: artifact, entity_type: 'ARTIFACT', label: 'artifact:abc123' }),
       ]),
       edges: expect.arrayContaining([
-        expect.objectContaining({ from_urn: agent, to_urn: skill, predicate: 'tg:usesSkill' }),
-        expect.objectContaining({ from_urn: skill, to_urn: version, predicate: 'tg:hasVersion' }),
-        expect.objectContaining({ from_urn: version, to_urn: artifact, predicate: 'tg:implementedBy' }),
+        expect.objectContaining({ from_urn: agent, to_urn: skill, predicate: 'sg:usesSkill' }),
+        expect.objectContaining({ from_urn: skill, to_urn: version, predicate: 'sg:hasVersion' }),
+        expect.objectContaining({ from_urn: version, to_urn: artifact, predicate: 'sg:implementedBy' }),
       ]),
     });
   });

@@ -19,7 +19,7 @@ describe('SparqlGraphStore', () => {
     });
 
     await store.upsertNode({
-      urn: 'urn:tg:agent:cursor:test',
+      urn: 'urn:sg:agent:cursor:test',
       entity_type: 'AGENT',
       properties: { agent_key: 'cursor:test' },
     });
@@ -59,9 +59,9 @@ describe('SparqlGraphStore', () => {
       query_url: 'http://localhost:3030/registry/sparql',
     });
 
-    const got = await store.getNode('urn:tg:agent:cursor:test');
+    const got = await store.getNode('urn:sg:agent:cursor:test');
     expect(got).toEqual({
-      urn: 'urn:tg:agent:cursor:test',
+      urn: 'urn:sg:agent:cursor:test',
       entity_type: 'AGENT',
       properties: {
         agent_key: 'cursor:test',
@@ -77,8 +77,8 @@ describe('SparqlGraphStore', () => {
           results: {
             bindings: [
               {
-                to_urn: { value: 'urn:tg:skill:skill:test' },
-                predicate: { value: 'tg:usesSkill' },
+                to_urn: { value: 'urn:sg:skill:skill:test' },
+                predicate: { value: 'sg:usesSkill' },
                 properties: { value: '{}' },
               },
             ],
@@ -95,12 +95,12 @@ describe('SparqlGraphStore', () => {
       query_url: 'http://localhost:3030/registry/sparql',
     });
 
-    const edges = await store.listEdgesFrom('urn:tg:agent:cursor:test', 'tg:usesSkill');
+    const edges = await store.listEdgesFrom('urn:sg:agent:cursor:test', 'sg:usesSkill');
     expect(edges).toEqual([
       {
-        from_urn: 'urn:tg:agent:cursor:test',
-        to_urn: 'urn:tg:skill:skill:test',
-        predicate: 'tg:usesSkill',
+        from_urn: 'urn:sg:agent:cursor:test',
+        to_urn: 'urn:sg:skill:skill:test',
+        predicate: 'sg:usesSkill',
         properties: {},
       },
     ]);

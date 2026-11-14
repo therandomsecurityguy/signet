@@ -184,10 +184,10 @@ async function prepareSkill(path: string, app: TestAppLike, token: string) {
 describe('single-request sign-then-publish', () => {
   it('orders governance artifact refs deterministically regardless of arrival order', () => {
     const refs = [
-      { role: 'validation_report' as const, artifact_urn: 'urn:tg:artifact:sha256:bb' },
-      { role: 'policy_package' as const, artifact_urn: 'urn:tg:artifact:sha256:zz' },
-      { role: 'validation_report' as const, artifact_urn: 'urn:tg:artifact:sha256:aa' },
-      { role: 'review_evidence' as const, artifact_urn: 'urn:tg:artifact:sha256:cc' },
+      { role: 'validation_report' as const, artifact_urn: 'urn:sg:artifact:sha256:bb' },
+      { role: 'policy_package' as const, artifact_urn: 'urn:sg:artifact:sha256:zz' },
+      { role: 'validation_report' as const, artifact_urn: 'urn:sg:artifact:sha256:aa' },
+      { role: 'review_evidence' as const, artifact_urn: 'urn:sg:artifact:sha256:cc' },
     ];
     const expected = [
       'policy_package:zz',

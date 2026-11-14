@@ -789,7 +789,7 @@ async function runVerifyArtifact(env: Env, args: Record<string, string | boolean
 }
 
 function parseArtifactUrnSha256(urn: string | undefined): string | undefined {
-  const match = urn ? /^urn:tg:artifact:sha256:([0-9a-f]{64})$/.exec(urn) : null;
+  const match = urn ? /^urn:sg:artifact:sha256:([0-9a-f]{64})$/.exec(urn) : null;
   return match?.[1];
 }
 

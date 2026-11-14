@@ -2,7 +2,7 @@
  * Projection of the typed publication graph to canonical RDF.
  *
  * Each publication snapshot is projected to an RDF dataset (N-Quads):
- * - the logical identity links to the snapshot via tg:hasVersion
+ * - the logical identity links to the snapshot via sg:hasVersion
  * - snapshot properties become triples with typed literals
  * - snapshot edges become triples with IRI objects
  *
@@ -15,7 +15,7 @@
 import * as rdfCanonize from 'rdf-canonize';
 import { canonicalJsonString } from './canonical-json.js';
 
-const TG_HAS_VERSION = 'urn:tg:predicate:hasVersion';
+const TG_HAS_VERSION = 'urn:sg:predicate:hasVersion';
 const XSD_INTEGER = 'http://www.w3.org/2001/XMLSchema#integer';
 const XSD_DOUBLE = 'http://www.w3.org/2001/XMLSchema#double';
 const XSD_BOOLEAN = 'http://www.w3.org/2001/XMLSchema#boolean';
@@ -54,7 +54,7 @@ function assertValidIri(iri: string, context: string): void {
 }
 
 function predicateIri(predicate: string): string {
-  const iri = `urn:tg:predicate:${predicate.replaceAll(':', '-')}`;
+  const iri = `urn:sg:predicate:${predicate.replaceAll(':', '-')}`;
   assertValidIri(iri, 'predicate');
   return iri;
 }
@@ -106,7 +106,7 @@ export function projectPublicationGraphToNQuads(input: PublicationGraphProjectio
   for (const key of Object.keys(input.properties).sort()) {
     const value = input.properties[key];
     if (value === undefined || value === null) continue;
-    const propertyIri = `urn:tg:property:${key}`;
+    const propertyIri = `urn:sg:property:${key}`;
     assertValidIri(propertyIri, 'property');
     const predicate = `<${propertyIri}>`;
     if (Array.isArray(value)) {

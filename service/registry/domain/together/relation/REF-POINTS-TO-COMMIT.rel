@@ -2,6 +2,6 @@ name: REF-POINTS-TO-COMMIT
 doc: A mutable ref points to the current active commit it resolves to.
 from: REF
 to: COMMIT
-predicate: "tg:pointsToCommit"
+predicate: "sg:pointsToCommit"
 inverse: "COMMIT-POINTED-TO-BY-REF"
 cardinality: "M:1"

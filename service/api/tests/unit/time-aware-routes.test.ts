@@ -84,7 +84,7 @@ describe('time-aware routes', () => {
     await expect(draftWorkspace.json()).resolves.toMatchObject({
       created: true,
       workspace: {
-        urn: 'urn:tg:workspace:team-alpha',
+        urn: 'urn:sg:workspace:team-alpha',
         properties: {
           workspace_id: 'team-alpha',
           owner: 'alpha',
@@ -98,7 +98,7 @@ describe('time-aware routes', () => {
     await expect(workspaces.json()).resolves.toMatchObject({
       workspaces: [
         {
-          urn: 'urn:tg:workspace:team-alpha',
+          urn: 'urn:sg:workspace:team-alpha',
         },
       ],
     });
@@ -106,53 +106,53 @@ describe('time-aware routes', () => {
     const commitDetails = await app.request('/v1/time-aware/commits/c1');
     expect(commitDetails.status).toBe(200);
     await expect(commitDetails.json()).resolves.toMatchObject({
-      commit: { urn: 'urn:tg:commit:c1' },
-      parent_commits: [{ urn: 'urn:tg:commit:c0' }],
-      manifests: [{ urn: 'urn:tg:artifact-manifest:manifest-1' }],
-      blobs: [{ urn: 'urn:tg:artifact-blob:sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' }],
-      refs: [{ urn: 'urn:tg:ref:main' }],
-      tags: [{ urn: 'urn:tg:tag:release-1' }],
-      workspaces: [{ urn: 'urn:tg:workspace:team-alpha' }],
+      commit: { urn: 'urn:sg:commit:c1' },
+      parent_commits: [{ urn: 'urn:sg:commit:c0' }],
+      manifests: [{ urn: 'urn:sg:artifact-manifest:manifest-1' }],
+      blobs: [{ urn: 'urn:sg:artifact-blob:sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' }],
+      refs: [{ urn: 'urn:sg:ref:main' }],
+      tags: [{ urn: 'urn:sg:tag:release-1' }],
+      workspaces: [{ urn: 'urn:sg:workspace:team-alpha' }],
     });
 
     const refDetails = await app.request('/v1/time-aware/refs/main');
     expect(refDetails.status).toBe(200);
     await expect(refDetails.json()).resolves.toMatchObject({
-      ref: { urn: 'urn:tg:ref:main' },
-      target_commit: { urn: 'urn:tg:commit:c1' },
-      target_commit_parents: [{ urn: 'urn:tg:commit:c0' }],
+      ref: { urn: 'urn:sg:ref:main' },
+      target_commit: { urn: 'urn:sg:commit:c1' },
+      target_commit_parents: [{ urn: 'urn:sg:commit:c0' }],
     });
 
     const tagDetails = await app.request('/v1/time-aware/tags/release-1');
     expect(tagDetails.status).toBe(200);
     await expect(tagDetails.json()).resolves.toMatchObject({
-      tag: { urn: 'urn:tg:tag:release-1' },
-      target_commit: { urn: 'urn:tg:commit:c1' },
+      tag: { urn: 'urn:sg:tag:release-1' },
+      target_commit: { urn: 'urn:sg:commit:c1' },
     });
 
     const workspaceDetails = await app.request('/v1/time-aware/workspaces/team-alpha');
     expect(workspaceDetails.status).toBe(200);
     await expect(workspaceDetails.json()).resolves.toMatchObject({
-      workspace: { urn: 'urn:tg:workspace:team-alpha' },
-      base_commit: { urn: 'urn:tg:commit:c1' },
+      workspace: { urn: 'urn:sg:workspace:team-alpha' },
+      base_commit: { urn: 'urn:sg:commit:c1' },
     });
 
-    const filteredRefs = await app.request('/v1/time-aware/refs?commit_urn=urn:tg:commit:c1');
+    const filteredRefs = await app.request('/v1/time-aware/refs?commit_urn=urn:sg:commit:c1');
     expect(filteredRefs.status).toBe(200);
     await expect(filteredRefs.json()).resolves.toMatchObject({
-      refs: [{ urn: 'urn:tg:ref:main' }],
+      refs: [{ urn: 'urn:sg:ref:main' }],
     });
 
-    const filteredTags = await app.request('/v1/time-aware/tags?commit_urn=urn:tg:commit:c1');
+    const filteredTags = await app.request('/v1/time-aware/tags?commit_urn=urn:sg:commit:c1');
     expect(filteredTags.status).toBe(200);
     await expect(filteredTags.json()).resolves.toMatchObject({
-      tags: [{ urn: 'urn:tg:tag:release-1' }],
+      tags: [{ urn: 'urn:sg:tag:release-1' }],
     });
 
-    const filteredWorkspaces = await app.request('/v1/time-aware/workspaces?base_commit_urn=urn:tg:commit:c1');
+    const filteredWorkspaces = await app.request('/v1/time-aware/workspaces?base_commit_urn=urn:sg:commit:c1');
     expect(filteredWorkspaces.status).toBe(200);
     await expect(filteredWorkspaces.json()).resolves.toMatchObject({
-      workspaces: [{ urn: 'urn:tg:workspace:team-alpha' }],
+      workspaces: [{ urn: 'urn:sg:workspace:team-alpha' }],
     });
 
     const temporalCommits = await app.request(
@@ -160,7 +160,7 @@ describe('time-aware routes', () => {
     );
     expect(temporalCommits.status).toBe(200);
     await expect(temporalCommits.json()).resolves.toMatchObject({
-      commits: [{ urn: 'urn:tg:commit:c0' }],
+      commits: [{ urn: 'urn:sg:commit:c0' }],
     });
 
     const temporalRefs = await app.request(
@@ -243,21 +243,21 @@ describe('time-aware routes', () => {
     const analysis = await app.request('/v1/time-aware/retention-roots/root-1/analysis');
     expect(analysis.status).toBe(200);
     await expect(analysis.json()).resolves.toMatchObject({
-      retention_root: { urn: 'urn:tg:retention-root:root-1' },
-      direct_commits: [{ urn: 'urn:tg:commit:c11' }],
-      reachable_commits: [{ urn: 'urn:tg:commit:c10' }, { urn: 'urn:tg:commit:c11' }],
+      retention_root: { urn: 'urn:sg:retention-root:root-1' },
+      direct_commits: [{ urn: 'urn:sg:commit:c11' }],
+      reachable_commits: [{ urn: 'urn:sg:commit:c10' }, { urn: 'urn:sg:commit:c11' }],
       reachable_manifests: [
-        { urn: 'urn:tg:artifact-manifest:manifest-1' },
-        { urn: 'urn:tg:artifact-manifest:manifest-2' },
+        { urn: 'urn:sg:artifact-manifest:manifest-1' },
+        { urn: 'urn:sg:artifact-manifest:manifest-2' },
       ],
       direct_blobs: [],
       reachable_blobs: [
-        { urn: 'urn:tg:artifact-blob:sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' },
-        { urn: 'urn:tg:artifact-blob:sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7' },
+        { urn: 'urn:sg:artifact-blob:sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' },
+        { urn: 'urn:sg:artifact-blob:sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7' },
       ],
-      refs: [{ urn: 'urn:tg:ref:stable' }],
-      tags: [{ urn: 'urn:tg:tag:release-11' }],
-      workspaces: [{ urn: 'urn:tg:workspace:ops' }],
+      refs: [{ urn: 'urn:sg:ref:stable' }],
+      tags: [{ urn: 'urn:sg:tag:release-11' }],
+      workspaces: [{ urn: 'urn:sg:workspace:ops' }],
     });
 
     const temporalAnalysis = await app.request(
@@ -265,7 +265,7 @@ describe('time-aware routes', () => {
     );
     expect(temporalAnalysis.status).toBe(200);
     await expect(temporalAnalysis.json()).resolves.toMatchObject({
-      retention_root: { urn: 'urn:tg:retention-root:root-1' },
+      retention_root: { urn: 'urn:sg:retention-root:root-1' },
       direct_commits: [],
       reachable_commits: [],
       reachable_manifests: [],
@@ -278,17 +278,17 @@ describe('time-aware routes', () => {
     const gcPlan = await app.request('/v1/time-aware/retention-roots/root-1/gc-plan');
     expect(gcPlan.status).toBe(200);
     await expect(gcPlan.json()).resolves.toMatchObject({
-      retention_root: { urn: 'urn:tg:retention-root:root-1' },
+      retention_root: { urn: 'urn:sg:retention-root:root-1' },
       candidate_manifests: [
         {
-          object: { urn: 'urn:tg:artifact-manifest:manifest-3' },
+          object: { urn: 'urn:sg:artifact-manifest:manifest-3' },
         },
       ],
       blockers: [
-        { blocker_kind: 'REF', blocker: { urn: 'urn:tg:ref:stable' } },
-        { blocker_kind: 'RETENTION_ROOT', blocker: { urn: 'urn:tg:retention-root:root-2' } },
-        { blocker_kind: 'TAG', blocker: { urn: 'urn:tg:tag:release-11' } },
-        { blocker_kind: 'WORKSPACE', blocker: { urn: 'urn:tg:workspace:ops' } },
+        { blocker_kind: 'REF', blocker: { urn: 'urn:sg:ref:stable' } },
+        { blocker_kind: 'RETENTION_ROOT', blocker: { urn: 'urn:sg:retention-root:root-2' } },
+        { blocker_kind: 'TAG', blocker: { urn: 'urn:sg:tag:release-11' } },
+        { blocker_kind: 'WORKSPACE', blocker: { urn: 'urn:sg:workspace:ops' } },
       ],
     });
   });

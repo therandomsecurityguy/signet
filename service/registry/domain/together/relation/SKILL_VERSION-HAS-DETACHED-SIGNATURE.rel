@@ -2,6 +2,6 @@ name: SKILL_VERSION-HAS-DETACHED-SIGNATURE
 doc: Skill publication snapshot points to detached signature artifacts recorded against its canonical publication envelope.
 from: SKILL_VERSION
 to: ARTIFACT
-predicate: "tg:hasDetachedSignature"
+predicate: "sg:hasDetachedSignature"
 inverse: "ARTIFACT-SIGNS-SKILL_VERSION"
 cardinality: "N:N"

@@ -71,7 +71,7 @@ export async function ingestRegistry(input: RegistryIngestInput): Promise<Regist
         await input.graph.upsertEdge({
           from_urn: agent_node_urn,
           to_urn: artifact_node_urn,
-          predicate: 'tg:definedBy',
+          predicate: 'sg:definedBy',
           properties: {},
         });
         edges_written += 1;
@@ -88,7 +88,7 @@ export async function ingestRegistry(input: RegistryIngestInput): Promise<Regist
           await input.graph.upsertEdge({
             from_urn: agent_node_urn,
             to_urn: harness_node_urn,
-            predicate: 'tg:runsOn',
+            predicate: 'sg:runsOn',
             properties: {},
           });
           edges_written += 1;
@@ -116,7 +116,7 @@ export async function ingestRegistry(input: RegistryIngestInput): Promise<Regist
         await input.graph.upsertEdge({
           from_urn: skill_node_urn,
           to_urn: artifact_node_urn,
-          predicate: 'tg:implementedBy',
+          predicate: 'sg:implementedBy',
           properties: {},
         });
         edges_written += 1;

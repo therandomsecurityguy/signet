@@ -1,6 +1,6 @@
 name: ARTIFACT_BLOB
 doc: A content-addressed blob payload unit stored by checksum.
-urn_template: "urn:tg:artifact-blob:sha256:{sha256}"
+urn_template: "urn:sg:artifact-blob:sha256:{sha256}"
 key_fields:
   - sha256
 aspects:

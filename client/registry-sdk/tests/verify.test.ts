@@ -133,7 +133,7 @@ describe('RegistryClient.fetchArtifact', () => {
     );
 
     const badInput = new RegistryClient({ baseUrl: 'http://registry.test' });
-    await expect(badInput.fetchArtifact({ artifact_urn: 'urn:tg:artifact:sha256:zzz' })).rejects.toMatchObject({
+    await expect(badInput.fetchArtifact({ artifact_urn: 'urn:sg:artifact:sha256:zzz' })).rejects.toMatchObject({
       status: 400,
     });
   });

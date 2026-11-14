@@ -54,7 +54,7 @@ describe('ontology document parsing', () => {
 describe('capability claim validation', () => {
   it('passes claims that bind to known concepts', () => {
     const result = validateCapabilityClaims({
-      focus_urn: 'urn:tg:skill-version:skill:demo@v1',
+      focus_urn: 'urn:sg:skill-version:skill:demo@v1',
       claims: ['data-processing', 'pii-handling'],
       document: SKILL_AREA,
       ontology_version: 'skill-area/v1',
@@ -65,7 +65,7 @@ describe('capability claim validation', () => {
 
   it('fails unmapped claims and records them as de facto candidates', () => {
     const result = validateCapabilityClaims({
-      focus_urn: 'urn:tg:skill-version:skill:demo@v1',
+      focus_urn: 'urn:sg:skill-version:skill:demo@v1',
       claims: ['data-processing', 'teleportation'],
       document: SKILL_AREA,
       ontology_version: 'skill-area/v1',
@@ -73,7 +73,7 @@ describe('capability claim validation', () => {
     expect(result.de_facto_candidates).toEqual(['teleportation']);
     expect(result.violations).toHaveLength(1);
     expect(result.violations[0]).toMatchObject({
-      focusNode: 'urn:tg:skill-version:skill:demo@v1',
+      focusNode: 'urn:sg:skill-version:skill:demo@v1',
       resultPath: 'capability_claims',
       sourceConstraintComponent: 'OntologyBindingConstraintComponent',
       sourceShape: 'ontology:skill-area/v1',
@@ -83,7 +83,7 @@ describe('capability claim validation', () => {
 
   it('fails disjoint claim combinations even when every claim binds', () => {
     const result = validateCapabilityClaims({
-      focus_urn: 'urn:tg:skill-version:skill:demo@v1',
+      focus_urn: 'urn:sg:skill-version:skill:demo@v1',
       claims: ['pii-handling', 'public-data'],
       document: SKILL_AREA,
       ontology_version: 'skill-area/v1',

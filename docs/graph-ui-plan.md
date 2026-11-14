@@ -140,11 +140,11 @@ Initial capabilities:
   - skill versions
   - artifacts
 - show edges for:
-  - `tg:usesSkill`
-  - `tg:hasVersion`
-  - `tg:implementedBy`
-  - `tg:definedBy`
-  - `tg:runsOn`
+  - `sg:usesSkill`
+  - `sg:hasVersion`
+  - `sg:implementedBy`
+  - `sg:definedBy`
+  - `sg:runsOn`
 - click a node to inspect:
   - URN
   - entity type

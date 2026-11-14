@@ -2,6 +2,6 @@ name: TRANSPARENCY_WITNESS-USES-KEY
 doc: Trusted witness points to the trusted public key used to verify its checkpoint attestations.
 from: TRANSPARENCY_WITNESS
 to: PUBLIC_KEY
-predicate: "tg:usesWitnessKey"
+predicate: "sg:usesWitnessKey"
 inverse: "PUBLIC_KEY-VERIFIES-TRANSPARENCY_WITNESS"
 cardinality: "N:1"

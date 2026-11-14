@@ -29,12 +29,12 @@ function authHeaders(token: string) {
 describe('RDF projection and RDFC-1.0 canonicalization', () => {
   it('produces deterministic canonical bytes regardless of input ordering', async () => {
     const base = {
-      publication_urn: 'urn:tg:skill-version:skill:demo@v1',
-      logical_urn: 'urn:tg:skill:skill:demo',
+      publication_urn: 'urn:sg:skill-version:skill:demo@v1',
+      logical_urn: 'urn:sg:skill:skill:demo',
       properties: { version: 1, artifact_sha256: 'abc', source_path: 'skills/demo.md', active: true },
       edges: [
-        { predicate: 'tg:implementedBy', to_urn: 'urn:tg:artifact:sha256:abc' },
-        { predicate: 'tg:usesSkill', to_urn: 'urn:tg:skill:skill:other' },
+        { predicate: 'sg:implementedBy', to_urn: 'urn:sg:artifact:sha256:abc' },
+        { predicate: 'sg:usesSkill', to_urn: 'urn:sg:skill:skill:other' },
       ],
     };
     const shuffled = {
@@ -47,14 +47,14 @@ describe('RDF projection and RDFC-1.0 canonicalization', () => {
     expect(first.nquads).toBe(second.nquads);
     expect(first.sha256).toBe(second.sha256);
     expect(first.sha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(first.nquads).toContain('urn:tg:predicate:hasVersion');
+    expect(first.nquads).toContain('urn:sg:predicate:hasVersion');
     expect(first.nquads).toContain('http://www.w3.org/2001/XMLSchema#integer');
   });
 
   it('changes the digest when the graph changes', async () => {
     const base = {
-      publication_urn: 'urn:tg:skill-version:skill:demo@v1',
-      logical_urn: 'urn:tg:skill:skill:demo',
+      publication_urn: 'urn:sg:skill-version:skill:demo@v1',
+      logical_urn: 'urn:sg:skill:skill:demo',
       properties: { version: 1 },
       edges: [],
     };
@@ -67,8 +67,8 @@ describe('RDF projection and RDFC-1.0 canonicalization', () => {
 
   it('rejects N-Quads injection through unsanitized IRIs', () => {
     const base = {
-      publication_urn: 'urn:tg:skill-version:skill:demo@v1',
-      logical_urn: 'urn:tg:skill:skill:demo',
+      publication_urn: 'urn:sg:skill-version:skill:demo@v1',
+      logical_urn: 'urn:sg:skill:skill:demo',
       properties: { version: 1 },
       edges: [],
     };
@@ -76,33 +76,33 @@ describe('RDF projection and RDFC-1.0 canonicalization', () => {
     expect(() =>
       projectPublicationGraphToNQuads({
         ...base,
-        publication_urn: 'urn:tg:x@v1> <urn:tg:property:pwned> "1',
+        publication_urn: 'urn:sg:x@v1> <urn:sg:property:pwned> "1',
       }),
     ).toThrow(/Invalid IRI character/);
     // Breakout attempt via an edge target (e.g. a user-supplied lineage URN).
     expect(() =>
       projectPublicationGraphToNQuads({
         ...base,
-        edges: [{ predicate: 'tg:dependsOnVersion', to_urn: 'urn:tg:y@v2>\n<urn:tg:z> <urn:tg:p> "x' }],
+        edges: [{ predicate: 'sg:dependsOnVersion', to_urn: 'urn:sg:y@v2>\n<urn:sg:z> <urn:sg:p> "x' }],
       }),
     ).toThrow(/Invalid IRI character/);
     // Space and control characters are rejected too.
     expect(() =>
-      projectPublicationGraphToNQuads({ ...base, logical_urn: 'urn:tg:skill:skill:has space' }),
+      projectPublicationGraphToNQuads({ ...base, logical_urn: 'urn:sg:skill:skill:has space' }),
     ).toThrow(/Invalid IRI character/);
     expect(() =>
-      projectPublicationGraphToNQuads({ ...base, logical_urn: 'urn:tg:skill:skill:has\tab' }),
+      projectPublicationGraphToNQuads({ ...base, logical_urn: 'urn:sg:skill:skill:has\tab' }),
     ).toThrow(/Invalid IRI character/);
   });
 
   it('escapes control characters in string literals', () => {
     const lines = projectPublicationGraphToNQuads({
-      publication_urn: 'urn:tg:skill-version:skill:demo@v1',
-      logical_urn: 'urn:tg:skill:skill:demo',
+      publication_urn: 'urn:sg:skill-version:skill:demo@v1',
+      logical_urn: 'urn:sg:skill:skill:demo',
       properties: { note: 'bell\u0007 and null\u0000 bytes' },
       edges: [],
     });
-    const literal = lines.find((line) => line.includes('urn:tg:property:note'));
+    const literal = lines.find((line) => line.includes('urn:sg:property:note'));
     expect(literal).toBeDefined();
     expect(literal).not.toContain('\u0007');
     expect(literal).not.toContain('\u0000');
@@ -139,14 +139,14 @@ describe('canonical RDF publication and dual signatures', () => {
       canonical_rdf_artifact_urn?: string;
     };
     expect(envelopeBody.canonical_rdf_sha256).toMatch(/^[0-9a-f]{64}$/);
-    expect(envelopeBody.canonical_rdf_artifact_urn).toMatch(/^urn:tg:artifact:sha256:/);
+    expect(envelopeBody.canonical_rdf_artifact_urn).toMatch(/^urn:sg:artifact:sha256:/);
 
     // The stored artifact holds the canonical N-Quads whose digest matches.
-    const rdfSha = (envelopeBody.canonical_rdf_artifact_urn as string).replace('urn:tg:artifact:sha256:', '');
+    const rdfSha = (envelopeBody.canonical_rdf_artifact_urn as string).replace('urn:sg:artifact:sha256:', '');
     const stored = await deps.registryCas.getBySha256(rdfSha);
     expect(stored).toBeDefined();
     const nquads = new TextDecoder().decode(stored?.bytes);
-    expect(nquads).toContain('urn:tg:skill-version:skill:rdf@v1');
+    expect(nquads).toContain('urn:sg:skill-version:skill:rdf@v1');
     const { createHash } = await import('node:crypto');
     expect(createHash('sha256').update(Buffer.from(nquads, 'utf8')).digest('hex')).toBe(
       envelopeBody.canonical_rdf_sha256,
@@ -233,7 +233,7 @@ describe('canonical RDF publication and dual signatures', () => {
     ).toBe(200);
 
     // Mutate the version graph after publication.
-    const versionNode = await deps.graph.getNode('urn:tg:skill-version:skill:rdf-tamper@v1');
+    const versionNode = await deps.graph.getNode('urn:sg:skill-version:skill:rdf-tamper@v1');
     expect(versionNode).toBeDefined();
     await deps.graph.upsertNode({
       urn: versionNode!.urn,

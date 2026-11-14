@@ -298,7 +298,7 @@ Current create payload:
   },
   "skill_refs": [
     { "skill_key": "skill:repo-move-reference-repair" },
-    { "skill_urn": "urn:tg:skill:skill:local-infra-bootstrap" }
+    { "skill_urn": "urn:sg:skill:skill:local-infra-bootstrap" }
   ]
 }
 ```
@@ -425,7 +425,7 @@ curl -s -X POST "http://localhost:3100/v1/skills/skill:example/drafts" \
     "lineage": {
       "upstream_skill_version_urns": [],
       "openlineage": {
-        "job_namespace": "tg",
+        "job_namespace": "sg",
         "job_name": "skill-build",
         "run_id": "run-1"
       }

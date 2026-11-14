@@ -144,7 +144,7 @@ describe('registry operator parsing and planning', () => {
         agent_key: 'cursor:example',
         artifact_path: 'agents/example.md',
         artifact_media_type: 'text/markdown',
-        skill_refs: ['skill:example', 'urn:tg:skill:skill:other'],
+        skill_refs: ['skill:example', 'urn:sg:skill:skill:other'],
       },
       '/repo/bootstrap',
     );
@@ -153,7 +153,7 @@ describe('registry operator parsing and planning', () => {
       agent_key: 'cursor:example',
       artifact_path: '/repo/bootstrap/agents/example.md',
       source_path: 'agents/example.md',
-      skill_refs: [{ skill_key: 'skill:example' }, { skill_urn: 'urn:tg:skill:skill:other' }],
+      skill_refs: [{ skill_key: 'skill:example' }, { skill_urn: 'urn:sg:skill:skill:other' }],
     });
   });
 

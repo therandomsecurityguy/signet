@@ -20,22 +20,22 @@ async function buildTestApp() {
 
 describe('sparql IRI composition guard', () => {
   it('accepts registry URN shapes and rejects anything with IRI metacharacters', () => {
-    expect(iri('urn:tg:skill:skill:argocd-break-glass')).toBe('<urn:tg:skill:skill:argocd-break-glass>');
-    expect(iri('urn:tg:skill-version:deploy:security-prod/cachet@v1')).toBe(
-      '<urn:tg:skill-version:deploy:security-prod/cachet@v1>',
+    expect(iri('urn:sg:skill:skill:argocd-break-glass')).toBe('<urn:sg:skill:skill:argocd-break-glass>');
+    expect(iri('urn:sg:skill-version:deploy:security-prod/cachet@v1')).toBe(
+      '<urn:sg:skill-version:deploy:security-prod/cachet@v1>',
     );
-    expect(iri('urn:tg:defacto-term:c%2B%2B%20%3E%20java')).toContain('defacto-term');
+    expect(iri('urn:sg:defacto-term:c%2B%2B%20%3E%20java')).toContain('defacto-term');
 
     for (const unsafe of [
-      'urn:tg:skill:x> . ?s ?p ?o } #',
-      'urn:tg:skill:x<y',
-      'urn:tg:skill:x y',
-      'urn:tg:skill:x"y',
-      'urn:tg:skill:x\\y',
-      'urn:tg:skill:x{y}',
-      'urn:tg:skill:x|y',
-      'urn:tg:skill:x`y',
-      'urn:tg:skill:x^y',
+      'urn:sg:skill:x> . ?s ?p ?o } #',
+      'urn:sg:skill:x<y',
+      'urn:sg:skill:x y',
+      'urn:sg:skill:x"y',
+      'urn:sg:skill:x\\y',
+      'urn:sg:skill:x{y}',
+      'urn:sg:skill:x|y',
+      'urn:sg:skill:x`y',
+      'urn:sg:skill:x^y',
       '',
     ]) {
       expect(() => iri(unsafe), `expected rejection for ${JSON.stringify(unsafe)}`).toThrow(
@@ -49,7 +49,7 @@ describe('sparql IRI composition guard', () => {
     expect(urn).not.toContain('>');
     expect(urn).not.toContain(' ');
     expect(urn).not.toContain('(');
-    expect(urn).toBe('urn:tg:defacto-term:C%2B%2B%20%3E%20Rust%20%28v2%29%21');
+    expect(urn).toBe('urn:sg:defacto-term:C%2B%2B%20%3E%20Rust%20%28v2%29%21');
     expect(() => iri(urn)).not.toThrow();
   });
 });

@@ -26,7 +26,7 @@ Encode validation rules that gate `draft → validated` and certification.
 ## Steps
 
 1. Author the policy package and register it (CAS artifact + version).
-2. Bind it so `validate` records violations via `tg:validatedBy`.
+2. Bind it so `validate` records violations via `sg:validatedBy`.
 3. Certify — bound to the policy and ontology versions in effect.
 
 ## Example

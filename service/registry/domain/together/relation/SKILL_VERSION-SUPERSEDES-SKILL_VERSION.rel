@@ -2,6 +2,6 @@ name: SKILL_VERSION-SUPERSEDES-SKILL_VERSION
 doc: Newer skill publication snapshot supersedes an older active publication snapshot.
 from: SKILL_VERSION
 to: SKILL_VERSION
-predicate: "tg:supersedesVersion"
+predicate: "sg:supersedesVersion"
 inverse: "SKILL_VERSION-SUPERSEDED-BY-SKILL_VERSION"
 cardinality: "N:N"

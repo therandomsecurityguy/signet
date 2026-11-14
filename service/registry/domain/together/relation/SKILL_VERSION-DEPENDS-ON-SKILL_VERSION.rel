@@ -2,6 +2,6 @@ name: SKILL_VERSION-DEPENDS-ON-SKILL_VERSION
 doc: Skill version declares lineage or dependency on another skill version.
 from: SKILL_VERSION
 to: SKILL_VERSION
-predicate: "tg:dependsOnVersion"
+predicate: "sg:dependsOnVersion"
 inverse: "SKILL_VERSION-DEPENDENT-OF-SKILL_VERSION"
 cardinality: "M:N"

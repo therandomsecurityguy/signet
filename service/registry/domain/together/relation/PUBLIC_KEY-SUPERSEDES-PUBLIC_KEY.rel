@@ -2,6 +2,6 @@ name: PUBLIC_KEY-SUPERSEDES-PUBLIC_KEY
 doc: Trusted public key supersedes an older trusted public key as part of key rotation.
 from: PUBLIC_KEY
 to: PUBLIC_KEY
-predicate: "tg:supersedesKey"
+predicate: "sg:supersedesKey"
 inverse: "PUBLIC_KEY-SUPERSEDED-BY-PUBLIC_KEY"
 cardinality: "N:N"

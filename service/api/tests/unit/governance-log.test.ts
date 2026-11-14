@@ -67,7 +67,7 @@ describe('internal governance event log', () => {
     const eventTypes: string[] = [];
     for (const leaf of stateBody.leaves) {
       expect(leaf.event_artifact_urn).toBeDefined();
-      const sha256 = (leaf.event_artifact_urn as string).replace('urn:tg:artifact:sha256:', '');
+      const sha256 = (leaf.event_artifact_urn as string).replace('urn:sg:artifact:sha256:', '');
       const stored = await deps.registryCas.getBySha256(sha256);
       expect(stored).toBeDefined();
       const content = new TextDecoder().decode(stored?.bytes);
@@ -75,7 +75,7 @@ describe('internal governance event log', () => {
       const event = JSON.parse(content) as { event_type: string; actor: string; publication_urn: string };
       eventTypes.push(event.event_type);
       expect(event.actor).toBe('pablo');
-      expect(event.publication_urn).toBe('urn:tg:skill-version:skill:logged@v1');
+      expect(event.publication_urn).toBe('urn:sg:skill-version:skill:logged@v1');
     }
     expect(eventTypes).toEqual(['create_draft', 'validate', 'publish', 'certify', 'revoke', 'archive']);
 

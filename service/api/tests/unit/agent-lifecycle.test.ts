@@ -127,7 +127,7 @@ describe('agent lifecycle parity', () => {
     const v1 = await getVersion(app, 'agent:lifecycle', 1);
     expect(v1.agent_version.properties['publication_status']).toBe('superseded');
     expect(v1.agent_version.properties['superseded_by_version_urn']).toBe(
-      'urn:tg:agent-version:agent:lifecycle@v2',
+      'urn:sg:agent-version:agent:lifecycle@v2',
     );
 
     const active = await app.request('/v1/agents/agent:lifecycle/active');

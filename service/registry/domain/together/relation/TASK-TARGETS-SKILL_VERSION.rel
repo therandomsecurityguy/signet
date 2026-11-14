@@ -2,6 +2,6 @@ name: TASK-TARGETS-SKILL_VERSION
 doc: Lifecycle or certification task targets a specific skill version.
 from: TASK
 to: SKILL_VERSION
-predicate: "tg:targets"
+predicate: "sg:targets"
 inverse: "SKILL_VERSION-TARGETED-BY-TASK"
 cardinality: "M:1"

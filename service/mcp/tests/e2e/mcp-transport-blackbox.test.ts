@@ -107,49 +107,49 @@ describe('MCP transport blackbox e2e', () => {
       await deps.registryGraph.upsertEdge({
         from_urn: agent,
         to_urn: skill,
-        predicate: 'tg:usesSkill',
+        predicate: 'sg:usesSkill',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: agent,
         to_urn: harness,
-        predicate: 'tg:runsOn',
+        predicate: 'sg:runsOn',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: agent,
         to_urn: agentVersion,
-        predicate: 'tg:hasVersion',
+        predicate: 'sg:hasVersion',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: agentVersion,
         to_urn: skill,
-        predicate: 'tg:usesSkill',
+        predicate: 'sg:usesSkill',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: agentVersion,
         to_urn: harness,
-        predicate: 'tg:runsOn',
+        predicate: 'sg:runsOn',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: skill,
         to_urn: skillVersion,
-        predicate: 'tg:hasVersion',
+        predicate: 'sg:hasVersion',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: skillVersion,
         to_urn: artifact,
-        predicate: 'tg:implementedBy',
+        predicate: 'sg:implementedBy',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: agent,
         to_urn: artifact,
-        predicate: 'tg:definedBy',
+        predicate: 'sg:definedBy',
         properties: {},
       });
 
@@ -182,7 +182,7 @@ describe('MCP transport blackbox e2e', () => {
       expect(readStructuredContent(listResult)).toMatchObject({
         agents: [
           {
-            agent_urn: 'urn:tg:agent:cursor:mcp-blackbox',
+            agent_urn: 'urn:sg:agent:cursor:mcp-blackbox',
             agent_key: 'cursor:mcp-blackbox',
           },
         ],
@@ -190,35 +190,35 @@ describe('MCP transport blackbox e2e', () => {
 
       const getResult = await client.callTool({
         name: 'registry.get_agent',
-        arguments: { agent_urn: 'urn:tg:agent:missing' },
+        arguments: { agent_urn: 'urn:sg:agent:missing' },
       });
       expect(readIsError(getResult)).toBe(true);
       expect(parseErrorContent(readTextContent(getResult))).toMatchObject({ code: 'REGISTRY_ENTITY_NOT_FOUND' });
 
       const presentAgent = await client.callTool({
         name: 'registry.get_agent',
-        arguments: { agent_urn: 'urn:tg:agent:cursor:mcp-blackbox' },
+        arguments: { agent_urn: 'urn:sg:agent:cursor:mcp-blackbox' },
       });
       expect(readStructuredContent(presentAgent)).toMatchObject({
         active_version: {
           agent_version: {
-            urn: 'urn:tg:agent-version:cursor:mcp-blackbox@v1',
+            urn: 'urn:sg:agent-version:cursor:mcp-blackbox@v1',
           },
         },
       });
 
       const skillResult = await client.callTool({
         name: 'registry.get_skill',
-        arguments: { skill_urn: 'urn:tg:skill:skill:mcp-blackbox' },
+        arguments: { skill_urn: 'urn:sg:skill:skill:mcp-blackbox' },
       });
       expect(readTextContent(skillResult)).not.toContain('MCP error');
       expect(readStructuredContent(skillResult)).toMatchObject({
         active_version: {
           skill_version: {
-            urn: 'urn:tg:skill-version:skill:mcp-blackbox@v1',
+            urn: 'urn:sg:skill-version:skill:mcp-blackbox@v1',
           },
         },
-        artifacts: [{ artifact_urn: 'urn:tg:artifact:sha256:abc123', sha256: 'abc123' }],
+        artifacts: [{ artifact_urn: 'urn:sg:artifact:sha256:abc123', sha256: 'abc123' }],
       });
     } finally {
       await transport?.close().catch(() => undefined);

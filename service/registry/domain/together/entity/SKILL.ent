@@ -1,6 +1,6 @@
 name: SKILL
 doc: A reusable capability packaged as a skill file with metadata.
-urn_template: "urn:tg:skill:{skill_key}"
+urn_template: "urn:sg:skill:{skill_key}"
 key_fields:
   - skill_key
 aspects:

@@ -112,7 +112,7 @@ describe('publication envelope canonicalization and references', () => {
         author: 'pablo',
         artifact: { content: '# canonical v2', original_path: 'skills/canonical.md' },
         lineage: {
-          upstream_skill_version_urns: ['urn:tg:skill-version:skill:canonical@v1'],
+          upstream_skill_version_urns: ['urn:sg:skill-version:skill:canonical@v1'],
           openlineage: { job_namespace: 'registry', job_name: 'canonical-job', run_id: 'run-1' },
         },
       }),
@@ -136,7 +136,7 @@ describe('publication envelope canonicalization and references', () => {
     const bodyTwo = (await envelopeTwo.json()) as Record<string, unknown>;
     expect(bodyTwo['canonicalization_algorithm']).toBe('jcs-rfc8785');
     expect(bodyTwo['provenance_refs']).toEqual({
-      upstream_version_urns: ['urn:tg:skill-version:skill:canonical@v1'],
+      upstream_version_urns: ['urn:sg:skill-version:skill:canonical@v1'],
       openlineage: { job_namespace: 'registry', job_name: 'canonical-job', run_id: 'run-1' },
     });
 
@@ -152,7 +152,7 @@ describe('publication envelope canonicalization and references', () => {
     const envelopeOne = await app.request('/v1/skills/skill:canonical/versions/1/publication-envelope');
     const bodyOne = (await envelopeOne.json()) as Record<string, unknown>;
     expect(bodyOne['supersession_refs']).toEqual({
-      superseded_by_version_urn: 'urn:tg:skill-version:skill:canonical@v2',
+      superseded_by_version_urn: 'urn:sg:skill-version:skill:canonical@v2',
     });
 
     // Revoking v2 adds revocation refs to its envelope.

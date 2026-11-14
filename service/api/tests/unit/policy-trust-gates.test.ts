@@ -199,7 +199,7 @@ describe('policy-driven publication trust gates', () => {
     await createDraft(app, token, 'skill:gate-provenance', 'trust-provenance/v1');
     expect((await skillAction(app, token, 'skill:gate-provenance', 'publish')).status).toBe(200);
     const artifactSha = await skillArtifactSha(app, 'skill:gate-provenance');
-    const publicationUrn = 'urn:tg:skill-version:skill:gate-provenance@v1';
+    const publicationUrn = 'urn:sg:skill-version:skill:gate-provenance@v1';
     const { privateKey } = await registerTrustedKey(app, token, 'kms://build/gate-key', 'build-team');
 
     const blocked = await skillAction(app, token, 'skill:gate-provenance', 'certify');

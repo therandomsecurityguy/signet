@@ -794,7 +794,7 @@ export type RegistryPublicationVerification = {
   publication_envelope_artifact_present: boolean;
   publication_envelope_artifact_sha256_matches: boolean | null;
   live_envelope_matches_frozen_artifact: boolean | null;
-  // DSSE/in-toto attestations attached via tg:attestedBy (build provenance,
+  // DSSE/in-toto attestations attached via sg:attestedBy (build provenance,
   // SBOMs, scan results). Stored evidence is always signature-valid; the flag
   // aggregates the recorded set for consumers.
   attestations: RegistryAttestationRecord[];

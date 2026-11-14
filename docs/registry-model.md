@@ -53,78 +53,78 @@ These show up in the graph store as:
 ### URN scheme
 Current URN conventions:
 - agent:
-  - `urn:tg:agent:<agent_key>`
+  - `urn:sg:agent:<agent_key>`
 - skill:
-  - `urn:tg:skill:<skill_key>`
+  - `urn:sg:skill:<skill_key>`
 - artifact:
-  - `urn:tg:artifact:sha256:<sha256>`
+  - `urn:sg:artifact:sha256:<sha256>`
 - harness:
-  - `urn:tg:harness:<harness_name>`
+  - `urn:sg:harness:<harness_name>`
 - tool:
-  - `urn:tg:tool:<tool_name>`
+  - `urn:sg:tool:<tool_name>`
 
 ### Relationship model
 Current relationships include:
 - agent defined by artifact
-  - predicate: `tg:definedBy`
+  - predicate: `sg:definedBy`
 - agent has version
-  - predicate: `tg:hasVersion`
+  - predicate: `sg:hasVersion`
 - agent runs on harness
-  - predicate: `tg:runsOn`
+  - predicate: `sg:runsOn`
 - agent version defined by artifact
-  - predicate: `tg:definedBy`
+  - predicate: `sg:definedBy`
 - agent version runs on harness
-  - predicate: `tg:runsOn`
+  - predicate: `sg:runsOn`
 - agent version uses skill
-  - predicate: `tg:usesSkill`
+  - predicate: `sg:usesSkill`
 - agent version has detached signature
-  - predicate: `tg:hasDetachedSignature`
+  - predicate: `sg:hasDetachedSignature`
 - skill implemented by artifact
-  - predicate: `tg:implementedBy`
+  - predicate: `sg:implementedBy`
 - skill has version
-  - predicate: `tg:hasVersion`
+  - predicate: `sg:hasVersion`
 - task targets skill version
-  - predicate: `tg:targets`
+  - predicate: `sg:targets`
 - skill version depends on skill version
-  - predicate: `tg:dependsOnVersion`
+  - predicate: `sg:dependsOnVersion`
 - skill version has detached signature
-  - predicate: `tg:hasDetachedSignature`
+  - predicate: `sg:hasDetachedSignature`
 - public key defined by artifact
-  - predicate: `tg:definedBy`
+  - predicate: `sg:definedBy`
 - public key supersedes public key
-  - predicate: `tg:supersedesKey`
+  - predicate: `sg:supersedesKey`
 - transparency log uses checkpoint key
-  - predicate: `tg:usesCheckpointKey`
+  - predicate: `sg:usesCheckpointKey`
 - transparency log trusted by witness
-  - predicate: `tg:trustedByWitness`
+  - predicate: `sg:trustedByWitness`
 - transparency witness uses key
-  - predicate: `tg:usesWitnessKey`
+  - predicate: `sg:usesWitnessKey`
 - transparency log has checkpoint
-  - predicate: `tg:hasCheckpoint`
+  - predicate: `sg:hasCheckpoint`
 - detached signature artifact has inclusion proof artifact
-  - predicate: `tg:hasInclusionProof`
+  - predicate: `sg:hasInclusionProof`
 - checkpoint artifact has consistency proof
-  - predicate: `tg:hasConsistencyProof`
+  - predicate: `sg:hasConsistencyProof`
 - checkpoint artifact has witness attestation
-  - predicate: `tg:hasWitnessAttestation`
+  - predicate: `sg:hasWitnessAttestation`
 - ref points to commit
-  - predicate: `tg:pointsToCommit`
+  - predicate: `sg:pointsToCommit`
 - tag points to commit
-  - predicate: `tg:pointsToCommit`
+  - predicate: `sg:pointsToCommit`
 - commit has parent commit
-  - predicate: `tg:parentCommit`
+  - predicate: `sg:parentCommit`
 - workspace based on commit
-  - predicate: `tg:basedOnCommit`
+  - predicate: `sg:basedOnCommit`
 - commit includes manifest
-  - predicate: `tg:includesManifest`
+  - predicate: `sg:includesManifest`
 - manifest contains blob
-  - predicate: `tg:containsBlob`
+  - predicate: `sg:containsBlob`
 - retention root keeps commit
-  - predicate: `tg:keepsCommit`
+  - predicate: `sg:keepsCommit`
 - retention root keeps blob
-  - predicate: `tg:keepsBlob`
+  - predicate: `sg:keepsBlob`
 - gc job analyzes retention root
-  - predicate: `tg:analyzesRetentionRoot`
+  - predicate: `sg:analyzesRetentionRoot`
 
 The `.ent` and `.rel` files under `service/registry/domain/together/` are **spec files** describing the model. They are not the runtime database.
 
@@ -164,7 +164,7 @@ Example object layout:
 ### Frozen publication envelopes today
 
 Publishing freezes the publication envelope bytes as a CAS artifact
-(`governance_role: 'publication_envelope'`, edge `tg:hasPublicationEnvelope`).
+(`governance_role: 'publication_envelope'`, edge `sg:hasPublicationEnvelope`).
 The version records `publication_envelope_artifact_urn` and
 `publication_envelope_sha256`, and the envelope endpoint serves those frozen
 bytes as `canonical_json`. Later evidence attachment (review, certification)
@@ -210,13 +210,13 @@ Implemented now already includes:
 - a certification state machine for skill and agent versions (`draft`, `validated`, `rejected`, `published`, `certified`, `deprecated`, `revoked`, `archived`) with deterministic rejection, supersession guards, and certification bound to policy and ontology versions
 - full agent-version lifecycle parity with skills, including dependency validation for linked skills
 - a durable, non-destructive GC job execution seam over retention-root plans
-- SHACL-like policy packages as versioned CAS artifacts, graph-shape + policy validation gating `draft` → `validated`, and CAS-stored violation reports linked via `tg:validatedBy`
+- SHACL-like policy packages as versioned CAS artifacts, graph-shape + policy validation gating `draft` → `validated`, and CAS-stored violation reports linked via `sg:validatedBy`
 - dual ontology packages (`registry_shape` / `skill_area`) as versioned CAS artifacts, ontology validation of `capability_claims` with de facto candidate recording, and certification bound to registered ontology packages
 - PROV-O provenance edges (`prov:wasDerivedFrom`, `prov:wasGeneratedBy`, `prov:used`, `prov:wasAssociatedWith`) written at lifecycle operations, with traversal and audit-replay endpoints and a read-only MCP tool
 - canonical governance events for all lifecycle operations stored as immutable CAS artifacts, an internal append-only Merkle log with RFC 6962 inclusion-proof generation, and verifier replay
 - canonical RDF (RDFC-1.0) projection with semantic digests and dual (operational/semantic) detached signatures
 - frozen publication envelope artifacts with digest verification on CAS reads (warn by default, `enforce` opt-in), keeping published bytes stable while later evidence is attached and reporting live drift explicitly
-- DSSE/in-toto attestations as publication evidence: verified over DSSE PAE bytes against trusted keys, predicate types recorded (SLSA provenance, SPDX/CycloneDX SBOMs, scans), subjects bound to publication artifacts, stored in CAS and linked `tg:attestedBy`, surfaced in publication verification
+- DSSE/in-toto attestations as publication evidence: verified over DSSE PAE bytes against trusted keys, predicate types recorded (SLSA provenance, SPDX/CycloneDX SBOMs, scans), subjects bound to publication artifacts, stored in CAS and linked `sg:attestedBy`, surfaced in publication verification
 - policy-driven publication trust gates: `require_validation` at publish, and `require_signature`, `require_trusted_publisher`, `require_build_provenance`, `require_sbom` at certification against verified signatures and attestations, plus trusted-publisher binding enforced when attaching detached signatures
 - semantic compiler ingestion (markdown frontmatter + tool manifests) and a de facto vocabulary store with human-reviewed promotion into new normative ontology versions
 - advisory LLM validation (heuristic default + HTTP seam) with scorecard evidence artifacts, and a human review workflow with policy-driven gating and a pending-review queue
@@ -268,17 +268,17 @@ These tools currently read through adapters backed by:
 
 Current behavior:
 - `POST /v1/agents` can create an `AGENT` node
-- if `harness_name` is provided, it also creates a `HARNESS` node and `tg:runsOn` edge
-- if `skill_refs` are provided, the API validates that the referenced skills already exist, then creates `tg:usesSkill` edges
+- if `harness_name` is provided, it also creates a `HARNESS` node and `sg:runsOn` edge
+- if `skill_refs` are provided, the API validates that the referenced skills already exist, then creates `sg:usesSkill` edges
 - if an `artifact` payload is provided, it:
   - writes the bytes into the CAS
   - creates an `ARTIFACT` node
-  - creates `AGENT --tg:definedBy--> ARTIFACT`
+  - creates `AGENT --sg:definedBy--> ARTIFACT`
 - `POST /v1/skills` can create a `SKILL` node
 - if a skill `artifact` payload is provided, it:
   - writes the bytes into the CAS
   - creates an `ARTIFACT` node
-  - creates `SKILL --tg:implementedBy--> ARTIFACT`
+  - creates `SKILL --sg:implementedBy--> ARTIFACT`
 
 ### Lifecycle management-plane model today
 The first lifecycle slice is currently implemented for skills.
@@ -351,7 +351,7 @@ The registry now includes a first-class trusted key layer.
 Core ideas:
 - `PUBLIC_KEY` is the trusted key record
 - PEM key bytes live in CAS as an `ARTIFACT`
-- `PUBLIC_KEY --tg:definedBy--> ARTIFACT`
+- `PUBLIC_KEY --sg:definedBy--> ARTIFACT`
 - detached signatures refer to trusted key material through `key_ref`
 
 Current `PUBLIC_KEY` properties include fields such as:
@@ -379,9 +379,9 @@ The registry now includes a first-class transparency log identity layer.
 Core ideas:
 - `TRANSPARENCY_LOG` is the trusted log identity record
 - each log carries a `checkpoint_key_ref`
-- `TRANSPARENCY_LOG --tg:usesCheckpointKey--> PUBLIC_KEY`
-- `TRANSPARENCY_LOG --tg:trustedByWitness--> TRANSPARENCY_WITNESS`
-- `TRANSPARENCY_LOG --tg:hasCheckpoint--> ARTIFACT`
+- `TRANSPARENCY_LOG --sg:usesCheckpointKey--> PUBLIC_KEY`
+- `TRANSPARENCY_LOG --sg:trustedByWitness--> TRANSPARENCY_WITNESS`
+- `TRANSPARENCY_LOG --sg:hasCheckpoint--> ARTIFACT`
 
 Current `TRANSPARENCY_LOG` properties include fields such as:
 - `log_id`
@@ -400,7 +400,7 @@ The registry now includes a first-class witness layer.
 
 Core ideas:
 - `TRANSPARENCY_WITNESS` is the trusted witness identity
-- `TRANSPARENCY_WITNESS --tg:usesWitnessKey--> PUBLIC_KEY`
+- `TRANSPARENCY_WITNESS --sg:usesWitnessKey--> PUBLIC_KEY`
 - witness attestations are stored as artifacts linked from checkpoint artifacts
 
 Current `TRANSPARENCY_WITNESS` properties include fields such as:

@@ -26,7 +26,7 @@ See how agents, skills, versions, and artifacts connect.
 ## Steps
 
 1. `GET /v1/graph/subgraph?root_urn=…&depth=N` (or the webapp Graph page).
-2. Query nodes with `tgmeta:entityType` and edges with `tgmeta:from`/`tgmeta:to`.
+2. Query nodes with `sgmeta:entityType` and edges with `sgmeta:from`/`sgmeta:to`.
 
 ## Example
 

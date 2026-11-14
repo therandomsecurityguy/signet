@@ -188,7 +188,7 @@ describe('policy packages', () => {
     });
 
     // The validation run stored a machine-readable report artifact linked
-    // via tg:validatedBy.
+    // via sg:validatedBy.
     const version = await app.request('/v1/skills/skill:policy-gated/versions/1');
     expect(version.status).toBe(200);
     const versionBody = (await version.json()) as {

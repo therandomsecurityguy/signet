@@ -1,17 +1,17 @@
 import { createHash } from 'node:crypto';
 
 export function parseArtifactSha256(artifactUrn: string): string | undefined {
-  const prefix = 'urn:tg:artifact:sha256:';
+  const prefix = 'urn:sg:artifact:sha256:';
   return artifactUrn.startsWith(prefix) ? artifactUrn.slice(prefix.length) : undefined;
 }
 
 export function parseHarnessName(harnessUrnValue: string): string | undefined {
-  const prefix = 'urn:tg:harness:';
+  const prefix = 'urn:sg:harness:';
   return harnessUrnValue.startsWith(prefix) ? harnessUrnValue.slice(prefix.length) : undefined;
 }
 
 export function parseSkillKey(skillUrnValue: string): string | undefined {
-  const prefix = 'urn:tg:skill:';
+  const prefix = 'urn:sg:skill:';
   return skillUrnValue.startsWith(prefix) ? skillUrnValue.slice(prefix.length) : undefined;
 }
 

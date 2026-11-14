@@ -44,10 +44,10 @@ describe('registry ingestion', () => {
     const skill = await graph.getNode(skillUrn('skill:example-skill'));
     expect(skill).not.toBeNull();
 
-    const definedBy = await graph.listEdgesFrom(agentUrn('cursor:cyborg'), 'tg:definedBy');
+    const definedBy = await graph.listEdgesFrom(agentUrn('cursor:cyborg'), 'sg:definedBy');
     expect(definedBy).toHaveLength(1);
 
-    const skillImpl = await graph.listEdgesFrom(skillUrn('skill:example-skill'), 'tg:implementedBy');
+    const skillImpl = await graph.listEdgesFrom(skillUrn('skill:example-skill'), 'sg:implementedBy');
     expect(skillImpl).toHaveLength(1);
 
     await rm(tmp, { recursive: true, force: true });
@@ -73,7 +73,7 @@ describe('registry ingestion', () => {
 
     const reopened = new JsonFileGraphStore({ state_file: stateFile });
     const persistedAgent = await reopened.getNode(agentUrn('cursor:cyborg'));
-    const persistedEdges = await reopened.listEdgesFrom(agentUrn('cursor:cyborg'), 'tg:definedBy');
+    const persistedEdges = await reopened.listEdgesFrom(agentUrn('cursor:cyborg'), 'sg:definedBy');
 
     expect(persistedAgent).not.toBeNull();
     expect(persistedEdges).toHaveLength(1);

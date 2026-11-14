@@ -142,7 +142,7 @@ describe('semantic compiler ingestion', () => {
     const teleportation = termsBody.terms.find((t) => t.term === 'teleportation');
     expect(teleportation).toBeDefined();
     expect(teleportation?.seen_count).toBeGreaterThanOrEqual(1);
-    expect(teleportation?.example_publication_urns).toContain('urn:tg:skill-version:skill:compiled@v1');
+    expect(teleportation?.example_publication_urns).toContain('urn:sg:skill-version:skill:compiled@v1');
   });
 
   it('reviews de facto terms: reject, promote with normative incorporation, and conflict rules', async () => {

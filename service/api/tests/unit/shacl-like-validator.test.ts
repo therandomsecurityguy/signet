@@ -11,14 +11,14 @@ import {
 
 function graph(overrides: Partial<ValidationDataGraph> = {}): ValidationDataGraph {
   return {
-    focus_urn: 'urn:tg:skill-version:skill:demo@v1',
+    focus_urn: 'urn:sg:skill-version:skill:demo@v1',
     entity_type: 'SKILL_VERSION',
     properties: {
       version: 1,
       artifact_sha256: 'abc123',
       source_path: 'skills/demo.md',
     },
-    edges: [{ predicate: 'tg:implementedBy', to_urn: 'urn:tg:artifact:sha256:abc123', to_entity_type: 'ARTIFACT' }],
+    edges: [{ predicate: 'sg:implementedBy', to_urn: 'urn:sg:artifact:sha256:abc123', to_entity_type: 'ARTIFACT' }],
     ...overrides,
   };
 }
@@ -67,7 +67,7 @@ describe('SHACL-like validator engine', () => {
     );
     expect(violations).toHaveLength(2);
     expect(violations[0]).toMatchObject({
-      focusNode: 'urn:tg:skill-version:skill:demo@v1',
+      focusNode: 'urn:sg:skill-version:skill:demo@v1',
       resultPath: 'missing_prop',
       sourceConstraintComponent: 'MinCountConstraintComponent',
       sourceShape: 'shape/counts',
@@ -126,16 +126,16 @@ describe('SHACL-like validator engine', () => {
         id: 'shape/edges',
         target: { entity_type: 'SKILL_VERSION' },
         edges: [
-          { predicate: 'tg:implementedBy', minCount: 1, to_entity_type: 'ARTIFACT' },
-          { predicate: 'tg:usesSkill', minCount: 1 },
+          { predicate: 'sg:implementedBy', minCount: 1, to_entity_type: 'ARTIFACT' },
+          { predicate: 'sg:usesSkill', minCount: 1 },
         ],
       },
     ]);
     const missingEdge = validateShapes(graph({ edges: [] }), document);
-    expect(missingEdge.map((v) => v.resultPath)).toEqual(['tg:implementedBy', 'tg:usesSkill']);
+    expect(missingEdge.map((v) => v.resultPath)).toEqual(['sg:implementedBy', 'sg:usesSkill']);
 
     const wrongTarget = validateShapes(
-      graph({ edges: [{ predicate: 'tg:implementedBy', to_urn: 'urn:x', to_entity_type: 'SKILL' }] }),
+      graph({ edges: [{ predicate: 'sg:implementedBy', to_urn: 'urn:x', to_entity_type: 'SKILL' }] }),
       document,
     );
     expect(wrongTarget).toHaveLength(2);
@@ -180,7 +180,7 @@ describe('shape document parsing', () => {
           id: 'shape/1',
           target: { entity_type: 'SKILL_VERSION' },
           properties: [{ path: 'version', minCount: 1, datatype: 'integer' }],
-          edges: [{ predicate: 'tg:implementedBy', minCount: 1 }],
+          edges: [{ predicate: 'sg:implementedBy', minCount: 1 }],
         },
       ],
     });
@@ -245,7 +245,7 @@ describe('shape document parsing', () => {
   });
 
   it('accepts safe patterns', () => {
-    for (const pattern of ['^skills/', '^[a-z0-9-]+$', '^urn:tg:[a-z-]+:[a-z0-9.-]+$', '(a+)+$']) {
+    for (const pattern of ['^skills/', '^[a-z0-9-]+$', '^urn:sg:[a-z-]+:[a-z0-9.-]+$', '(a+)+$']) {
       const parsed = parseShapeDocument({
         shapes: [{ id: 's', target: { entity_type: 'X' }, properties: [{ path: 'p', pattern }] }],
       });

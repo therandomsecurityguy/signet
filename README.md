@@ -113,7 +113,7 @@ Canonicalization and signatures:
   transported)
 - DSSE/in-toto attestation ingestion (`POST /v1/attestations`) with PAE
   signature verification against trusted keys, subject binding to publication
-  artifacts, `tg:attestedBy` evidence links, and aggregates in publication
+  artifacts, `sg:attestedBy` evidence links, and aggregates in publication
   verification
 - policy-driven trust gates: `require_validation` at publish and
   `require_signature` / `require_trusted_publisher` / `require_build_provenance`
@@ -133,7 +133,7 @@ Validation (five layers):
   (`POST /v1/policy-packages`), with RE2-backed pattern execution
   (ReDoS-safe by construction)
 - machine-readable violation reports (SHACL result vocabulary) stored in
-  the CAS and linked via `tg:validatedBy`
+  the CAS and linked via `sg:validatedBy`
 - dual ontology packages (`registry_shape` / `skill_area`) as versioned
   CAS artifacts (`POST /v1/ontology-packages`)
 - ontology validation of `capability_claims`: concept binding, disjoint
@@ -141,7 +141,7 @@ Validation (five layers):
 - advisory LLM validation (model-agnostic port, deterministic heuristic
   default, HTTP model seam) emitting scorecard/prompt/confidence evidence
 - human review workflow: review decisions as first-class
-  `review_evidence` artifacts via `tg:reviewedBy`, policy-driven
+  `review_evidence` artifacts via `sg:reviewedBy`, policy-driven
   `require_human_review` gating at publish/certify, and a pending-review
   queue (`/v1/reviews/pending`)
 
@@ -420,7 +420,7 @@ Current implementation status (incremental):
 - `service/api/`: bootstrap skeleton plus first versioned `agents` and `skills` metadata API slices implemented and green, including artifact attachment semantics, skill linkage, and idempotent create behavior.
 - `service/api/`: lifecycle-oriented management plane for skills **and** agents with full parity (draft/validate/publish/promote/deprecate/certify/revoke/archive/active-version resolution).
 - `service/api/`: the certification state machine now covers `draft`/`validated`/`rejected`/`published`/`certified`/`deprecated`/`revoked`/`archived` with deterministic draft rejection, supersession guards, and policy/ontology-bound certification.
-- `service/api/`: SHACL-like policy packages are first-class versioned artifacts (`POST /v1/policy-packages`); draft validation layers built-in graph-shape rules under registered policy shapes, stores machine-readable violation reports in the CAS, and links them via `tg:validatedBy`.
+- `service/api/`: SHACL-like policy packages are first-class versioned artifacts (`POST /v1/policy-packages`); draft validation layers built-in graph-shape rules under registered policy shapes, stores machine-readable violation reports in the CAS, and links them via `sg:validatedBy`.
 - `service/api/`: dual ontology packages (`registry_shape` / `skill_area`) are versioned artifacts (`POST /v1/ontology-packages`); draft validation checks `capability_claims` bind to known skill-area concepts, rejects disjoint combinations, records de facto candidates, and binds certification to registered ontology packages.
 - `service/api/`: advisory LLM validation runs as a fourth, always-non-blocking layer with scorecard evidence artifacts; human review records decisions as `review_evidence` artifacts with policy-driven gating and a pending-review queue.
 - `service/api/`: semantic compiler ingestion (`POST /v1/compile/skill`) normalizes markdown and tool manifests into typed proposals, with a de facto vocabulary store and human-reviewed promotion.

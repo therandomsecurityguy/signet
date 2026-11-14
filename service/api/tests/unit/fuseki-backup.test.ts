@@ -6,8 +6,8 @@ const GRAPH_LISTING = {
   head: { vars: ['g'] },
   results: {
     bindings: [
-      { g: { type: 'uri', value: 'urn:tg:graph:b' } },
-      { g: { type: 'uri', value: 'urn:tg:graph:a' } },
+      { g: { type: 'uri', value: 'urn:sg:graph:b' } },
+      { g: { type: 'uri', value: 'urn:sg:graph:a' } },
     ],
   },
 };
@@ -26,10 +26,10 @@ describe('collectFusekiBackup', () => {
       });
       if (init?.method === 'POST') return new Response(JSON.stringify(GRAPH_LISTING), { status: 200 });
       if (url.includes('graph=urn%3Atg%3Agraph%3Aa')) {
-        return new Response('<urn:s1> <urn:p> <urn:o> <urn:tg:graph:a> .\n', { status: 200 });
+        return new Response('<urn:s1> <urn:p> <urn:o> <urn:sg:graph:a> .\n', { status: 200 });
       }
       if (url.includes('graph=urn%3Atg%3Agraph%3Ab')) {
-        return new Response('<urn:s2> <urn:p> <urn:o> <urn:tg:graph:b> .\n', { status: 200 });
+        return new Response('<urn:s2> <urn:p> <urn:o> <urn:sg:graph:b> .\n', { status: 200 });
       }
       return new Response('<urn:d> <urn:p> <urn:o> .\n', { status: 200 });
     }) as typeof fetch;
@@ -47,8 +47,8 @@ describe('collectFusekiBackup', () => {
     expect(got.lines).toBe(3);
     const lines = got.nquads.trimEnd().split('\n');
     expect(lines[0]).toContain('<urn:d>');
-    expect(lines[1]).toContain('urn:tg:graph:a');
-    expect(lines[2]).toContain('urn:tg:graph:b');
+    expect(lines[1]).toContain('urn:sg:graph:a');
+    expect(lines[2]).toContain('urn:sg:graph:b');
     // Basic auth is applied to the graph-store reads.
     expect(calls.every((call) => call.authorization?.startsWith('Basic '))).toBe(true);
   });

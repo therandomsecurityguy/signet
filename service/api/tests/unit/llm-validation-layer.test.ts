@@ -52,7 +52,7 @@ describe('advisory LLM validation layer', () => {
     });
 
     // The LLM evidence artifact (scorecards, prompt, confidence) is stored
-    // in the CAS and linked via tg:validatedBy.
+    // in the CAS and linked via sg:validatedBy.
     const version = await app.request('/v1/skills/skill:llm-layer/versions/1');
     expect(version.status).toBe(200);
     const versionBody = (await version.json()) as {
@@ -72,7 +72,7 @@ describe('advisory LLM validation layer', () => {
     };
     let llmEvidence: LlmEvidence | null = null;
     for (const report of reports) {
-      const sha = report.artifact_urn.replace('urn:tg:artifact:sha256:', '');
+      const sha = report.artifact_urn.replace('urn:sg:artifact:sha256:', '');
       const stored = await deps.registryCas.getBySha256(sha);
       if (!stored) continue;
       const content = JSON.parse(new TextDecoder().decode(stored.bytes)) as {
@@ -85,7 +85,7 @@ describe('advisory LLM validation layer', () => {
     expect(llmEvidence).not.toBeNull();
     expect(llmEvidence?.advisory).toBe(true);
     expect(llmEvidence?.validator).toBe('llm-heuristic-v1');
-    expect(llmEvidence?.prompt).toContain('urn:tg:skill-version:skill:llm-layer@v1');
+    expect(llmEvidence?.prompt).toContain('urn:sg:skill-version:skill:llm-layer@v1');
     expect(llmEvidence?.scorecards.map((s) => s.dimension)).toEqual([
       'overclaim',
       'ambiguity',

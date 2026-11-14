@@ -189,7 +189,7 @@ signature is verified over the DSSE PAE bytes against a **trusted registry
 key** (`key_ref`), the statement `predicateType` is recorded, and — when the
 statement declares subjects — at least one `sha256` subject digest must match
 an artifact of the publication. Only verified evidence is stored, as a CAS
-artifact linked `tg:attestedBy`, and it is folded into the publication
+artifact linked `sg:attestedBy`, and it is folded into the publication
 verification payload (`attestations`,
 `all_attestation_signatures_valid`). Rejections: `404` unknown publication;
 `409` `ATTESTATION_TRUSTED_KEY_NOT_FOUND`, `ATTESTATION_SIGNATURE_INVALID`,

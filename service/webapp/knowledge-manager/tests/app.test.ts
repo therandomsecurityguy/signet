@@ -120,7 +120,7 @@ describe('knowledge-manager app', () => {
       env,
       registryApi: makeRegistryApiClient({
         listAgents: async () => ({
-          agents: [{ agent_urn: 'urn:tg:agent:cursor:test', agent_key: 'cursor:test', harness_name: 'cursor' }],
+          agents: [{ agent_urn: 'urn:sg:agent:cursor:test', agent_key: 'cursor:test', harness_name: 'cursor' }],
         }),
       }),
       semanticTurkey: {
@@ -142,12 +142,12 @@ describe('knowledge-manager app', () => {
       registryApi: makeRegistryApiClient({
         getAgent: async () => ({
           agent: {
-            urn: 'urn:tg:agent:cursor:test',
+            urn: 'urn:sg:agent:cursor:test',
             properties: { agent_key: 'cursor:test', harness_name: 'cursor' },
           },
           active_version: {
             agent_version: {
-              urn: 'urn:tg:agent-version:cursor:test@v1',
+              urn: 'urn:sg:agent-version:cursor:test@v1',
               properties: {
                 version: 1,
                 publication_status: 'published',
@@ -189,7 +189,7 @@ describe('knowledge-manager app', () => {
       registryApi: makeRegistryApiClient({
         getSkill: async () => ({
           skill: {
-            urn: 'urn:tg:skill:example',
+            urn: 'urn:sg:skill:example',
             properties: { skill_key: 'skill:example', display_name: 'Example Skill' },
           },
           artifacts: [],
@@ -198,7 +198,7 @@ describe('knowledge-manager app', () => {
           versions: [
             {
               skill_version: {
-                urn: 'urn:tg:skill-version:example:1',
+                urn: 'urn:sg:skill-version:example:1',
                 properties: { version: 1, lifecycle_status: 'draft', active: false, certified: false },
               },
               artifacts: [],
@@ -206,7 +206,7 @@ describe('knowledge-manager app', () => {
             },
             {
               skill_version: {
-                urn: 'urn:tg:skill-version:example:2',
+                urn: 'urn:sg:skill-version:example:2',
                 properties: { version: 2, lifecycle_status: 'published', active: true, certified: false },
               },
               artifacts: [],
@@ -267,7 +267,7 @@ describe('knowledge-manager app', () => {
     const submitText = await submit.text();
     expect(submitText).toContain('Skill version published.');
     expect(submitText).toContain('Last Operation Result');
-    expect(submitText).toContain('urn:tg:task:publish');
+    expect(submitText).toContain('urn:sg:task:publish');
     expect(calls).toHaveLength(1);
     expect(calls[0]?.action).toBe('publish');
     expect(calls[0]?.token).toContain('webapp-okta-');
@@ -383,7 +383,7 @@ describe('knowledge-manager app', () => {
         listOntologyPackages: async () => ({
           ontology_packages: [
             {
-              artifact_urn: 'urn:tg:artifact:sha256:abc',
+              artifact_urn: 'urn:sg:artifact:sha256:abc',
               sha256: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
               ontology_version: 'registry-shape/v1',
               ontology_kind: 'registry_shape',
@@ -397,7 +397,7 @@ describe('knowledge-manager app', () => {
         listDeFactoTerms: async () => ({
           terms: [
             {
-              urn: 'urn:tg:de-facto-term:otel',
+              urn: 'urn:sg:de-facto-term:otel',
               term: 'otel',
               status: 'candidate',
               first_seen_at: '2026-11-01T00:00:00.000Z',
@@ -410,7 +410,7 @@ describe('knowledge-manager app', () => {
         reviewDeFactoTerm: async (term, input, apiToken) => {
           calls.push({ term, action: input.action, token: apiToken, author: input.author });
           return {
-            urn: `urn:tg:de-facto-term:${term}`,
+            urn: `urn:sg:de-facto-term:${term}`,
             term,
             status: input.action === 'promote' ? 'promoted' : 'rejected',
             first_seen_at: '',
@@ -519,19 +519,19 @@ describe('knowledge-manager app', () => {
       env,
       registryApi: makeRegistryApiClient({
         getGraphSubgraph: async () => ({
-          root_urn: 'urn:tg:agent:cursor:registry-agent',
+          root_urn: 'urn:sg:agent:cursor:registry-agent',
           depth: 3,
           nodes: [
             {
-              id: 'urn:tg:agent:cursor:registry-agent',
-              urn: 'urn:tg:agent:cursor:registry-agent',
+              id: 'urn:sg:agent:cursor:registry-agent',
+              urn: 'urn:sg:agent:cursor:registry-agent',
               entity_type: 'AGENT',
               label: 'Registry Demo Agent',
               properties: {},
             },
             {
-              id: 'urn:tg:skill:skill:tame-llama',
-              urn: 'urn:tg:skill:skill:tame-llama',
+              id: 'urn:sg:skill:skill:tame-llama',
+              urn: 'urn:sg:skill:skill:tame-llama',
               entity_type: 'SKILL',
               label: 'Tame A Llama',
               properties: {},
@@ -539,11 +539,11 @@ describe('knowledge-manager app', () => {
           ],
           edges: [
             {
-              id: 'urn:tg:agent:cursor:registry-agent|tg:usesSkill|urn:tg:skill:skill:tame-llama',
-              from_urn: 'urn:tg:agent:cursor:registry-agent',
-              to_urn: 'urn:tg:skill:skill:tame-llama',
-              predicate: 'tg:usesSkill',
-              label: 'tg:usesSkill',
+              id: 'urn:sg:agent:cursor:registry-agent|sg:usesSkill|urn:sg:skill:skill:tame-llama',
+              from_urn: 'urn:sg:agent:cursor:registry-agent',
+              to_urn: 'urn:sg:skill:skill:tame-llama',
+              predicate: 'sg:usesSkill',
+              label: 'sg:usesSkill',
             },
           ],
         }),
@@ -566,7 +566,7 @@ describe('knowledge-manager app', () => {
     expect(text).toContain('/assets/cytoscape.min.js');
     expect(text).toContain('Selected Node');
     expect(text).toContain('Open canonical detail page');
-    expect(text).toContain('"root_urn":"urn:tg:agent:cursor:registry-agent"');
+    expect(text).toContain('"root_urn":"urn:sg:agent:cursor:registry-agent"');
     expect(text).not.toContain('&quot;root_urn&quot;');
   });
 
@@ -575,7 +575,7 @@ describe('knowledge-manager app', () => {
       env,
       registryApi: makeRegistryApiClient({
         getGraphSubgraph: async (rootUm: string, depth: number) => {
-          if (rootUm === 'urn:tg:agent:cursor:missing') {
+          if (rootUm === 'urn:sg:agent:cursor:missing') {
             throw new RegistryApiError('Graph root not found.', 404, 'GRAPH_ROOT_NOT_FOUND');
           }
           return { root_urn: rootUm, depth, nodes: [], edges: [] };
@@ -583,7 +583,7 @@ describe('knowledge-manager app', () => {
         listAgents: async () => ({
           agents: [
             {
-              agent_urn: 'urn:tg:agent:cursor:cachet-security-agent',
+              agent_urn: 'urn:sg:agent:cursor:cachet-security-agent',
               agent_key: 'cursor:cachet-security-agent',
               display_name: 'Cachet Security Agent',
             },
@@ -592,7 +592,7 @@ describe('knowledge-manager app', () => {
         listSkills: async () => ({
           skills: [
             {
-              skill_urn: 'urn:tg:skill:skill:argocd-break-glass',
+              skill_urn: 'urn:sg:skill:skill:argocd-break-glass',
               skill_key: 'skill:argocd-break-glass',
               display_name: 'Argo CD Break-Glass',
             },
@@ -609,7 +609,7 @@ describe('knowledge-manager app', () => {
     // a hardcoded demo URN.
     const auto = await app.request('/graph');
     expect(auto.status).toBe(200);
-    expect(await auto.text()).toContain('urn:tg:agent:cursor:cachet-security-agent');
+    expect(await auto.text()).toContain('urn:sg:agent:cursor:cachet-security-agent');
 
     // Missing root: honest error plus a pick-list, never a dead end.
     const page = await app.request('/graph?root_urn=urn%3Atg%3Aagent%3Acursor%3Amissing');
@@ -640,7 +640,7 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
       },
     }),
     getGraphSubgraph: async () => ({
-      root_urn: 'urn:tg:agent:cursor:registry-agent',
+      root_urn: 'urn:sg:agent:cursor:registry-agent',
       depth: 3,
       nodes: [],
       edges: [],
@@ -648,7 +648,7 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
     listAgents: async () => ({ agents: [] }),
     getAgent: async () => ({
       agent: {
-        urn: 'urn:tg:agent:cursor:test',
+        urn: 'urn:sg:agent:cursor:test',
         properties: { agent_key: 'cursor:test', harness_name: 'cursor' },
       },
       skills: [],
@@ -657,7 +657,7 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
     }),
     createAgent: async () => ({
       agent: {
-        urn: 'urn:tg:agent:cursor:test',
+        urn: 'urn:sg:agent:cursor:test',
         properties: { agent_key: 'cursor:test', harness_name: 'cursor' },
       },
       skills: [],
@@ -667,14 +667,14 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
     listSkills: async () => ({ skills: [] }),
     getSkill: async () => ({
       skill: {
-        urn: 'urn:tg:skill:example',
+        urn: 'urn:sg:skill:example',
         properties: { skill_key: 'skill:example' },
       },
       artifacts: [],
     }),
     createSkill: async () => ({
       skill: {
-        urn: 'urn:tg:skill:example',
+        urn: 'urn:sg:skill:example',
         properties: { skill_key: 'skill:example' },
       },
       artifacts: [],
@@ -683,12 +683,12 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
     getActiveSkillVersion: async () => null,
     createSkillDraft: async () => ({
       task: {
-        task: { urn: 'urn:tg:task:1', properties: {} },
+        task: { urn: 'urn:sg:task:1', properties: {} },
         targets: [],
       },
       result: {
         skill_version: {
-          urn: 'urn:tg:skill-version:example:1',
+          urn: 'urn:sg:skill-version:example:1',
           properties: { version: 1, lifecycle_status: 'draft', active: false, certified: false },
         },
         artifacts: [],
@@ -703,7 +703,7 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
     listOntologyPackages: async () => ({ ontology_packages: [] }),
     listDeFactoTerms: async () => ({ terms: [] }),
     reviewDeFactoTerm: async (term, input) => ({
-      urn: `urn:tg:de-facto-term:${term}`,
+      urn: `urn:sg:de-facto-term:${term}`,
       term,
       status: input.action === 'promote' ? 'promoted' : 'rejected',
       first_seen_at: '',
@@ -718,12 +718,12 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
 function defaultLifecycleResult(action: string): SkillLifecycleOperationResult {
   return {
     task: {
-      task: { urn: `urn:tg:task:${action}`, properties: { action } },
+      task: { urn: `urn:sg:task:${action}`, properties: { action } },
       targets: [],
     },
     result: {
       skill_version: {
-        urn: 'urn:tg:skill-version:example:1',
+        urn: 'urn:sg:skill-version:example:1',
         properties: { version: 1, lifecycle_status: 'published', active: true, certified: false },
       },
       artifacts: [],

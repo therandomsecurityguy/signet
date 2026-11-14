@@ -79,7 +79,7 @@ describe('frozen publication envelope', () => {
     const envelopeResponse = await app.request(`${versionPath}/publication-envelope`);
     expect(envelopeResponse.status).toBe(200);
     const envelope = (await envelopeResponse.json()) as EnvelopeBody;
-    expect(envelope.publication_envelope_artifact_urn).toMatch(/^urn:tg:artifact:sha256:/);
+    expect(envelope.publication_envelope_artifact_urn).toMatch(/^urn:sg:artifact:sha256:/);
     expect(envelope.publication_envelope_sha256).toBe(sha256Hex(envelope.canonical_json));
 
     const verificationResponse = await app.request(`${versionPath}/verification`);

@@ -2,6 +2,6 @@ name: PUBLIC_KEY-DEFINED-BY-ARTIFACT
 doc: Trusted public key record points to the CAS artifact containing the PEM-encoded public key bytes.
 from: PUBLIC_KEY
 to: ARTIFACT
-predicate: "tg:definedBy"
+predicate: "sg:definedBy"
 inverse: "ARTIFACT-DEFINES-PUBLIC_KEY"
 cardinality: "N:1"

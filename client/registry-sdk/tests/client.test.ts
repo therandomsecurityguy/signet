@@ -26,7 +26,7 @@ describe('RegistryClient', () => {
     const fetchFn = async (input: Request | string) => {
       const req = input as Request;
       seenAuth = req.headers.get('authorization');
-      return jsonResponse({ skills: [{ skill_urn: 'urn:tg:skill:demo', skill_key: 'skill:demo' }] });
+      return jsonResponse({ skills: [{ skill_urn: 'urn:sg:skill:demo', skill_key: 'skill:demo' }] });
     };
 
     const client = new RegistryClient({ baseUrl: 'http://registry.test', apiToken: 'tok-123', fetch: fetchFn });
@@ -62,12 +62,12 @@ describe('RegistryClient', () => {
   it('interpolates path params for getSkill', async () => {
     const fetchFn = mockFetch({
       'http://registry.test/v1/skills/skill%3Ademo': {
-        body: { skill: { urn: 'urn:tg:skill:demo', properties: {} } },
+        body: { skill: { urn: 'urn:sg:skill:demo', properties: {} } },
       },
     });
     const client = new RegistryClient({ baseUrl: 'http://registry.test', fetch: fetchFn });
     const result = await client.getSkill('skill:demo');
-    expect(result.skill.urn).toBe('urn:tg:skill:demo');
+    expect(result.skill.urn).toBe('urn:sg:skill:demo');
   });
 
   it('throws RegistryClientError on an error response', async () => {

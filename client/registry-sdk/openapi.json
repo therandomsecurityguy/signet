@@ -748,7 +748,7 @@
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 500,
-                          "pattern": "^urn:tg:[A-Za-z0-9:._~@/-]+$"
+                          "pattern": "^urn:sg:[A-Za-z0-9:._~@/-]+$"
                         },
                         "skill_key": {
                           "type": "string",
@@ -3673,7 +3673,7 @@
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 500,
-                          "pattern": "^urn:tg:[A-Za-z0-9:._~@/-]+$"
+                          "pattern": "^urn:sg:[A-Za-z0-9:._~@/-]+$"
                         },
                         "skill_key": {
                           "type": "string",

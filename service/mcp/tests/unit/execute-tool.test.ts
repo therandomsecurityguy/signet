@@ -293,7 +293,7 @@ describe('ExecuteToolUseCase', () => {
     const res = await useCase.execute({
       tool_name: 'registry.get_agent',
       principal: anonymousPrincipal,
-      raw_input: { agent_urn: 'urn:tg:agent:missing' },
+      raw_input: { agent_urn: 'urn:sg:agent:missing' },
       ctx: { request_id: 'r1', client_name: 'test' },
     });
 
@@ -318,7 +318,7 @@ describe('ExecuteToolUseCase', () => {
 
     const search = vi.fn(async () => ({
       query: 'llama',
-      skills: [{ skill_urn: 'urn:tg:skill:skill:tame-llama', skill_key: 'skill:tame-llama' }],
+      skills: [{ skill_urn: 'urn:sg:skill:skill:tame-llama', skill_key: 'skill:tame-llama' }],
       agents: [],
     }));
 

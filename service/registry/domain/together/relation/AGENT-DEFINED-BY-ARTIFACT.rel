@@ -2,7 +2,7 @@ name: AGENT-DEFINED-BY-ARTIFACT
 doc: Agent definition is stored as a content-addressed artifact.
 from: AGENT
 to: ARTIFACT
-predicate: "tg:definedBy"
+predicate: "sg:definedBy"
 inverse: "ARTIFACT-DEFINES-AGENT"
 cardinality: "M:1"
 

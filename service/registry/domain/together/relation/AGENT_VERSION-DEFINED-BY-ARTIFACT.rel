@@ -2,6 +2,6 @@ name: AGENT_VERSION-DEFINED-BY-ARTIFACT
 doc: Agent publication snapshot points to the artifact that defines the released agent content.
 from: AGENT_VERSION
 to: ARTIFACT
-predicate: "tg:definedBy"
+predicate: "sg:definedBy"
 inverse: "ARTIFACT-DEFINES-AGENT_VERSION"
 cardinality: "N:1"

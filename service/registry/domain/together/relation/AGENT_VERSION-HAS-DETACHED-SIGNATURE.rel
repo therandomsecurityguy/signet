@@ -2,6 +2,6 @@ name: AGENT_VERSION-HAS-DETACHED-SIGNATURE
 doc: Agent publication snapshot points to detached signature artifacts recorded against its canonical publication envelope.
 from: AGENT_VERSION
 to: ARTIFACT
-predicate: "tg:hasDetachedSignature"
+predicate: "sg:hasDetachedSignature"
 inverse: "ARTIFACT-SIGNS-AGENT_VERSION"
 cardinality: "N:N"

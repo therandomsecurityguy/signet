@@ -64,25 +64,25 @@ describe('time-aware registry core', () => {
       expect(workspace.created).toBe(true);
 
       await expect(core.listCommits()).resolves.toMatchObject({
-        commits: [{ urn: 'urn:tg:commit:c0' }, { urn: 'urn:tg:commit:c1' }],
+        commits: [{ urn: 'urn:sg:commit:c0' }, { urn: 'urn:sg:commit:c1' }],
       });
       await expect(core.listRefs()).resolves.toMatchObject({
-        refs: [{ urn: 'urn:tg:ref:main' }],
+        refs: [{ urn: 'urn:sg:ref:main' }],
       });
       await expect(core.listRefs({ commit_urn: commit.value.urn })).resolves.toMatchObject({
-        refs: [{ urn: 'urn:tg:ref:main' }],
+        refs: [{ urn: 'urn:sg:ref:main' }],
       });
       await expect(core.listTags()).resolves.toMatchObject({
-        tags: [{ urn: 'urn:tg:tag:release-1' }],
+        tags: [{ urn: 'urn:sg:tag:release-1' }],
       });
       await expect(core.listTags({ commit_urn: commit.value.urn })).resolves.toMatchObject({
-        tags: [{ urn: 'urn:tg:tag:release-1' }],
+        tags: [{ urn: 'urn:sg:tag:release-1' }],
       });
       await expect(core.listWorkspaces()).resolves.toMatchObject({
-        workspaces: [{ urn: 'urn:tg:workspace:team-alpha' }],
+        workspaces: [{ urn: 'urn:sg:workspace:team-alpha' }],
       });
       await expect(core.listWorkspaces({ base_commit_urn: commit.value.urn })).resolves.toMatchObject({
-        workspaces: [{ urn: 'urn:tg:workspace:team-alpha' }],
+        workspaces: [{ urn: 'urn:sg:workspace:team-alpha' }],
       });
       await expect(
         core.listCommits({
@@ -90,7 +90,7 @@ describe('time-aware registry core', () => {
           transaction_as_of: '2026-03-10T00:00:00Z',
         }),
       ).resolves.toMatchObject({
-        commits: [{ urn: 'urn:tg:commit:c0' }],
+        commits: [{ urn: 'urn:sg:commit:c0' }],
       });
       await expect(
         core.listCommits({
@@ -112,31 +112,31 @@ describe('time-aware registry core', () => {
       ).resolves.toBeNull();
 
       await expect(core.getCommitDetails({ commit_urn: commit.value.urn })).resolves.toMatchObject({
-        commit: { urn: 'urn:tg:commit:c1' },
-        parent_commits: [{ urn: 'urn:tg:commit:c0' }],
+        commit: { urn: 'urn:sg:commit:c1' },
+        parent_commits: [{ urn: 'urn:sg:commit:c0' }],
         child_commits: [],
-        manifests: [{ urn: 'urn:tg:artifact-manifest:manifest-1' }],
-        blobs: [{ urn: 'urn:tg:artifact-blob:sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' }],
-        refs: [{ urn: 'urn:tg:ref:main' }],
-        tags: [{ urn: 'urn:tg:tag:release-1' }],
-        workspaces: [{ urn: 'urn:tg:workspace:team-alpha' }],
+        manifests: [{ urn: 'urn:sg:artifact-manifest:manifest-1' }],
+        blobs: [{ urn: 'urn:sg:artifact-blob:sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' }],
+        refs: [{ urn: 'urn:sg:ref:main' }],
+        tags: [{ urn: 'urn:sg:tag:release-1' }],
+        workspaces: [{ urn: 'urn:sg:workspace:team-alpha' }],
       });
       await expect(core.getCommitDetails({ commit_urn: parent.value.urn })).resolves.toMatchObject({
-        commit: { urn: 'urn:tg:commit:c0' },
-        child_commits: [{ urn: 'urn:tg:commit:c1' }],
+        commit: { urn: 'urn:sg:commit:c0' },
+        child_commits: [{ urn: 'urn:sg:commit:c1' }],
       });
       await expect(core.getRefDetails({ ref_urn: ref.value.urn })).resolves.toMatchObject({
-        ref: { urn: 'urn:tg:ref:main' },
-        target_commit: { urn: 'urn:tg:commit:c1' },
-        target_commit_parents: [{ urn: 'urn:tg:commit:c0' }],
+        ref: { urn: 'urn:sg:ref:main' },
+        target_commit: { urn: 'urn:sg:commit:c1' },
+        target_commit_parents: [{ urn: 'urn:sg:commit:c0' }],
       });
       await expect(core.getTagDetails({ tag_urn: tag.value.urn })).resolves.toMatchObject({
-        tag: { urn: 'urn:tg:tag:release-1' },
-        target_commit: { urn: 'urn:tg:commit:c1' },
+        tag: { urn: 'urn:sg:tag:release-1' },
+        target_commit: { urn: 'urn:sg:commit:c1' },
       });
       await expect(core.getWorkspaceDetails({ workspace_urn: workspace.value.urn })).resolves.toMatchObject({
-        workspace: { urn: 'urn:tg:workspace:team-alpha' },
-        base_commit: { urn: 'urn:tg:commit:c1' },
+        workspace: { urn: 'urn:sg:workspace:team-alpha' },
+        base_commit: { urn: 'urn:sg:commit:c1' },
       });
     } finally {
       await rm(tmp, { recursive: true, force: true });
@@ -242,33 +242,33 @@ describe('time-aware registry core', () => {
 
       await expect(core.listArtifactManifests()).resolves.toMatchObject({
         manifests: [
-          { urn: 'urn:tg:artifact-manifest:manifest-1' },
-          { urn: 'urn:tg:artifact-manifest:manifest-2' },
-          { urn: 'urn:tg:artifact-manifest:manifest-3' },
+          { urn: 'urn:sg:artifact-manifest:manifest-1' },
+          { urn: 'urn:sg:artifact-manifest:manifest-2' },
+          { urn: 'urn:sg:artifact-manifest:manifest-3' },
         ],
       });
       await expect(core.listRetentionRoots()).resolves.toMatchObject({
-        retention_roots: [{ urn: 'urn:tg:retention-root:root-1' }, { urn: 'urn:tg:retention-root:root-2' }],
+        retention_roots: [{ urn: 'urn:sg:retention-root:root-1' }, { urn: 'urn:sg:retention-root:root-2' }],
       });
       await expect(core.listGcJobs()).resolves.toMatchObject({
-        gc_jobs: [{ urn: 'urn:tg:gc-job:gc-1' }],
+        gc_jobs: [{ urn: 'urn:sg:gc-job:gc-1' }],
       });
       await expect(core.analyzeRetentionRoot({ retention_root_urn: root.value.urn })).resolves.toMatchObject({
-        retention_root: { urn: 'urn:tg:retention-root:root-1' },
-        direct_commits: [{ urn: 'urn:tg:commit:c2' }],
-        reachable_commits: [{ urn: 'urn:tg:commit:c1' }, { urn: 'urn:tg:commit:c2' }],
+        retention_root: { urn: 'urn:sg:retention-root:root-1' },
+        direct_commits: [{ urn: 'urn:sg:commit:c2' }],
+        reachable_commits: [{ urn: 'urn:sg:commit:c1' }, { urn: 'urn:sg:commit:c2' }],
         reachable_manifests: [
-          { urn: 'urn:tg:artifact-manifest:manifest-1' },
-          { urn: 'urn:tg:artifact-manifest:manifest-2' },
+          { urn: 'urn:sg:artifact-manifest:manifest-1' },
+          { urn: 'urn:sg:artifact-manifest:manifest-2' },
         ],
         direct_blobs: [],
         reachable_blobs: [
-          { urn: 'urn:tg:artifact-blob:sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' },
-          { urn: 'urn:tg:artifact-blob:sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7' },
+          { urn: 'urn:sg:artifact-blob:sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' },
+          { urn: 'urn:sg:artifact-blob:sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7' },
         ],
-        refs: [{ urn: 'urn:tg:ref:main' }],
-        tags: [{ urn: 'urn:tg:tag:release-2' }],
-        workspaces: [{ urn: 'urn:tg:workspace:ops' }],
+        refs: [{ urn: 'urn:sg:ref:main' }],
+        tags: [{ urn: 'urn:sg:tag:release-2' }],
+        workspaces: [{ urn: 'urn:sg:workspace:ops' }],
       });
       await expect(
         core.analyzeRetentionRoot({
@@ -277,7 +277,7 @@ describe('time-aware registry core', () => {
           transaction_as_of: '2026-03-10T00:00:00Z',
         }),
       ).resolves.toMatchObject({
-        retention_root: { urn: 'urn:tg:retention-root:root-1' },
+        retention_root: { urn: 'urn:sg:retention-root:root-1' },
         direct_commits: [],
         reachable_commits: [],
         reachable_manifests: [],
@@ -287,52 +287,52 @@ describe('time-aware registry core', () => {
         workspaces: [],
       });
       await expect(core.previewGcPlan({ retention_root_urn: root.value.urn })).resolves.toMatchObject({
-        retention_root: { urn: 'urn:tg:retention-root:root-1' },
+        retention_root: { urn: 'urn:sg:retention-root:root-1' },
         protected_commits: [
           {
-            object: { urn: 'urn:tg:commit:c1' },
+            object: { urn: 'urn:sg:commit:c1' },
             reasons: [{ code: 'ANCESTOR_OF_RETAINED_COMMIT' }],
           },
           {
-            object: { urn: 'urn:tg:commit:c2' },
+            object: { urn: 'urn:sg:commit:c2' },
             reasons: [{ code: 'DIRECT_RETENTION_ROOT_COMMIT' }],
           },
         ],
         protected_manifests: [
           {
-            object: { urn: 'urn:tg:artifact-manifest:manifest-1' },
+            object: { urn: 'urn:sg:artifact-manifest:manifest-1' },
             reasons: [{ code: 'INCLUDED_BY_PROTECTED_COMMIT' }],
           },
           {
-            object: { urn: 'urn:tg:artifact-manifest:manifest-2' },
+            object: { urn: 'urn:sg:artifact-manifest:manifest-2' },
             reasons: [{ code: 'INCLUDED_BY_PROTECTED_COMMIT' }],
           },
         ],
         protected_blobs: [
           {
-            object: { urn: 'urn:tg:artifact-blob:sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' },
+            object: { urn: 'urn:sg:artifact-blob:sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' },
           },
           {
-            object: { urn: 'urn:tg:artifact-blob:sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7' },
+            object: { urn: 'urn:sg:artifact-blob:sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7' },
           },
         ],
         candidate_manifests: [
           {
-            object: { urn: 'urn:tg:artifact-manifest:manifest-3' },
+            object: { urn: 'urn:sg:artifact-manifest:manifest-3' },
             reasons: [{ code: 'UNPROTECTED_MANIFEST' }],
           },
         ],
         candidate_blobs: [
           {
-            object: { urn: 'urn:tg:artifact-blob:sha256:88f6811ab5d8fc6d3177f9b7609ae0fcebfda187e5046b62d38bb539e88b74d7' },
+            object: { urn: 'urn:sg:artifact-blob:sha256:88f6811ab5d8fc6d3177f9b7609ae0fcebfda187e5046b62d38bb539e88b74d7' },
             reasons: [{ code: 'UNPROTECTED_BLOB' }],
           },
         ],
         blockers: [
-          { blocker_kind: 'REF', blocker: { urn: 'urn:tg:ref:main' } },
-          { blocker_kind: 'RETENTION_ROOT', blocker: { urn: 'urn:tg:retention-root:root-2' } },
-          { blocker_kind: 'TAG', blocker: { urn: 'urn:tg:tag:release-2' } },
-          { blocker_kind: 'WORKSPACE', blocker: { urn: 'urn:tg:workspace:ops' } },
+          { blocker_kind: 'REF', blocker: { urn: 'urn:sg:ref:main' } },
+          { blocker_kind: 'RETENTION_ROOT', blocker: { urn: 'urn:sg:retention-root:root-2' } },
+          { blocker_kind: 'TAG', blocker: { urn: 'urn:sg:tag:release-2' } },
+          { blocker_kind: 'WORKSPACE', blocker: { urn: 'urn:sg:workspace:ops' } },
         ],
       });
     } finally {

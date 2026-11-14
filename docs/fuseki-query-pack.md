@@ -17,12 +17,12 @@ registry
 ## Important note about the current graph shape
 
 The current graph adapter stores:
-- node type under `urn:tg:meta:entityType`
-- node properties as a JSON literal under `urn:tg:meta:properties`
+- node type under `urn:sg:meta:entityType`
+- node properties as a JSON literal under `urn:sg:meta:properties`
 - edges as separate edge nodes with:
-  - `urn:tg:meta:from`
-  - `urn:tg:meta:to`
-  - `urn:tg:meta:predicate`
+  - `urn:sg:meta:from`
+  - `urn:sg:meta:to`
+  - `urn:sg:meta:predicate`
   - edge properties as JSON
 
 So these queries are great for inspection, but they are intentionally a little more mechanical than a hand-authored ontology would be.
@@ -30,17 +30,17 @@ So these queries are great for inspection, but they are intentionally a little m
 ## Shared prefixes
 
 ```sparql
-PREFIX tgmeta: <urn:tg:meta:>
+PREFIX sgmeta: <urn:sg:meta:>
 ```
 
 ## 1. Count nodes by entity type
 
 ```sparql
-PREFIX tgmeta: <urn:tg:meta:>
+PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?entity_type (COUNT(?urn) AS ?count)
 WHERE {
-  ?urn tgmeta:entityType ?entity_type .
+  ?urn sgmeta:entityType ?entity_type .
 }
 GROUP BY ?entity_type
 ORDER BY ?entity_type
@@ -49,12 +49,12 @@ ORDER BY ?entity_type
 ## 2. List all agents
 
 ```sparql
-PREFIX tgmeta: <urn:tg:meta:>
+PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?urn ?props
 WHERE {
-  ?urn tgmeta:entityType "AGENT" ;
-       tgmeta:properties ?props .
+  ?urn sgmeta:entityType "AGENT" ;
+       sgmeta:properties ?props .
 }
 ORDER BY STR(?urn)
 ```
@@ -62,12 +62,12 @@ ORDER BY STR(?urn)
 ## 3. List all skills
 
 ```sparql
-PREFIX tgmeta: <urn:tg:meta:>
+PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?urn ?props
 WHERE {
-  ?urn tgmeta:entityType "SKILL" ;
-       tgmeta:properties ?props .
+  ?urn sgmeta:entityType "SKILL" ;
+       sgmeta:properties ?props .
 }
 ORDER BY STR(?urn)
 ```
@@ -75,12 +75,12 @@ ORDER BY STR(?urn)
 ## 4. List all skill versions
 
 ```sparql
-PREFIX tgmeta: <urn:tg:meta:>
+PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?urn ?props
 WHERE {
-  ?urn tgmeta:entityType "SKILL_VERSION" ;
-       tgmeta:properties ?props .
+  ?urn sgmeta:entityType "SKILL_VERSION" ;
+       sgmeta:properties ?props .
 }
 ORDER BY STR(?urn)
 ```
@@ -88,12 +88,12 @@ ORDER BY STR(?urn)
 ## 5. List all artifact nodes
 
 ```sparql
-PREFIX tgmeta: <urn:tg:meta:>
+PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?urn ?props
 WHERE {
-  ?urn tgmeta:entityType "ARTIFACT" ;
-       tgmeta:properties ?props .
+  ?urn sgmeta:entityType "ARTIFACT" ;
+       sgmeta:properties ?props .
 }
 ORDER BY STR(?urn)
 ```
@@ -101,14 +101,14 @@ ORDER BY STR(?urn)
 ## 6. List all relationship edges
 
 ```sparql
-PREFIX tgmeta: <urn:tg:meta:>
+PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?edge ?from ?to ?predicate ?props
 WHERE {
-  ?edge tgmeta:from ?from ;
-        tgmeta:to ?to ;
-        tgmeta:predicate ?predicate ;
-        tgmeta:properties ?props .
+  ?edge sgmeta:from ?from ;
+        sgmeta:to ?to ;
+        sgmeta:predicate ?predicate ;
+        sgmeta:properties ?props .
 }
 ORDER BY STR(?from) STR(?predicate) STR(?to)
 ```
@@ -116,18 +116,18 @@ ORDER BY STR(?from) STR(?predicate) STR(?to)
 ## 7. List only artifact-linking edges
 
 This shows both:
-- `tg:implementedBy`
-- `tg:definedBy`
+- `sg:implementedBy`
+- `sg:definedBy`
 
 ```sparql
-PREFIX tgmeta: <urn:tg:meta:>
+PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?from ?predicate ?to
 WHERE {
-  ?edge tgmeta:from ?from ;
-        tgmeta:to ?to ;
-        tgmeta:predicate ?predicate .
-  FILTER (?predicate IN ("tg:implementedBy", "tg:definedBy"))
+  ?edge sgmeta:from ?from ;
+        sgmeta:to ?to ;
+        sgmeta:predicate ?predicate .
+  FILTER (?predicate IN ("sg:implementedBy", "sg:definedBy"))
 }
 ORDER BY STR(?from) STR(?to)
 ```
@@ -135,16 +135,16 @@ ORDER BY STR(?from) STR(?to)
 ## 8. Trace the demo agent to its linked skill and artifact nodes
 
 ```sparql
-PREFIX tgmeta: <urn:tg:meta:>
+PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?predicate ?to ?to_type ?to_props
 WHERE {
-  BIND(<urn:tg:agent:cursor:registry-agent> AS ?agent)
-  ?edge tgmeta:from ?agent ;
-        tgmeta:to ?to ;
-        tgmeta:predicate ?predicate .
-  ?to tgmeta:entityType ?to_type ;
-      tgmeta:properties ?to_props .
+  BIND(<urn:sg:agent:cursor:registry-agent> AS ?agent)
+  ?edge sgmeta:from ?agent ;
+        sgmeta:to ?to ;
+        sgmeta:predicate ?predicate .
+  ?to sgmeta:entityType ?to_type ;
+      sgmeta:properties ?to_props .
 }
 ORDER BY STR(?predicate) STR(?to)
 ```
@@ -152,16 +152,16 @@ ORDER BY STR(?predicate) STR(?to)
 ## 9. Trace the `tame-llama` logical skill to its versions
 
 ```sparql
-PREFIX tgmeta: <urn:tg:meta:>
+PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?version ?version_props
 WHERE {
-  BIND(<urn:tg:skill:skill:tame-llama> AS ?skill)
-  ?edge tgmeta:from ?skill ;
-        tgmeta:to ?version ;
-        tgmeta:predicate "tg:hasVersion" .
-  ?version tgmeta:entityType "SKILL_VERSION" ;
-           tgmeta:properties ?version_props .
+  BIND(<urn:sg:skill:skill:tame-llama> AS ?skill)
+  ?edge sgmeta:from ?skill ;
+        sgmeta:to ?version ;
+        sgmeta:predicate "sg:hasVersion" .
+  ?version sgmeta:entityType "SKILL_VERSION" ;
+           sgmeta:properties ?version_props .
 }
 ORDER BY STR(?version)
 ```
@@ -171,27 +171,27 @@ ORDER BY STR(?version)
 This uses the current JSON-property style and looks for `"active":true` in the version property blob.
 
 ```sparql
-PREFIX tgmeta: <urn:tg:meta:>
+PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?version ?version_props ?artifact ?artifact_props
 WHERE {
-  BIND(<urn:tg:skill:skill:tame-llama> AS ?skill)
+  BIND(<urn:sg:skill:skill:tame-llama> AS ?skill)
 
-  ?has_version_edge tgmeta:from ?skill ;
-                    tgmeta:to ?version ;
-                    tgmeta:predicate "tg:hasVersion" .
+  ?has_version_edge sgmeta:from ?skill ;
+                    sgmeta:to ?version ;
+                    sgmeta:predicate "sg:hasVersion" .
 
-  ?version tgmeta:entityType "SKILL_VERSION" ;
-           tgmeta:properties ?version_props .
+  ?version sgmeta:entityType "SKILL_VERSION" ;
+           sgmeta:properties ?version_props .
 
   FILTER(CONTAINS(STR(?version_props), "\"active\":true"))
 
-  ?implemented_by_edge tgmeta:from ?version ;
-                       tgmeta:to ?artifact ;
-                       tgmeta:predicate "tg:implementedBy" .
+  ?implemented_by_edge sgmeta:from ?version ;
+                       sgmeta:to ?artifact ;
+                       sgmeta:predicate "sg:implementedBy" .
 
-  ?artifact tgmeta:entityType "ARTIFACT" ;
-            tgmeta:properties ?artifact_props .
+  ?artifact sgmeta:entityType "ARTIFACT" ;
+            sgmeta:properties ?artifact_props .
 }
 ```
 
@@ -200,12 +200,12 @@ WHERE {
 This is handy when matching graph metadata to files under `data/registry/objects/`.
 
 ```sparql
-PREFIX tgmeta: <urn:tg:meta:>
+PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?artifact ?artifact_props
 WHERE {
-  ?artifact tgmeta:entityType "ARTIFACT" ;
-            tgmeta:properties ?artifact_props .
+  ?artifact sgmeta:entityType "ARTIFACT" ;
+            sgmeta:properties ?artifact_props .
 
   FILTER(
     CONTAINS(STR(?artifact_props), "client/registry-cli/examples/demo/")
@@ -217,12 +217,12 @@ ORDER BY STR(?artifact)
 ## 12. Show only the blessed demo entities
 
 ```sparql
-PREFIX tgmeta: <urn:tg:meta:>
+PREFIX sgmeta: <urn:sg:meta:>
 
 SELECT ?urn ?entity_type ?props
 WHERE {
-  ?urn tgmeta:entityType ?entity_type ;
-       tgmeta:properties ?props .
+  ?urn sgmeta:entityType ?entity_type ;
+       sgmeta:properties ?props .
 
   FILTER(
     CONTAINS(STR(?urn), "cursor:registry-agent") ||

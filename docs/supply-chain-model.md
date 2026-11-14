@@ -25,7 +25,7 @@ The model covers four control points, in the order content moves through them:
 - **DSSE/in-toto attestations** (`POST /v1/attestations`) carry build
   provenance, SBOMs, and scan results. Signatures are verified over DSSE PAE
   bytes; subjects must match the publication's artifacts; only verified
-  evidence is stored (`tg:attestedBy`).
+  evidence is stored (`sg:attestedBy`).
 - **Policy trust gates** bind at publication time: `require_validation` blocks
   publish for drafts; `require_signature`, `require_trusted_publisher`,
   `require_build_provenance`, and `require_sbom` bind at certification against
@@ -83,7 +83,7 @@ The model covers four control points, in the order content moves through them:
   RFC 6962 inclusion proof against the signed checkpoint, verifies the
   checkpoint signature against the trusted `TESSERA_LOG_PUBLIC_KEY`, and
   stores the per-intent outcomes as CAS evidence linked
-  `tg:hasTransparencyReconciliation` (envelopes are not modified).
+  `sg:hasTransparencyReconciliation` (envelopes are not modified).
 
 ## Resolve
 

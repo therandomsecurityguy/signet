@@ -114,7 +114,7 @@ async function seedRegistry(deps: AppDependencies): Promise<SeededRegistry> {
   await graph.upsertEdge({
     from_urn: unverifiedVersion,
     to_urn: badSignature,
-    predicate: 'tg:hasDetachedSignature',
+    predicate: 'sg:hasDetachedSignature',
     properties: {},
   });
 
@@ -145,13 +145,13 @@ async function seedRegistry(deps: AppDependencies): Promise<SeededRegistry> {
   await graph.upsertEdge({
     from_urn: cleanVersion,
     to_urn: artifactUrn(cleanArtifact.sha256),
-    predicate: 'tg:implementedBy',
+    predicate: 'sg:implementedBy',
     properties: {},
   });
   await graph.upsertEdge({
     from_urn: revokedVersion,
     to_urn: artifactUrn(revokedArtifact.sha256),
-    predicate: 'tg:implementedBy',
+    predicate: 'sg:implementedBy',
     properties: {},
   });
 

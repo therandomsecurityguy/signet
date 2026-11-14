@@ -43,7 +43,7 @@ import {
 } from './views.js';
 
 const require = createRequire(import.meta.url);
-const DEFAULT_GRAPH_ROOT_URN = 'urn:tg:agent:cursor:registry-agent';
+const DEFAULT_GRAPH_ROOT_URN = 'urn:sg:agent:cursor:registry-agent';
 const DEFAULT_GRAPH_DEPTH = 3;
 
 export type KnowledgeManagerDeps = {

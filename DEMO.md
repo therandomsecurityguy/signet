@@ -242,7 +242,7 @@ curl -s -X POST http://localhost:3100/v1/skills/skill:demo-governed/versions/1/v
 What happens here:
 - the ontology layer rejects the draft: `pii-handling + public-data` is a disjoint combination
 - the version transitions to `rejected` with the exact violation recorded
-- machine-readable reports from every layer (graph shape, policy, ontology, advisory LLM) are stored in the CAS and linked via `tg:validatedBy`
+- machine-readable reports from every layer (graph shape, policy, ontology, advisory LLM) are stored in the CAS and linked via `sg:validatedBy`
 - fix the claims (drop `public-data`) in a new draft to see it reach `validated`
 
 ### 6.4 Human review, publish, certify

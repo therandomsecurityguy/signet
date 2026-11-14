@@ -27,6 +27,6 @@ export const registryUrnSchema = z
   .string()
   .min(1)
   .max(500)
-  .regex(/^urn:tg:[A-Za-z0-9:._~@/-]+$/, {
-    message: 'Expected a urn:tg: registry URN with an IRI-safe body.',
+  .regex(/^urn:sg:[A-Za-z0-9:._~@/-]+$/, {
+    message: 'Expected a urn:sg: registry URN with an IRI-safe body.',
   });

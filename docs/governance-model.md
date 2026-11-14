@@ -77,7 +77,7 @@ Examples:
   - content pipeline skills
   - data platform skills
   - motherduck/snowflake/athena skills
-  - tg-streams SDK skills
+  - sg-streams SDK skills
 
 Purpose:
 - define the allowed meaning space
@@ -162,7 +162,7 @@ Examples:
 Current implementation:
 - SHACL-like policy packages are registered as versioned CAS artifacts and resolved by `policy_version`
 - the engine supports a deliberate subset of SHACL semantics (node shapes targeted by entity type; property constraints `minCount`/`maxCount`/`datatype`/`in`/`pattern`; edge cardinality and target-type constraints; `Violation`/`Warning`/`Info` severities)
-- violations use the SHACL result vocabulary (focus node, result path, constraint component, source shape) and are stored as CAS validation reports linked via `tg:validatedBy`
+- violations use the SHACL result vocabulary (focus node, result path, constraint component, source shape) and are stored as CAS validation reports linked via `sg:validatedBy`
 - full W3C SHACL execution over RDF datasets remains future work
 
 #### 3. Ontology-based validation
@@ -200,7 +200,7 @@ Critical rule:
 Current implementation:
 - a model-agnostic `LlmValidator` port runs as an advisory layer in draft validation; findings are Warning-severity only and never cause rejection
 - the default validator is a deterministic heuristic analyzer (overclaim detection, ambiguity detection, example-capability consistency, missing-term suggestions) that runs offline; an HTTP model endpoint can be wired via `LLM_VALIDATOR_URL` with the heuristic as fallback
-- every run stores an evidence artifact (prompt, scorecards, rationale, confidence, suggestions) in the CAS, linked via `tg:validatedBy`
+- every run stores an evidence artifact (prompt, scorecards, rationale, confidence, suggestions) in the CAS, linked via `sg:validatedBy`
 
 #### 5. Human validation
 
@@ -217,7 +217,7 @@ Human review is where judgment lives. The system should preserve that judgment a
 
 Current implementation:
 - `POST /v1/skills/:key/versions/:v/review` and `POST /v1/agents/:key/versions/:v/review` record approve/reject decisions on validated or published versions
-- each decision stores a `review_evidence` artifact (decision, reviewer, role, note) in the CAS, linked via `tg:reviewedBy`, and updates the version's review fields
+- each decision stores a `review_evidence` artifact (decision, reviewer, role, note) in the CAS, linked via `sg:reviewedBy`, and updates the version's review fields
 - policy packages may declare `require_human_review: true`; publish and certify transitions for bound versions then require an approved review (rejected or unreviewed versions are blocked with 409)
 - policy packages may also declare trust gates: `require_validation: true` blocks publish for versions that are still drafts, and `require_signature`, `require_trusted_publisher`, `require_build_provenance`, `require_sbom` bind at certification against the frozen envelope and the evidence attached after publish (verified detached signatures, trusted-key owner matching the publication publisher, and verified DSSE/in-toto attestations with SLSA-provenance or SPDX/CycloneDX-SBOM predicate types). Each failure raises a specific 409 code (for example `SKILL_VERSION_BUILD_PROVENANCE_REQUIRED`); when a policy requires a trusted publisher, attaching a detached signature with a key owned by anyone other than the publication's publisher is refused (`..._SIGNATURE_PUBLISHER_MISMATCH`)
 - `GET /v1/reviews/pending` serves the review queue of unreviewed validated/published versions
@@ -550,8 +550,8 @@ The project already has:
 - full agent-version lifecycle parity with skills (drafts, validate, publish, promote, deprecate, certify, revoke, archive) including dependency validation for linked skills
 - a durable, non-destructive GC job seam (planned to completed execution records over retention-root plans)
 - SHACL-like policy packages registered as versioned, content-addressed artifacts (`POST /v1/policy-packages`) and resolved by `policy_version`
-- multi-layer draft validation: built-in graph-shape rules (required properties, edges, cardinalities) plus registered SHACL-like policy shapes, with machine-readable violation reports (focus node, result path, constraint component) stored in the CAS and linked via `tg:validatedBy`
-- publish-time linkage of registered policy package artifacts via `tg:governedByPolicy` in place of generated placeholders
+- multi-layer draft validation: built-in graph-shape rules (required properties, edges, cardinalities) plus registered SHACL-like policy shapes, with machine-readable violation reports (focus node, result path, constraint component) stored in the CAS and linked via `sg:validatedBy`
+- publish-time linkage of registered policy package artifacts via `sg:governedByPolicy` in place of generated placeholders
 - dual ontology packages registered as versioned CAS artifacts (`POST /v1/ontology-packages`) in two architecturally separate kinds: `registry_shape` (lifecycle/evidence vocabulary) and `skill_area` (domain capability concepts)
 - ontology validation of version `capability_claims`: claims must bind to known skill-area concepts, disjoint concept combinations fail, and unmapped claims are recorded as de facto vocabulary candidates in the validation report
 - certification bound to registered ontology packages: certify with an unregistered `ontology_version` fails with `ONTOLOGY_PACKAGE_NOT_FOUND`
@@ -561,8 +561,8 @@ The project already has:
 - an internal append-only Merkle log over governance events with RFC 6962 inclusion-proof generation, log state inspection, and verifier replay (`/v1/governance-log`, `/v1/governance-log/proofs/:i`, `/v1/governance-log/replay`)
 - governance-event digests staged through the Tessera sidecar for all lifecycle operations when configured
 - semantic compiler ingestion: markdown skill files (frontmatter subset plus heading/bullet extraction) and JSON tool manifests are normalized into typed proposals (capability claims, interfaces, constraints) at `POST /v1/compile/skill`, with optional draft creation
-- advisory LLM semantic validation with a model-agnostic port (deterministic heuristic default, HTTP model seam), emitting scorecard/prompt/confidence evidence artifacts via `tg:validatedBy`
-- human review workflow: review decisions as first-class `review_evidence` artifacts via `tg:reviewedBy`, policy-driven review gating at publish/certify, and a pending-review queue
+- advisory LLM semantic validation with a model-agnostic port (deterministic heuristic default, HTTP model seam), emitting scorecard/prompt/confidence evidence artifacts via `sg:validatedBy`
+- human review workflow: review decisions as first-class `review_evidence` artifacts via `sg:reviewedBy`, policy-driven review gating at publish/certify, and a pending-review queue
 - de facto vocabulary workflow: unmapped claims are recorded as first-class `DEFACTO_TERM` candidates at validation time, listed via `GET /v1/de-facto-terms`, and promoted only through human review (`POST /v1/de-facto-terms/:term/review`) which appends the concept to a NEW normative ontology package version — source packages stay immutable
 - trusted `PUBLIC_KEY` records backed by CAS-stored PEM bytes
 - trusted `TRANSPARENCY_LOG` identities with explicit checkpoint-verifier key references
@@ -570,7 +570,7 @@ The project already has:
 - detached signature records linked to publication snapshots
 - verification endpoints that recompute envelope digests, resolve trusted public keys, and verify detached signatures cryptographically
 - frozen publication envelope artifacts with CAS digest verification on read (warn by default, `enforce` opt-in) and explicit live-drift reporting
-- DSSE/in-toto attestations as first-class evidence: PAE-verified signatures against trusted `PUBLIC_KEY` roots, recorded predicate types, subject binding to publication artifacts, CAS-stored records linked `tg:attestedBy`, and aggregate verdicts in publication verification
+- DSSE/in-toto attestations as first-class evidence: PAE-verified signatures against trusted `PUBLIC_KEY` roots, recorded predicate types, subject binding to publication artifacts, CAS-stored records linked `sg:attestedBy`, and aggregate verdicts in publication verification
 - generated governance artifacts for policy, validation, and certification evidence
 - explicit skill revocation and supersession states
 - transparency-log references and inclusion-proof references attached to trust evidence records

@@ -105,55 +105,55 @@ describe('MCP registry blackbox e2e', () => {
       await deps.registryGraph.upsertEdge({
         from_urn: agent,
         to_urn: skill,
-        predicate: 'tg:usesSkill',
+        predicate: 'sg:usesSkill',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: agent,
         to_urn: agentVersion,
-        predicate: 'tg:hasVersion',
+        predicate: 'sg:hasVersion',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: agent,
         to_urn: harness,
-        predicate: 'tg:runsOn',
+        predicate: 'sg:runsOn',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: agent,
         to_urn: artifact,
-        predicate: 'tg:definedBy',
+        predicate: 'sg:definedBy',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: agentVersion,
         to_urn: skill,
-        predicate: 'tg:usesSkill',
+        predicate: 'sg:usesSkill',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: agentVersion,
         to_urn: harness,
-        predicate: 'tg:runsOn',
+        predicate: 'sg:runsOn',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: agentVersion,
         to_urn: artifact,
-        predicate: 'tg:definedBy',
+        predicate: 'sg:definedBy',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: skill,
         to_urn: skillVersion,
-        predicate: 'tg:hasVersion',
+        predicate: 'sg:hasVersion',
         properties: {},
       });
       await deps.registryGraph.upsertEdge({
         from_urn: skillVersion,
         to_urn: artifact,
-        predicate: 'tg:implementedBy',
+        predicate: 'sg:implementedBy',
         properties: {},
       });
 
@@ -176,7 +176,7 @@ describe('MCP registry blackbox e2e', () => {
         result: {
           agents: [
             {
-              agent_urn: 'urn:tg:agent:cursor:blackbox',
+              agent_urn: 'urn:sg:agent:cursor:blackbox',
               agent_key: 'cursor:blackbox',
             },
           ],
@@ -190,23 +190,23 @@ describe('MCP registry blackbox e2e', () => {
           authorization: `Bearer ${token}`,
           'x-agent-client': 'e2e',
         },
-        body: JSON.stringify({ agent_urn: 'urn:tg:agent:cursor:blackbox' }),
+        body: JSON.stringify({ agent_urn: 'urn:sg:agent:cursor:blackbox' }),
       });
       expect(get.status).toBe(200);
       await expect(get.json()).resolves.toMatchObject({
         error: null,
         result: {
           agent: {
-            urn: 'urn:tg:agent:cursor:blackbox',
+            urn: 'urn:sg:agent:cursor:blackbox',
           },
           active_version: {
             agent_version: {
-              urn: 'urn:tg:agent-version:cursor:blackbox@v1',
+              urn: 'urn:sg:agent-version:cursor:blackbox@v1',
             },
           },
-          skills: [{ skill_urn: 'urn:tg:skill:skill:blackbox' }],
-          harnesses: [{ harness_urn: 'urn:tg:harness:cursor' }],
-          artifacts: [{ artifact_urn: 'urn:tg:artifact:sha256:abc123' }],
+          skills: [{ skill_urn: 'urn:sg:skill:skill:blackbox' }],
+          harnesses: [{ harness_urn: 'urn:sg:harness:cursor' }],
+          artifacts: [{ artifact_urn: 'urn:sg:artifact:sha256:abc123' }],
         },
       });
 
@@ -217,14 +217,14 @@ describe('MCP registry blackbox e2e', () => {
           authorization: `Bearer ${token}`,
           'x-agent-client': 'e2e',
         },
-        body: JSON.stringify({ version_urn: 'urn:tg:skill-version:skill:blackbox@v1' }),
+        body: JSON.stringify({ version_urn: 'urn:sg:skill-version:skill:blackbox@v1' }),
       });
       expect(verify.status).toBe(200);
       await expect(verify.json()).resolves.toMatchObject({
         error: null,
         result: {
-          publication_urn: 'urn:tg:skill-version:skill:blackbox@v1',
-          logical_urn: 'urn:tg:skill:skill:blackbox',
+          publication_urn: 'urn:sg:skill-version:skill:blackbox@v1',
+          logical_urn: 'urn:sg:skill:skill:blackbox',
           entity_type: 'SKILL_VERSION',
           verification_status: 'verified',
           publication_envelope_artifact_present: false,
@@ -240,7 +240,7 @@ describe('MCP registry blackbox e2e', () => {
           authorization: `Bearer ${token}`,
           'x-agent-client': 'e2e',
         },
-        body: JSON.stringify({ version_urn: 'urn:tg:skill-version:skill:missing@v1' }),
+        body: JSON.stringify({ version_urn: 'urn:sg:skill-version:skill:missing@v1' }),
       });
       expect(verifyMissing.status).toBe(200);
       await expect(verifyMissing.json()).resolves.toMatchObject({
@@ -257,7 +257,7 @@ describe('MCP registry blackbox e2e', () => {
             authorization: `Bearer ${token}`,
             'x-agent-client': 'e2e',
           },
-          body: JSON.stringify({ version_urn: 'urn:tg:skill-version:skill:blackbox@v1' }),
+          body: JSON.stringify({ version_urn: 'urn:sg:skill-version:skill:blackbox@v1' }),
         },
       );
       expect(attestations.status).toBe(200);

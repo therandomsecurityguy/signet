@@ -175,7 +175,7 @@ describe('registry-operator bootstrap test command', () => {
       const artifactSha = skillVersionBody.artifacts[0]?.sha256;
       expect(artifactSha).toBeTruthy();
       await runCli(['verify', 'artifact', '--sha256', artifactSha as string]);
-      await runCli(['verify', 'artifact', '--artifact-urn', `urn:tg:artifact:sha256:${artifactSha as string}`]);
+      await runCli(['verify', 'artifact', '--artifact-urn', `urn:sg:artifact:sha256:${artifactSha as string}`]);
 
       const agentRes = await api.request('/v1/agents/cursor%3Abootstrap-integration');
       expect(agentRes.status).toBe(200);
@@ -618,7 +618,7 @@ describe('registry-operator bootstrap test command', () => {
         '2026-01-06',
       ]);
 
-      const verification = await api.request('/v1/transparency-logs/tg-cli-integration-log/verification');
+      const verification = await api.request('/v1/transparency-logs/sg-cli-integration-log/verification');
       expect(verification.status).toBe(200);
       await expect(verification.json()).resolves.toMatchObject({
         witness_quorum_required: 2,
@@ -639,7 +639,7 @@ describe('registry-operator bootstrap test command', () => {
         ]),
       });
 
-      const timeline = await api.request('/v1/transparency-logs/tg-cli-integration-log/timeline');
+      const timeline = await api.request('/v1/transparency-logs/sg-cli-integration-log/timeline');
       expect(timeline.status).toBe(200);
       await expect(timeline.json()).resolves.toMatchObject({
         events: expect.arrayContaining([
@@ -710,7 +710,7 @@ describe('registry-operator bootstrap test command', () => {
         ok: true,
         report_type: 'human-proof-report',
         sample_id: 'cli-report',
-        log_id: 'tg-cli-report-log',
+        log_id: 'sg-cli-report-log',
         trust_verdict: {
           verification_status: 'consistency_failure',
           checkpoint_signature_valid: true,
@@ -727,7 +727,7 @@ describe('registry-operator bootstrap test command', () => {
         },
       });
       expect(JSON.stringify(report)).toContain('same_size_different_root');
-      expect(JSON.stringify(report)).toContain('/v1/transparency-logs/tg-cli-report-log/verification');
+      expect(JSON.stringify(report)).toContain('/v1/transparency-logs/sg-cli-report-log/verification');
       expect(report).not.toHaveProperty('timeline');
       expect(report).not.toHaveProperty('verification');
       expect(report).not.toHaveProperty('log');

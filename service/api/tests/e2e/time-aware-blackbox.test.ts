@@ -67,30 +67,30 @@ describe('time-aware blackbox e2e', () => {
         commit_id: 'c1',
         author: 'pablo',
         message: 'seed commit',
-        parent_commit_urns: ['urn:tg:commit:c0'],
+        parent_commit_urns: ['urn:sg:commit:c0'],
         manifest_urns: [manifestCommit.value.urn],
         transaction_time: '2026-03-05T00:00:00Z',
         valid_from: '2026-03-05T00:00:00Z',
       });
       await deps.timeAwareCore.createRef({
         ref_name: 'main',
-        commit_urn: 'urn:tg:commit:c1',
+        commit_urn: 'urn:sg:commit:c1',
         author: 'pablo',
       });
       await deps.timeAwareCore.createTag({
         tag_name: 'release-1',
-        commit_urn: 'urn:tg:commit:c1',
+        commit_urn: 'urn:sg:commit:c1',
         author: 'pablo',
       });
       await deps.timeAwareCore.createRetentionRoot({
         root_id: 'root-1',
         root_kind: 'release',
-        commit_urns: ['urn:tg:commit:c1'],
+        commit_urns: ['urn:sg:commit:c1'],
       });
       await deps.timeAwareCore.createRetentionRoot({
         root_id: 'root-2',
         root_kind: 'secondary',
-        commit_urns: ['urn:tg:commit:c0'],
+        commit_urns: ['urn:sg:commit:c0'],
       });
 
       const app = buildApp(deps);
@@ -120,7 +120,7 @@ describe('time-aware blackbox e2e', () => {
       expect(create.status).toBe(201);
       await expect(create.json()).resolves.toMatchObject({
         workspace: {
-          urn: 'urn:tg:workspace:ws-alpha',
+          urn: 'urn:sg:workspace:ws-alpha',
         },
       });
 
@@ -129,7 +129,7 @@ describe('time-aware blackbox e2e', () => {
       await expect(list.json()).resolves.toMatchObject({
         workspaces: [
           {
-            urn: 'urn:tg:workspace:ws-alpha',
+            urn: 'urn:sg:workspace:ws-alpha',
           },
         ],
       });
@@ -137,19 +137,19 @@ describe('time-aware blackbox e2e', () => {
       const commitDetails = await fetch(`${baseUrl}/v1/time-aware/commits/c1`);
       expect(commitDetails.status).toBe(200);
       await expect(commitDetails.json()).resolves.toMatchObject({
-        commit: { urn: 'urn:tg:commit:c1' },
-        parent_commits: [{ urn: 'urn:tg:commit:c0' }],
-        manifests: [{ urn: 'urn:tg:artifact-manifest:manifest-2' }],
-        blobs: [{ urn: 'urn:tg:artifact-blob:sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7' }],
-        refs: [{ urn: 'urn:tg:ref:main' }],
-        tags: [{ urn: 'urn:tg:tag:release-1' }],
-        workspaces: [{ urn: 'urn:tg:workspace:ws-alpha' }],
+        commit: { urn: 'urn:sg:commit:c1' },
+        parent_commits: [{ urn: 'urn:sg:commit:c0' }],
+        manifests: [{ urn: 'urn:sg:artifact-manifest:manifest-2' }],
+        blobs: [{ urn: 'urn:sg:artifact-blob:sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7' }],
+        refs: [{ urn: 'urn:sg:ref:main' }],
+        tags: [{ urn: 'urn:sg:tag:release-1' }],
+        workspaces: [{ urn: 'urn:sg:workspace:ws-alpha' }],
       });
 
-      const filteredRefs = await fetch(`${baseUrl}/v1/time-aware/refs?commit_urn=urn:tg:commit:c1`);
+      const filteredRefs = await fetch(`${baseUrl}/v1/time-aware/refs?commit_urn=urn:sg:commit:c1`);
       expect(filteredRefs.status).toBe(200);
       await expect(filteredRefs.json()).resolves.toMatchObject({
-        refs: [{ urn: 'urn:tg:ref:main' }],
+        refs: [{ urn: 'urn:sg:ref:main' }],
       });
 
       const temporalCommits = await fetch(
@@ -157,7 +157,7 @@ describe('time-aware blackbox e2e', () => {
       );
       expect(temporalCommits.status).toBe(200);
       await expect(temporalCommits.json()).resolves.toMatchObject({
-        commits: [{ urn: 'urn:tg:commit:c0' }],
+        commits: [{ urn: 'urn:sg:commit:c0' }],
       });
 
       const temporalCommitDetails = await fetch(
@@ -171,21 +171,21 @@ describe('time-aware blackbox e2e', () => {
       const analysis = await fetch(`${baseUrl}/v1/time-aware/retention-roots/root-1/analysis`);
       expect(analysis.status).toBe(200);
       await expect(analysis.json()).resolves.toMatchObject({
-        retention_root: { urn: 'urn:tg:retention-root:root-1' },
-        direct_commits: [{ urn: 'urn:tg:commit:c1' }],
-        reachable_commits: [{ urn: 'urn:tg:commit:c0' }, { urn: 'urn:tg:commit:c1' }],
+        retention_root: { urn: 'urn:sg:retention-root:root-1' },
+        direct_commits: [{ urn: 'urn:sg:commit:c1' }],
+        reachable_commits: [{ urn: 'urn:sg:commit:c0' }, { urn: 'urn:sg:commit:c1' }],
         reachable_manifests: [
-          { urn: 'urn:tg:artifact-manifest:manifest-1' },
-          { urn: 'urn:tg:artifact-manifest:manifest-2' },
+          { urn: 'urn:sg:artifact-manifest:manifest-1' },
+          { urn: 'urn:sg:artifact-manifest:manifest-2' },
         ],
         direct_blobs: [],
         reachable_blobs: [
-          { urn: 'urn:tg:artifact-blob:sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' },
-          { urn: 'urn:tg:artifact-blob:sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7' },
+          { urn: 'urn:sg:artifact-blob:sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' },
+          { urn: 'urn:sg:artifact-blob:sha256:486ea46224d1bb4fb680f34f7c9ad96a8f24ec88be73ea8e5a6c65260e9cb8a7' },
         ],
-        refs: [{ urn: 'urn:tg:ref:main' }],
-        tags: [{ urn: 'urn:tg:tag:release-1' }],
-        workspaces: [{ urn: 'urn:tg:workspace:ws-alpha' }],
+        refs: [{ urn: 'urn:sg:ref:main' }],
+        tags: [{ urn: 'urn:sg:tag:release-1' }],
+        workspaces: [{ urn: 'urn:sg:workspace:ws-alpha' }],
       });
 
       const temporalAnalysis = await fetch(
@@ -193,7 +193,7 @@ describe('time-aware blackbox e2e', () => {
       );
       expect(temporalAnalysis.status).toBe(200);
       await expect(temporalAnalysis.json()).resolves.toMatchObject({
-        retention_root: { urn: 'urn:tg:retention-root:root-1' },
+        retention_root: { urn: 'urn:sg:retention-root:root-1' },
         direct_commits: [],
         reachable_commits: [],
         reachable_manifests: [],
@@ -207,17 +207,17 @@ describe('time-aware blackbox e2e', () => {
       const gcPlan = await fetch(`${baseUrl}/v1/time-aware/retention-roots/root-1/gc-plan`);
       expect(gcPlan.status).toBe(200);
       await expect(gcPlan.json()).resolves.toMatchObject({
-        retention_root: { urn: 'urn:tg:retention-root:root-1' },
+        retention_root: { urn: 'urn:sg:retention-root:root-1' },
         candidate_manifests: [
           {
-            object: { urn: 'urn:tg:artifact-manifest:manifest-3' },
+            object: { urn: 'urn:sg:artifact-manifest:manifest-3' },
           },
         ],
         blockers: [
-          { blocker_kind: 'REF', blocker: { urn: 'urn:tg:ref:main' } },
-          { blocker_kind: 'RETENTION_ROOT', blocker: { urn: 'urn:tg:retention-root:root-2' } },
-          { blocker_kind: 'TAG', blocker: { urn: 'urn:tg:tag:release-1' } },
-          { blocker_kind: 'WORKSPACE', blocker: { urn: 'urn:tg:workspace:ws-alpha' } },
+          { blocker_kind: 'REF', blocker: { urn: 'urn:sg:ref:main' } },
+          { blocker_kind: 'RETENTION_ROOT', blocker: { urn: 'urn:sg:retention-root:root-2' } },
+          { blocker_kind: 'TAG', blocker: { urn: 'urn:sg:tag:release-1' } },
+          { blocker_kind: 'WORKSPACE', blocker: { urn: 'urn:sg:workspace:ws-alpha' } },
         ],
       });
     } finally {

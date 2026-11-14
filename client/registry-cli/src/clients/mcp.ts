@@ -71,7 +71,7 @@ export class RegistryOperatorMcpClient {
         const result = await expectToolSuccess(
           await client.callTool({
             name: 'registry.get_agent',
-            arguments: { agent_urn: `urn:tg:agent:${agentKey}` },
+            arguments: { agent_urn: `urn:sg:agent:${agentKey}` },
           }),
         );
         const artifacts = readArtifacts(result, 'artifacts');
@@ -85,7 +85,7 @@ export class RegistryOperatorMcpClient {
         const result = await expectToolSuccess(
           await client.callTool({
             name: 'registry.get_skill',
-            arguments: { skill_urn: `urn:tg:skill:${skillKey}` },
+            arguments: { skill_urn: `urn:sg:skill:${skillKey}` },
           }),
         );
         const artifacts = readArtifacts(result, 'artifacts');

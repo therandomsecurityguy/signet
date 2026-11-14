@@ -366,7 +366,7 @@ export const BUILTIN_GRAPH_SHAPE_DOCUMENT: ShapeDocument = {
       ],
       edges: [
         {
-          predicate: 'tg:implementedBy',
+          predicate: 'sg:implementedBy',
           minCount: 1,
           to_entity_type: 'ARTIFACT',
           message: 'missing_implementation_edge',
@@ -383,7 +383,7 @@ export const BUILTIN_GRAPH_SHAPE_DOCUMENT: ShapeDocument = {
       ],
       edges: [
         {
-          predicate: 'tg:definedBy',
+          predicate: 'sg:definedBy',
           minCount: 1,
           to_entity_type: 'ARTIFACT',
           message: 'missing_definition_edge',

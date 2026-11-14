@@ -65,8 +65,8 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
     if (existing) {
       if (
         sameProperties(existing.properties, props) &&
-        (await this.matchesOutgoingTargets(urn, 'tg:parentCommit', expected_parent_urns)) &&
-        (await this.matchesOutgoingTargets(urn, 'tg:includesManifest', expected_manifest_urns))
+        (await this.matchesOutgoingTargets(urn, 'sg:parentCommit', expected_parent_urns)) &&
+        (await this.matchesOutgoingTargets(urn, 'sg:includesManifest', expected_manifest_urns))
       ) {
         return { value: toSummary(existing), created: false };
       }
@@ -82,7 +82,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
       await this.deps.graph.upsertEdge({
         from_urn: urn,
         to_urn: parent,
-        predicate: 'tg:parentCommit',
+        predicate: 'sg:parentCommit',
         properties: {},
       });
     }
@@ -90,7 +90,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
       await this.deps.graph.upsertEdge({
         from_urn: urn,
         to_urn: manifest_urn,
-        predicate: 'tg:includesManifest',
+        predicate: 'sg:includesManifest',
         properties: {},
       });
     }
@@ -110,13 +110,13 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
 
     return {
       commit: toSummary(commit),
-      parent_commits: await this.resolveTargets(input.commit_urn, 'tg:parentCommit', input),
-      child_commits: await this.resolveSources(input.commit_urn, 'tg:parentCommit', 'COMMIT', input),
+      parent_commits: await this.resolveTargets(input.commit_urn, 'sg:parentCommit', input),
+      child_commits: await this.resolveSources(input.commit_urn, 'sg:parentCommit', 'COMMIT', input),
       manifests,
       blobs,
-      refs: await this.resolveSources(input.commit_urn, 'tg:pointsToCommit', 'REF'),
-      tags: await this.resolveSources(input.commit_urn, 'tg:pointsToCommit', 'TAG'),
-      workspaces: await this.resolveSources(input.commit_urn, 'tg:basedOnCommit', 'WORKSPACE'),
+      refs: await this.resolveSources(input.commit_urn, 'sg:pointsToCommit', 'REF'),
+      tags: await this.resolveSources(input.commit_urn, 'sg:pointsToCommit', 'TAG'),
+      workspaces: await this.resolveSources(input.commit_urn, 'sg:basedOnCommit', 'WORKSPACE'),
     };
   }
 
@@ -135,7 +135,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
         updated_at: nowIso(),
       },
       target_urn: input.commit_urn,
-      predicate: 'tg:pointsToCommit',
+      predicate: 'sg:pointsToCommit',
       conflictCode: 'REF_CREATE_CONFLICT',
       createdCode: 'REF_CREATE_FAILED',
     });
@@ -149,17 +149,17 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
     const ref = await this.deps.graph.getNode(input.ref_urn);
     if (!ref) return null;
 
-    const target_commit = await this.resolveSingleTarget(input.ref_urn, 'tg:pointsToCommit');
+    const target_commit = await this.resolveSingleTarget(input.ref_urn, 'sg:pointsToCommit');
 
     return {
       ref: toSummary(ref),
       target_commit,
-      target_commit_parents: target_commit ? await this.resolveTargets(target_commit.urn, 'tg:parentCommit') : [],
+      target_commit_parents: target_commit ? await this.resolveTargets(target_commit.urn, 'sg:parentCommit') : [],
     };
   }
 
   async listRefs(input?: { commit_urn?: string } & TimeAwareTemporalQuery): Promise<{ refs: TimeAwareSummary[] }> {
-    return { refs: await this.listPointersToCommit('REF', 'tg:pointsToCommit', input?.commit_urn, input) };
+    return { refs: await this.listPointersToCommit('REF', 'sg:pointsToCommit', input?.commit_urn, input) };
   }
 
   async createTag(input: TimeAwareTagInput): Promise<CreateResult<TimeAwareSummary>> {
@@ -173,7 +173,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
         ...(input.immutable_reason ? { immutable_reason: input.immutable_reason } : {}),
       },
       target_urn: input.commit_urn,
-      predicate: 'tg:pointsToCommit',
+      predicate: 'sg:pointsToCommit',
       conflictCode: 'TAG_CREATE_CONFLICT',
       createdCode: 'TAG_CREATE_FAILED',
     });
@@ -187,17 +187,17 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
     const tag = await this.deps.graph.getNode(input.tag_urn);
     if (!tag) return null;
 
-    const target_commit = await this.resolveSingleTarget(input.tag_urn, 'tg:pointsToCommit');
+    const target_commit = await this.resolveSingleTarget(input.tag_urn, 'sg:pointsToCommit');
 
     return {
       tag: toSummary(tag),
       target_commit,
-      target_commit_parents: target_commit ? await this.resolveTargets(target_commit.urn, 'tg:parentCommit') : [],
+      target_commit_parents: target_commit ? await this.resolveTargets(target_commit.urn, 'sg:parentCommit') : [],
     };
   }
 
   async listTags(input?: { commit_urn?: string } & TimeAwareTemporalQuery): Promise<{ tags: TimeAwareSummary[] }> {
-    return { tags: await this.listPointersToCommit('TAG', 'tg:pointsToCommit', input?.commit_urn, input) };
+    return { tags: await this.listPointersToCommit('TAG', 'sg:pointsToCommit', input?.commit_urn, input) };
   }
 
   async createWorkspace(input: TimeAwareWorkspaceInput): Promise<CreateResult<TimeAwareSummary>> {
@@ -212,7 +212,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
         ...(input.promotion_path ? { promotion_path: input.promotion_path } : {}),
       },
       target_urn: input.base_commit_urn,
-      predicate: 'tg:basedOnCommit',
+      predicate: 'sg:basedOnCommit',
       conflictCode: 'WORKSPACE_CREATE_CONFLICT',
       createdCode: 'WORKSPACE_CREATE_FAILED',
     });
@@ -223,7 +223,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
     if (!ref) {
       throw new TimeAwareRegistryError('REF_NOT_FOUND', `Ref not found: ${input.ref_name}`);
     }
-    const edges = await this.deps.graph.listEdgesFrom(ref.urn, 'tg:pointsToCommit');
+    const edges = await this.deps.graph.listEdgesFrom(ref.urn, 'sg:pointsToCommit');
     const commit = edges[0]?.to_urn;
     if (!commit) {
       throw new TimeAwareRegistryError('REF_TARGET_NOT_FOUND', `Ref has no target commit: ${input.ref_name}`);
@@ -245,18 +245,18 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
     const workspace = await this.deps.graph.getNode(input.workspace_urn);
     if (!workspace) return null;
 
-    const base_commit = await this.resolveSingleTarget(input.workspace_urn, 'tg:basedOnCommit');
+    const base_commit = await this.resolveSingleTarget(input.workspace_urn, 'sg:basedOnCommit');
 
     return {
       workspace: toSummary(workspace),
       base_commit,
-      base_commit_parents: base_commit ? await this.resolveTargets(base_commit.urn, 'tg:parentCommit') : [],
+      base_commit_parents: base_commit ? await this.resolveTargets(base_commit.urn, 'sg:parentCommit') : [],
     };
   }
 
   async listWorkspaces(input?: { base_commit_urn?: string } & TimeAwareTemporalQuery): Promise<{ workspaces: TimeAwareSummary[] }> {
     return {
-      workspaces: await this.listPointersToCommit('WORKSPACE', 'tg:basedOnCommit', input?.base_commit_urn, input),
+      workspaces: await this.listPointersToCommit('WORKSPACE', 'sg:basedOnCommit', input?.base_commit_urn, input),
     };
   }
 
@@ -293,7 +293,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
       await this.deps.graph.upsertEdge({
         from_urn: urn,
         to_urn: blobUrn,
-        predicate: 'tg:containsBlob',
+        predicate: 'sg:containsBlob',
         properties: {},
       });
     }
@@ -333,7 +333,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
       await this.deps.graph.upsertEdge({
         from_urn: urn,
         to_urn: commit,
-        predicate: 'tg:keepsCommit',
+        predicate: 'sg:keepsCommit',
         properties: {},
       });
     }
@@ -341,7 +341,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
       await this.deps.graph.upsertEdge({
         from_urn: urn,
         to_urn: blob,
-        predicate: 'tg:keepsBlob',
+        predicate: 'sg:keepsBlob',
         properties: {},
       });
     }
@@ -356,8 +356,8 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
     const retention_root = await this.deps.graph.getNode(input.retention_root_urn);
     if (!retention_root) return null;
 
-    const direct_commits = await this.resolveTargets(input.retention_root_urn, 'tg:keepsCommit', input);
-    const direct_blobs = await this.resolveTargets(input.retention_root_urn, 'tg:keepsBlob');
+    const direct_commits = await this.resolveTargets(input.retention_root_urn, 'sg:keepsCommit', input);
+    const direct_blobs = await this.resolveTargets(input.retention_root_urn, 'sg:keepsBlob');
     const reachable_commits = await this.collectReachableCommits(direct_commits.map((commit) => commit.urn), input);
     const reachable_manifests = await this.resolveCommitManifests(reachable_commits.map((commit) => commit.urn));
     const manifest_blobs = await this.resolveManifestBlobs(reachable_manifests.map((manifest) => manifest.urn));
@@ -371,9 +371,9 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
       reachable_manifests,
       direct_blobs,
       reachable_blobs,
-      refs: await this.resolvePointerSet(commit_urns, 'REF', 'tg:pointsToCommit'),
-      tags: await this.resolvePointerSet(commit_urns, 'TAG', 'tg:pointsToCommit'),
-      workspaces: await this.resolvePointerSet(commit_urns, 'WORKSPACE', 'tg:basedOnCommit'),
+      refs: await this.resolvePointerSet(commit_urns, 'REF', 'sg:pointsToCommit'),
+      tags: await this.resolvePointerSet(commit_urns, 'TAG', 'sg:pointsToCommit'),
+      workspaces: await this.resolvePointerSet(commit_urns, 'WORKSPACE', 'sg:basedOnCommit'),
     };
   }
 
@@ -464,7 +464,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
       await this.deps.graph.upsertEdge({
         from_urn: urn,
         to_urn: rootUrn,
-        predicate: 'tg:analyzesRetentionRoot',
+        predicate: 'sg:analyzesRetentionRoot',
         properties: {},
       });
     }
@@ -493,7 +493,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
     // Non-destructive execution seam: the job durably records the collection
     // plan computed from each linked retention root. Artifact bytes are not
     // deleted; physical reclamation remains an operator-controlled follow-up.
-    const rootEdges = await this.deps.graph.listEdgesFrom(urn, 'tg:analyzesRetentionRoot');
+    const rootEdges = await this.deps.graph.listEdgesFrom(urn, 'sg:analyzesRetentionRoot');
     let candidateBlobCount = 0;
     let protectedBlobCount = 0;
     let blockerCount = 0;
@@ -645,7 +645,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
   private async resolveCommitManifests(commit_urns: string[]): Promise<TimeAwareSummary[]> {
     const manifest_urns = new Set<string>();
     for (const commit_urn of commit_urns) {
-      const edges = await this.deps.graph.listEdgesFrom(commit_urn, 'tg:includesManifest');
+      const edges = await this.deps.graph.listEdgesFrom(commit_urn, 'sg:includesManifest');
       for (const edge of edges) {
         manifest_urns.add(edge.to_urn);
       }
@@ -657,7 +657,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
   private async resolveManifestBlobs(manifest_urns: string[]): Promise<TimeAwareSummary[]> {
     const blob_urns = new Set<string>();
     for (const manifest_urn of manifest_urns) {
-      const edges = await this.deps.graph.listEdgesFrom(manifest_urn, 'tg:containsBlob');
+      const edges = await this.deps.graph.listEdgesFrom(manifest_urn, 'sg:containsBlob');
       for (const edge of edges) {
         blob_urns.add(edge.to_urn);
       }
@@ -680,7 +680,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
       if (!commit || (temporal && !matchesTemporalQuery(commit, temporal))) continue;
       seen.add(commit_urn);
 
-      const parent_edges = await this.deps.graph.listEdgesFrom(commit_urn, 'tg:parentCommit');
+      const parent_edges = await this.deps.graph.listEdgesFrom(commit_urn, 'sg:parentCommit');
       for (const edge of parent_edges) {
         if (!seen.has(edge.to_urn)) {
           pending.push(edge.to_urn);
@@ -728,7 +728,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
 
         addOrigin(origins, commit_urn, direct_commit_urn);
 
-        const parent_edges = await this.deps.graph.listEdgesFrom(commit_urn, 'tg:parentCommit');
+        const parent_edges = await this.deps.graph.listEdgesFrom(commit_urn, 'sg:parentCommit');
         for (const edge of parent_edges) {
           pending.push(edge.to_urn);
         }
@@ -741,7 +741,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
   private async collectManifestCommitOrigins(commit_urns: string[]): Promise<Map<string, Set<string>>> {
     const origins = new Map<string, Set<string>>();
     for (const commit_urn of commit_urns) {
-      const manifest_edges = await this.deps.graph.listEdgesFrom(commit_urn, 'tg:includesManifest');
+      const manifest_edges = await this.deps.graph.listEdgesFrom(commit_urn, 'sg:includesManifest');
       for (const edge of manifest_edges) {
         addOrigin(origins, edge.to_urn, commit_urn);
       }
@@ -752,7 +752,7 @@ export class DefaultTimeAwareRegistry implements TimeAwareRegistry {
   private async collectBlobManifestOrigins(manifest_urns: string[]): Promise<Map<string, Set<string>>> {
     const origins = new Map<string, Set<string>>();
     for (const manifest_urn of manifest_urns) {
-      const blob_edges = await this.deps.graph.listEdgesFrom(manifest_urn, 'tg:containsBlob');
+      const blob_edges = await this.deps.graph.listEdgesFrom(manifest_urn, 'sg:containsBlob');
       for (const edge of blob_edges) {
         addOrigin(origins, edge.to_urn, manifest_urn);
       }

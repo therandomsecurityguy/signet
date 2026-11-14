@@ -117,7 +117,7 @@ What makes it valuable:
 
 Story:
 - a human states an intent like:
-  - “create tg-streams with SDK v3”
+  - “create sg-streams with SDK v3”
   - “bootstrap a new pipeline”
   - “wire a content flow”
 - the system discovers and orchestrates the needed certified skills
@@ -188,8 +188,8 @@ The registry now has a full certification state machine for skills and agents:
 Certification is now operationally meaningful, not a boolean flag:
 - certification bound to concrete policy and ontology versions
 - optional certification expiry
-- certification evidence artifacts linked via `tg:certificationEvidence`
-- validation and review evidence linked via `tg:validatedBy` and `tg:reviewedBy`
+- certification evidence artifacts linked via `sg:certificationEvidence`
+- validation and review evidence linked via `sg:validatedBy` and `sg:reviewedBy`
 
 Examples of remaining certification metadata:
 - certification scope
@@ -243,10 +243,10 @@ Suggested slice:
 - process/task lineage view
 - operational happy path docs
 
-### Worksession 42. tg-streams SDK v3 killer-app specification
+### Worksession 42. sg-streams SDK v3 killer-app specification
 
 Goal:
-- specify the intent-driven workflow story for “create tg-streams with SDK v3”
+- specify the intent-driven workflow story for “create sg-streams with SDK v3”
 
 Suggested slice:
 - end-to-end user story

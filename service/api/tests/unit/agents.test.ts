@@ -152,7 +152,7 @@ describe('agent routes', () => {
         description: 'A bootstrap API-created agent.',
         skill_refs: [
           { skill_key: 'skill:repo-move-reference-repair' },
-          { skill_urn: 'urn:tg:skill:skill:local-infra-bootstrap' },
+          { skill_urn: 'urn:sg:skill:skill:local-infra-bootstrap' },
         ],
       }),
     });
@@ -160,7 +160,7 @@ describe('agent routes', () => {
     expect(create.status).toBe(201);
     await expect(create.json()).resolves.toMatchObject({
       agent: {
-        urn: 'urn:tg:agent:cursor:cyborg',
+        urn: 'urn:sg:agent:cursor:cyborg',
         properties: {
           agent_key: 'cursor:cyborg',
           harness_name: 'cursor',
@@ -169,23 +169,23 @@ describe('agent routes', () => {
       },
       skills: [
         {
-          skill_urn: 'urn:tg:skill:skill:repo-move-reference-repair',
+          skill_urn: 'urn:sg:skill:skill:repo-move-reference-repair',
           skill_key: 'skill:repo-move-reference-repair',
         },
         {
-          skill_urn: 'urn:tg:skill:skill:local-infra-bootstrap',
+          skill_urn: 'urn:sg:skill:skill:local-infra-bootstrap',
           skill_key: 'skill:local-infra-bootstrap',
         },
       ],
       harnesses: [
         {
-          harness_urn: 'urn:tg:harness:cursor',
+          harness_urn: 'urn:sg:harness:cursor',
           harness_name: 'cursor',
         },
       ],
       active_version: {
         agent_version: {
-          urn: 'urn:tg:agent-version:cursor:cyborg@v1',
+          urn: 'urn:sg:agent-version:cursor:cyborg@v1',
           properties: {
             version: 1,
             publication_status: 'published',
@@ -202,24 +202,24 @@ describe('agent routes', () => {
     expect(get.status).toBe(200);
     await expect(get.json()).resolves.toMatchObject({
       agent: {
-        urn: 'urn:tg:agent:cursor:cyborg',
+        urn: 'urn:sg:agent:cursor:cyborg',
       },
       active_version: {
         agent_version: {
-          urn: 'urn:tg:agent-version:cursor:cyborg@v1',
+          urn: 'urn:sg:agent-version:cursor:cyborg@v1',
         },
       },
       skills: [
         {
-          skill_urn: 'urn:tg:skill:skill:repo-move-reference-repair',
+          skill_urn: 'urn:sg:skill:skill:repo-move-reference-repair',
         },
         {
-          skill_urn: 'urn:tg:skill:skill:local-infra-bootstrap',
+          skill_urn: 'urn:sg:skill:skill:local-infra-bootstrap',
         },
       ],
       harnesses: [
         {
-          harness_urn: 'urn:tg:harness:cursor',
+          harness_urn: 'urn:sg:harness:cursor',
         },
       ],
     });
@@ -230,7 +230,7 @@ describe('agent routes', () => {
       versions: [
         {
           agent_version: {
-            urn: 'urn:tg:agent-version:cursor:cyborg@v1',
+            urn: 'urn:sg:agent-version:cursor:cyborg@v1',
             properties: {
               publication_status: 'published',
             },
@@ -243,7 +243,7 @@ describe('agent routes', () => {
     expect(active.status).toBe(200);
     await expect(active.json()).resolves.toMatchObject({
       agent_version: {
-        urn: 'urn:tg:agent-version:cursor:cyborg@v1',
+        urn: 'urn:sg:agent-version:cursor:cyborg@v1',
         properties: {
           active: true,
           publication_status: 'published',
@@ -254,8 +254,8 @@ describe('agent routes', () => {
     const envelope = await app.request('/v1/agents/cursor:cyborg/versions/1/publication-envelope');
     expect(envelope.status).toBe(200);
     await expect(envelope.json()).resolves.toMatchObject({
-      publication_urn: 'urn:tg:agent-version:cursor:cyborg@v1',
-      logical_urn: 'urn:tg:agent:cursor:cyborg',
+      publication_urn: 'urn:sg:agent-version:cursor:cyborg@v1',
+      logical_urn: 'urn:sg:agent:cursor:cyborg',
       entity_type: 'AGENT_VERSION',
       canonical_json_sha256: expect.any(String),
       detached_signatures: [],
@@ -273,7 +273,7 @@ describe('agent routes', () => {
     );
     await createTransparencyLog(app, token, {
       logId: 'trillian-log-agent',
-      origin: 'tg-log-agent',
+      origin: 'sg-log-agent',
       checkpointKeyRef: 'kms://registry/checkpoint-key',
     });
 
@@ -318,7 +318,7 @@ describe('agent routes', () => {
         signature: detachedSignature,
       }),
     ).toString('base64')}`;
-    const checkpointBody = buildCheckpointBody('tg-log-agent', 1, rootHash);
+    const checkpointBody = buildCheckpointBody('sg-log-agent', 1, rootHash);
     const checkpointSignature = `base64:${signBytes(
       null,
       Buffer.from(checkpointBody, 'utf8'),
@@ -352,7 +352,7 @@ describe('agent routes', () => {
       key_ref: 'kms://registry/agent-key',
       algorithm: 'ed25519',
       transparency_log_ref: 'tessera://log/entry/agent-1',
-      inclusion_proof_ref: expect.stringMatching(/^urn:tg:artifact:sha256:/),
+      inclusion_proof_ref: expect.stringMatching(/^urn:sg:artifact:sha256:/),
       envelope_sha256: expect.any(String),
     });
 
@@ -380,7 +380,7 @@ describe('agent routes', () => {
         }),
       ],
       envelope: {
-        publication_urn: 'urn:tg:agent-version:cursor:cyborg@v1',
+        publication_urn: 'urn:sg:agent-version:cursor:cyborg@v1',
         detached_signatures: [
           expect.objectContaining({
             signer: 'release-manager',
@@ -441,8 +441,8 @@ describe('agent routes', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
-        log_id: 'tg-registry-log',
-        origin: 'tg-registry',
+        log_id: 'sg-registry-log',
+        origin: 'sg-registry',
         checkpoint_key_ref: 'kms://registry/checkpoint-key-v1',
         log_type: 'tessera',
       }),
@@ -451,8 +451,8 @@ describe('agent routes', () => {
     await expect(createLog.json()).resolves.toMatchObject({
       transparency_log: {
         properties: {
-          log_id: 'tg-registry-log',
-          origin: 'tg-registry',
+          log_id: 'sg-registry-log',
+          origin: 'sg-registry',
           checkpoint_key_ref: 'kms://registry/checkpoint-key-v1',
           trust_status: 'trusted',
         },
@@ -467,7 +467,7 @@ describe('agent routes', () => {
     await expect(listLogs.json()).resolves.toMatchObject({
       transparency_logs: expect.arrayContaining([
         expect.objectContaining({
-          log_id: 'tg-registry-log',
+          log_id: 'sg-registry-log',
           checkpoint_key_ref: 'kms://registry/checkpoint-key-v1',
         }),
       ]),
@@ -576,14 +576,14 @@ expect(res.status).toBe(400);
       };
       expect(created).toMatchObject({
         agent: {
-          urn: 'urn:tg:agent:cursor:file-backed',
+          urn: 'urn:sg:agent:cursor:file-backed',
           properties: {
             source_path: 'service/mcp/agent/file-backed/cursor/AGENTS.md',
           },
         },
         artifacts: [
           {
-            artifact_urn: expect.stringMatching(/^urn:tg:artifact:sha256:/),
+            artifact_urn: expect.stringMatching(/^urn:sg:artifact:sha256:/),
             sha256: expect.any(String),
           },
         ],
@@ -659,11 +659,11 @@ expect(res.status).toBe(400);
       expect(getAgent.status).toBe(200);
       await expect(getAgent.json()).resolves.toMatchObject({
         agent: {
-          urn: 'urn:tg:agent:cursor:persistent',
+          urn: 'urn:sg:agent:cursor:persistent',
         },
         skills: [
           {
-            skill_urn: 'urn:tg:skill:skill:persistent',
+            skill_urn: 'urn:sg:skill:skill:persistent',
           },
         ],
       });

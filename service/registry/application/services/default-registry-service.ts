@@ -134,7 +134,7 @@ export class DefaultRegistryService implements RegistryService {
   async getTrustedPublicKey(input: { key_ref: string }): Promise<import('../ports/registry-service.js').RegistryTrustedPublicKey | null> {
     const node = await this.deps.graph.getNode(publicKeyUrn(input.key_ref));
     if (!node || node.entity_type !== 'PUBLIC_KEY') return null;
-    const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:definedBy');
+    const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:definedBy');
     return {
       public_key: {
         urn: node.urn,
@@ -470,7 +470,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: keyUrn,
       to_urn: artifactNodeUrn,
-      predicate: 'tg:definedBy',
+      predicate: 'sg:definedBy',
       properties: {},
     });
     if (input.supersedes_key_ref) {
@@ -492,7 +492,7 @@ export class DefaultRegistryService implements RegistryService {
       await this.deps.graph.upsertEdge({
         from_urn: keyUrn,
         to_urn: previous.public_key.urn,
-        predicate: 'tg:supersedesKey',
+        predicate: 'sg:supersedesKey',
         properties: {},
       });
     }
@@ -528,10 +528,10 @@ export class DefaultRegistryService implements RegistryService {
   async getTransparencyLog(input: { log_id: string }): Promise<import('../ports/registry-service.js').RegistryTransparencyLogDetails | null> {
     const node = await this.deps.graph.getNode(transparencyLogUrn(input.log_id));
     if (!node || node.entity_type !== 'TRANSPARENCY_LOG') return null;
-    const keyEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:usesCheckpointKey');
+    const keyEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:usesCheckpointKey');
     const checkpointKeyUrn = keyEdges[0]?.to_urn;
     const checkpointKey = checkpointKeyUrn ? await this.deps.graph.getNode(checkpointKeyUrn) : null;
-    const witnessEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:trustedByWitness');
+    const witnessEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:trustedByWitness');
     const witnessQuorumRequired = numberOrUndefined(node.properties['witness_quorum']) ?? 0;
     const currentCheckpointArtifactUrn = stringOrUndefined(node.properties['current_checkpoint_artifact_urn']);
     const currentCheckpoint = currentCheckpointArtifactUrn
@@ -540,7 +540,7 @@ export class DefaultRegistryService implements RegistryService {
         })
       : null;
     const gossipEvents = await this.listTransparencyGossipEvents(node.urn);
-    const checkpointEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:hasCheckpoint');
+    const checkpointEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:hasCheckpoint');
     const checkpoints = (
       await Promise.all(
         checkpointEdges.map((edge) =>
@@ -628,7 +628,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: logUrn,
       to_urn: checkpointKey.key_urn,
-      predicate: 'tg:usesCheckpointKey',
+      predicate: 'sg:usesCheckpointKey',
       properties: {},
     });
     const created = await this.getTransparencyLog({ log_id: input.log_id });
@@ -673,14 +673,14 @@ export class DefaultRegistryService implements RegistryService {
       await this.deps.graph.upsertEdge({
         from_urn: witnessUrn,
         to_urn: key.key_urn,
-        predicate: 'tg:usesWitnessKey',
+        predicate: 'sg:usesWitnessKey',
         properties: {},
       });
     }
     await this.deps.graph.upsertEdge({
       from_urn: log.transparency_log.urn,
       to_urn: witnessUrn,
-      predicate: 'tg:trustedByWitness',
+      predicate: 'sg:trustedByWitness',
       properties: {},
     });
     const updated = await this.getTransparencyLog({ log_id: input.log_id });
@@ -797,7 +797,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: log.transparency_log.urn,
       to_urn: checkpointArtifactUrn,
-      predicate: 'tg:hasCheckpoint',
+      predicate: 'sg:hasCheckpoint',
       properties: {},
     });
 
@@ -832,7 +832,7 @@ export class DefaultRegistryService implements RegistryService {
       await this.deps.graph.upsertEdge({
         from_urn: checkpointArtifactUrn,
         to_urn: proofArtifactUrn,
-        predicate: 'tg:hasConsistencyProof',
+        predicate: 'sg:hasConsistencyProof',
         properties: {},
       });
     }
@@ -889,7 +889,7 @@ export class DefaultRegistryService implements RegistryService {
         await this.deps.graph.upsertEdge({
           from_urn: checkpointArtifactUrn,
           to_urn: attestationArtifactUrn,
-          predicate: 'tg:hasWitnessAttestation',
+          predicate: 'sg:hasWitnessAttestation',
           properties: {},
         });
       }
@@ -1050,7 +1050,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: log.transparency_log.urn,
       to_urn: observationArtifactUrn,
-      predicate: 'tg:observedCheckpoint',
+      predicate: 'sg:observedCheckpoint',
       properties: {},
     });
     return {
@@ -1127,19 +1127,19 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: fromWitness.urn,
       to_urn: urn,
-      predicate: 'tg:sentGossipEvent',
+      predicate: 'sg:sentGossipEvent',
       properties: {},
     });
     await this.deps.graph.upsertEdge({
       from_urn: toWitness.urn,
       to_urn: urn,
-      predicate: 'tg:receivedGossipEvent',
+      predicate: 'sg:receivedGossipEvent',
       properties: {},
     });
     await this.deps.graph.upsertEdge({
       from_urn: urn,
       to_urn: input.checkpoint_artifact_urn,
-      predicate: 'tg:aboutCheckpoint',
+      predicate: 'sg:aboutCheckpoint',
       properties: {},
     });
     return {
@@ -1329,9 +1329,9 @@ export class DefaultRegistryService implements RegistryService {
     const node = await this.deps.graph.getNode(input.agent_urn);
     if (!node) return null;
 
-    const skillsEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:usesSkill');
-    const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:definedBy');
-    const harnessEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:runsOn');
+    const skillsEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:usesSkill');
+    const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:definedBy');
+    const harnessEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:runsOn');
     const activeVersionUrn = stringOrUndefined(node.properties['active_version_urn']);
     const activeVersion = activeVersionUrn ? await this.getAgentVersionByUrn(activeVersionUrn) : null;
 
@@ -1364,7 +1364,7 @@ export class DefaultRegistryService implements RegistryService {
 
   async listAgentVersions(input: { agent_key: string }): Promise<{ versions: RegistryAgentVersionDetails[] }> {
     const agentNodeUrn = agentUrn(input.agent_key);
-    const versionEdges = await this.deps.graph.listEdgesFrom(agentNodeUrn, 'tg:hasVersion');
+    const versionEdges = await this.deps.graph.listEdgesFrom(agentNodeUrn, 'sg:hasVersion');
     const versions: RegistryAgentVersionDetails[] = [];
     for (const edge of versionEdges) {
       const got = await this.getAgentVersionByUrn(edge.to_urn);
@@ -1509,7 +1509,7 @@ export class DefaultRegistryService implements RegistryService {
       await this.deps.graph.upsertEdge({
         from_urn: agentNodeUrn,
         to_urn: harnessNodeUrn,
-        predicate: 'tg:runsOn',
+        predicate: 'sg:runsOn',
         properties: {},
       });
     }
@@ -1519,7 +1519,7 @@ export class DefaultRegistryService implements RegistryService {
         await this.deps.graph.upsertEdge({
           from_urn: agentNodeUrn,
           to_urn: ref.skill_urn,
-          predicate: 'tg:usesSkill',
+          predicate: 'sg:usesSkill',
           properties: {},
         });
       }
@@ -1540,7 +1540,7 @@ export class DefaultRegistryService implements RegistryService {
       await this.deps.graph.upsertEdge({
         from_urn: agentNodeUrn,
         to_urn: artifactNodeUrn,
-        predicate: 'tg:definedBy',
+        predicate: 'sg:definedBy',
         properties: {},
       });
     }
@@ -1603,7 +1603,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: agentNodeUrn,
       to_urn: versionUrn,
-      predicate: 'tg:hasVersion',
+      predicate: 'sg:hasVersion',
       properties: {},
     });
 
@@ -1611,7 +1611,7 @@ export class DefaultRegistryService implements RegistryService {
       await this.deps.graph.upsertEdge({
         from_urn: versionUrn,
         to_urn: harnessUrn(input.harness_name),
-        predicate: 'tg:runsOn',
+        predicate: 'sg:runsOn',
         properties: {},
       });
     }
@@ -1620,7 +1620,7 @@ export class DefaultRegistryService implements RegistryService {
         await this.deps.graph.upsertEdge({
           from_urn: versionUrn,
           to_urn: ref.skill_urn,
-          predicate: 'tg:usesSkill',
+          predicate: 'sg:usesSkill',
           properties: {},
         });
       }
@@ -1629,7 +1629,7 @@ export class DefaultRegistryService implements RegistryService {
       await this.deps.graph.upsertEdge({
         from_urn: versionUrn,
         to_urn: artifactUrn(artifactRecord.sha256),
-        predicate: 'tg:definedBy',
+        predicate: 'sg:definedBy',
         properties: {},
       });
     }
@@ -1683,7 +1683,7 @@ export class DefaultRegistryService implements RegistryService {
   async getSkillByUrn(input: { skill_urn: string }): Promise<RegistrySkillDetails | null> {
     const node = await this.deps.graph.getNode(input.skill_urn);
     if (!node) return null;
-    const directArtifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:implementedBy');
+    const directArtifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:implementedBy');
     const activeVersionUrn = stringOrUndefined(node.properties['active_version_urn']);
     const activeVersion = activeVersionUrn ? await this.getSkillVersionByUrn(activeVersionUrn) : null;
     const artifacts = dedupeArtifacts([
@@ -1747,7 +1747,7 @@ export class DefaultRegistryService implements RegistryService {
       await this.deps.graph.upsertEdge({
         from_urn: skillNodeUrn,
         to_urn: artifactNodeUrn,
-        predicate: 'tg:implementedBy',
+        predicate: 'sg:implementedBy',
         properties: {},
       });
     }
@@ -1759,7 +1759,7 @@ export class DefaultRegistryService implements RegistryService {
 
   async listSkillVersions(input: { skill_key: string }): Promise<{ versions: RegistrySkillVersionDetails[] }> {
     const skillNodeUrn = skillUrn(input.skill_key);
-    const versionEdges = await this.deps.graph.listEdgesFrom(skillNodeUrn, 'tg:hasVersion');
+    const versionEdges = await this.deps.graph.listEdgesFrom(skillNodeUrn, 'sg:hasVersion');
     const versions: RegistrySkillVersionDetails[] = [];
     for (const edge of versionEdges) {
       const got = await this.getSkillVersionByUrn(edge.to_urn);
@@ -1904,7 +1904,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: input.publication_urn,
       to_urn: artifactNodeUrn,
-      predicate: 'tg:hasPublicationEnvelope',
+      predicate: 'sg:hasPublicationEnvelope',
       properties: {},
     });
     const fresh = await this.deps.graph.getNode(input.publication_urn);
@@ -2203,7 +2203,7 @@ export class DefaultRegistryService implements RegistryService {
         edges.push({ predicate: edge.predicate, to_urn: edge.to_urn });
       }
       for (const artifact of governanceArtifacts) {
-        const predicate = artifact.role === 'policy_package' ? 'tg:governedByPolicy' : 'tg:validatedBy';
+        const predicate = artifact.role === 'policy_package' ? 'sg:governedByPolicy' : 'sg:validatedBy';
         const key = `${predicate}|${artifact.artifact_urn}`;
         if (seenEdges.has(key)) continue;
         seenEdges.add(key);
@@ -2786,7 +2786,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: logical.urn,
       to_urn: versionUrn,
-      predicate: 'tg:hasVersion',
+      predicate: 'sg:hasVersion',
       properties: {},
     });
     if (nextVersion > 1) {
@@ -2813,7 +2813,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: versionUrn,
       to_urn: artifactNodeUrn,
-      predicate: 'tg:implementedBy',
+      predicate: 'sg:implementedBy',
       properties: {},
     });
 
@@ -2822,7 +2822,7 @@ export class DefaultRegistryService implements RegistryService {
         await this.deps.graph.upsertEdge({
           from_urn: versionUrn,
           to_urn: upstream,
-          predicate: 'tg:dependsOnVersion',
+          predicate: 'sg:dependsOnVersion',
           properties: {},
         });
       }
@@ -2999,7 +2999,7 @@ export class DefaultRegistryService implements RegistryService {
 
     // Every validation run emits a machine-readable report artifact with
     // per-layer violation paths, stored in the CAS and linked via
-    // tg:validatedBy. Identical reports content-address to the same artifact.
+    // sg:validatedBy. Identical reports content-address to the same artifact.
     const reportArtifact = await this.createGovernanceArtifact({
       role: 'validation_report',
       logical_key: input.logical_key,
@@ -3016,7 +3016,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.attachGovernanceArtifacts(input.version_urn, [reportArtifact]);
 
     // LLM evidence artifact: scorecards, prompt, rationale, and
-    // confidence, stored in the CAS and linked via tg:validatedBy.
+    // confidence, stored in the CAS and linked via sg:validatedBy.
     let llmEvidenceArtifactUrn: string | null = null;
     if (llmResult) {
       const llmEvidence = await this.createGovernanceArtifact({
@@ -3165,7 +3165,7 @@ export class DefaultRegistryService implements RegistryService {
         await this.deps.graph.upsertEdge({
           from_urn: version.skill_version.urn,
           to_urn: active.skill_version.urn,
-          predicate: 'tg:supersedesVersion',
+          predicate: 'sg:supersedesVersion',
           properties: {},
         });
       }
@@ -3632,7 +3632,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: logical.urn,
       to_urn: versionUrn,
-      predicate: 'tg:hasVersion',
+      predicate: 'sg:hasVersion',
       properties: {},
     });
     if (nextVersion > 1) {
@@ -3659,7 +3659,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: versionUrn,
       to_urn: artifactNodeUrn,
-      predicate: 'tg:definedBy',
+      predicate: 'sg:definedBy',
       properties: {},
     });
 
@@ -3668,7 +3668,7 @@ export class DefaultRegistryService implements RegistryService {
         await this.deps.graph.upsertEdge({
           from_urn: versionUrn,
           to_urn: ref.skill_urn,
-          predicate: 'tg:usesSkill',
+          predicate: 'sg:usesSkill',
           properties: {},
         });
       }
@@ -3809,7 +3809,7 @@ export class DefaultRegistryService implements RegistryService {
         await this.deps.graph.upsertEdge({
           from_urn: version.agent_version.urn,
           to_urn: active.agent_version.urn,
-          predicate: 'tg:supersedesVersion',
+          predicate: 'sg:supersedesVersion',
           properties: {},
         });
       }
@@ -4667,7 +4667,7 @@ export class DefaultRegistryService implements RegistryService {
     const seen = new Set<string>();
     for (const edge of referencingEdges) {
       const from = edge.from_urn;
-      if (!from.startsWith('urn:tg:skill-version:') && !from.startsWith('urn:tg:agent-version:')) {
+      if (!from.startsWith('urn:sg:skill-version:') && !from.startsWith('urn:sg:agent-version:')) {
         continue;
       }
       if (seen.has(from)) continue;
@@ -4822,7 +4822,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: publication.urn,
       to_urn: artifactNodeUrn,
-      predicate: 'tg:attestedBy',
+      predicate: 'sg:attestedBy',
       properties: {},
     });
     return {
@@ -4848,7 +4848,7 @@ export class DefaultRegistryService implements RegistryService {
     if (!publication || (publication.entity_type !== 'SKILL_VERSION' && publication.entity_type !== 'AGENT_VERSION')) {
       return null;
     }
-    const edges = await this.deps.graph.listEdgesFrom(publication.urn, 'tg:attestedBy');
+    const edges = await this.deps.graph.listEdgesFrom(publication.urn, 'sg:attestedBy');
     const attestations: RegistryAttestationRecord[] = [];
     for (const edge of edges) {
       const artifactNode = await this.deps.graph.getNode(edge.to_urn);
@@ -5327,8 +5327,8 @@ export class DefaultRegistryService implements RegistryService {
   private async getSkillVersionByUrn(skillVersionUrnValue: string): Promise<RegistrySkillVersionDetails | null> {
     const node = await this.deps.graph.getNode(skillVersionUrnValue);
     if (!node || node.entity_type !== 'SKILL_VERSION') return null;
-    const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:implementedBy');
-    const upstreamVersionEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:dependsOnVersion');
+    const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:implementedBy');
+    const upstreamVersionEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:dependsOnVersion');
     return {
       skill_version: { urn: node.urn, properties: node.properties },
       artifacts: artifactEdges.map((e) => ({
@@ -5345,9 +5345,9 @@ export class DefaultRegistryService implements RegistryService {
   private async getAgentVersionByUrn(agentVersionUrnValue: string): Promise<RegistryAgentVersionDetails | null> {
     const node = await this.deps.graph.getNode(agentVersionUrnValue);
     if (!node || node.entity_type !== 'AGENT_VERSION') return null;
-    const skillsEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:usesSkill');
-    const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:definedBy');
-    const harnessEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:runsOn');
+    const skillsEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:usesSkill');
+    const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:definedBy');
+    const harnessEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:runsOn');
     return {
       agent_version: { urn: node.urn, properties: node.properties },
       skills: skillsEdges.map((e) => ({
@@ -5603,7 +5603,7 @@ export class DefaultRegistryService implements RegistryService {
       await this.deps.graph.upsertEdge({
         from_urn: version.skill_version.urn,
         to_urn: previousActive.skill_version.urn,
-        predicate: 'tg:supersedesVersion',
+        predicate: 'sg:supersedesVersion',
         properties: {},
       });
     }
@@ -5748,7 +5748,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: urn,
       to_urn: input.target_urn,
-      predicate: 'tg:targets',
+      predicate: 'sg:targets',
       properties: {},
     });
 
@@ -5989,8 +5989,8 @@ export class DefaultRegistryService implements RegistryService {
         'Transparency reconciliation requires TESSERA_SIDECAR_URL, TRANSPARENCY_APPEND_LOG_ID, and TESSERA_LOG_PUBLIC_KEY.',
       );
     }
-    const isSkill = input.publication_urn.startsWith('urn:tg:skill-version:');
-    const isAgent = input.publication_urn.startsWith('urn:tg:agent-version:');
+    const isSkill = input.publication_urn.startsWith('urn:sg:skill-version:');
+    const isAgent = input.publication_urn.startsWith('urn:sg:agent-version:');
     if (!isSkill && !isAgent) {
       throw new RegistryCoreError(
         'TRANSPARENCY_RECONCILIATION_INVALID',
@@ -6101,7 +6101,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: input.publication_urn,
       to_urn: artifactNodeUrn,
-      predicate: 'tg:hasTransparencyReconciliation',
+      predicate: 'sg:hasTransparencyReconciliation',
       properties: {
         reconciled_at: reconciledAt,
         status,
@@ -6361,17 +6361,17 @@ export class DefaultRegistryService implements RegistryService {
     logical_urn: string;
     properties: Record<string, unknown>;
   }): Promise<{ artifact_urn: string; sha256: string }> {
-    // Edges excluded from the projected graph: tg:hasCanonicalRdf is a
+    // Edges excluded from the projected graph: sg:hasCanonicalRdf is a
     // self-reference to the projection artifact, prov:wasGeneratedBy is
     // attached by the task hook after publication, detached signatures must
-    // reside outside the canonical payload they sign, and tg:hasPublicationEnvelope
+    // reside outside the canonical payload they sign, and sg:hasPublicationEnvelope
     // references the frozen operational envelope artifact.
     const edges = (await this.deps.graph.listEdgesFrom(input.publication_urn)).filter(
       (edge) =>
-        edge.predicate !== 'tg:hasCanonicalRdf' &&
+        edge.predicate !== 'sg:hasCanonicalRdf' &&
         edge.predicate !== 'prov:wasGeneratedBy' &&
-        edge.predicate !== 'tg:hasDetachedSignature' &&
-        edge.predicate !== 'tg:hasPublicationEnvelope',
+        edge.predicate !== 'sg:hasDetachedSignature' &&
+        edge.predicate !== 'sg:hasPublicationEnvelope',
     );
     let lines: string[];
     try {
@@ -6408,7 +6408,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: input.publication_urn,
       to_urn: artifactNodeUrn,
-      predicate: 'tg:hasCanonicalRdf',
+      predicate: 'sg:hasCanonicalRdf',
       properties: {},
     });
     return { artifact_urn: artifactNodeUrn, sha256 };
@@ -6428,12 +6428,12 @@ export class DefaultRegistryService implements RegistryService {
         to_urn: artifact.artifact_urn,
         predicate:
           artifact.role === 'policy_package'
-            ? 'tg:governedByPolicy'
+            ? 'sg:governedByPolicy'
             : artifact.role === 'validation_report'
-              ? 'tg:validatedBy'
+              ? 'sg:validatedBy'
               : artifact.role === 'review_evidence'
-                ? 'tg:reviewedBy'
-                : 'tg:certificationEvidence',
+                ? 'sg:reviewedBy'
+                : 'sg:certificationEvidence',
         properties: {},
       });
     }
@@ -6442,10 +6442,10 @@ export class DefaultRegistryService implements RegistryService {
   private async loadGovernanceArtifacts(publicationUrn: string) {
     const node = await this.deps.graph.getNode(publicationUrn);
     if (!node) return [] as import('../ports/registry-service.js').RegistryGovernanceArtifactRef[];
-    const policyEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:governedByPolicy');
-    const validationEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:validatedBy');
-    const certificationEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:certificationEvidence');
-    const reviewEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:reviewedBy');
+    const policyEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:governedByPolicy');
+    const validationEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:validatedBy');
+    const certificationEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:certificationEvidence');
+    const reviewEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:reviewedBy');
     // Edge iteration order is backend-dependent (Fuseki gives no ordering
     // guarantee), so impose the shared total order here: every envelope
     // derivation must agree byte-for-byte with the prepared candidate.
@@ -6661,7 +6661,7 @@ export class DefaultRegistryService implements RegistryService {
       status: string;
     }> = [];
     for (const versionUrn of chainUrns) {
-      const targetingEdges = await this.deps.graph.listEdgesTo(versionUrn, 'tg:targets');
+      const targetingEdges = await this.deps.graph.listEdgesTo(versionUrn, 'sg:targets');
       const activities = [];
       for (const edge of targetingEdges) {
         const taskNode = await this.deps.graph.getNode(edge.from_urn);
@@ -6725,7 +6725,7 @@ export class DefaultRegistryService implements RegistryService {
   }
 
   private async getDetachedSignatures(publicationUrn: string): Promise<RegistryDetachedSignatureRecord[]> {
-    const signatureEdges = await this.deps.graph.listEdgesFrom(publicationUrn, 'tg:hasDetachedSignature');
+    const signatureEdges = await this.deps.graph.listEdgesFrom(publicationUrn, 'sg:hasDetachedSignature');
     const records: RegistryDetachedSignatureRecord[] = [];
     for (const edge of signatureEdges) {
       const node = await this.deps.graph.getNode(edge.to_urn);
@@ -6819,10 +6819,10 @@ export class DefaultRegistryService implements RegistryService {
       if (versionNode) {
         const edges = (await this.deps.graph.listEdgesFrom(versionNode.urn)).filter(
           (edge) =>
-            edge.predicate !== 'tg:hasCanonicalRdf' &&
+            edge.predicate !== 'sg:hasCanonicalRdf' &&
             edge.predicate !== 'prov:wasGeneratedBy' &&
-            edge.predicate !== 'tg:hasDetachedSignature' &&
-            edge.predicate !== 'tg:hasPublicationEnvelope',
+            edge.predicate !== 'sg:hasDetachedSignature' &&
+            edge.predicate !== 'sg:hasPublicationEnvelope',
         );
         const properties = omitProperties(versionNode.properties, PUBLICATION_PROJECTION_PROP_KEYS);
         const lines = projectPublicationGraphToNQuads({
@@ -7080,7 +7080,7 @@ export class DefaultRegistryService implements RegistryService {
     const signedNoteKeyHint =
       stringOrUndefined(artifactNode.properties['signed_note_key_hint']) ?? fallbackSignedNote?.signed_note_key_hint;
     const appendOnlyVerified = booleanOrUndefined(artifactNode.properties['append_only_verified']);
-    const witnessAttestations = await this.deps.graph.listEdgesFrom(checkpointArtifactUrn, 'tg:hasWitnessAttestation');
+    const witnessAttestations = await this.deps.graph.listEdgesFrom(checkpointArtifactUrn, 'sg:hasWitnessAttestation');
     const validWitnessCount = (
       await Promise.all(
         witnessAttestations.map(async (edge) => {
@@ -7120,8 +7120,8 @@ export class DefaultRegistryService implements RegistryService {
     checkpoint_artifact_urn: string;
     checkpoint_body: string;
   }) {
-    const witnessEdges = await this.deps.graph.listEdgesFrom(input.log.transparency_log.urn, 'tg:trustedByWitness');
-    const attestationEdges = await this.deps.graph.listEdgesFrom(input.checkpoint_artifact_urn, 'tg:hasWitnessAttestation');
+    const witnessEdges = await this.deps.graph.listEdgesFrom(input.log.transparency_log.urn, 'sg:trustedByWitness');
+    const attestationEdges = await this.deps.graph.listEdgesFrom(input.checkpoint_artifact_urn, 'sg:hasWitnessAttestation');
     const attestationNodes = await Promise.all(attestationEdges.map((edge) => this.deps.graph.getNode(edge.to_urn)));
     return await Promise.all(
       witnessEdges.map(async (edge) => {
@@ -7175,7 +7175,7 @@ export class DefaultRegistryService implements RegistryService {
   }
 
   private async listTransparencyCheckpointObservations(logUrn: string) {
-    const edges = await this.deps.graph.listEdgesFrom(logUrn, 'tg:observedCheckpoint');
+    const edges = await this.deps.graph.listEdgesFrom(logUrn, 'sg:observedCheckpoint');
     const observations = await Promise.all(
       edges.map(async (edge) => {
         const node = await this.deps.graph.getNode(edge.to_urn);
@@ -7243,11 +7243,11 @@ export class DefaultRegistryService implements RegistryService {
   }
 
   private async listTransparencyGossipEvents(logUrn: string) {
-    const sentEdges = await this.deps.graph.listEdgesFrom(logUrn, 'tg:trustedByWitness');
+    const sentEdges = await this.deps.graph.listEdgesFrom(logUrn, 'sg:trustedByWitness');
     const witnessUrns = sentEdges.map((edge) => edge.to_urn);
     const events: import('../ports/registry-service.js').RegistryTransparencyGossipEvent[] = [];
     for (const witnessUrnValue of witnessUrns) {
-      const gossipEdges = await this.deps.graph.listEdgesFrom(witnessUrnValue, 'tg:sentGossipEvent');
+      const gossipEdges = await this.deps.graph.listEdgesFrom(witnessUrnValue, 'sg:sentGossipEvent');
       for (const edge of gossipEdges) {
         const node = await this.deps.graph.getNode(edge.to_urn);
         if (!node || node.entity_type !== 'TRANSPARENCY_GOSSIP_EVENT') continue;
@@ -7305,7 +7305,7 @@ export class DefaultRegistryService implements RegistryService {
       occurred_at: string;
     }> = [];
     for (const checkpointArtifactUrn of checkpointArtifactUrns) {
-      const edges = await this.deps.graph.listEdgesFrom(checkpointArtifactUrn, 'tg:hasWitnessAttestation');
+      const edges = await this.deps.graph.listEdgesFrom(checkpointArtifactUrn, 'sg:hasWitnessAttestation');
       for (const edge of edges) {
         const node = await this.deps.graph.getNode(edge.to_urn);
         if (!node || node.entity_type !== 'ARTIFACT') continue;
@@ -7627,7 +7627,7 @@ export class DefaultRegistryService implements RegistryService {
     await this.deps.graph.upsertEdge({
       from_urn: input.publication_urn,
       to_urn: artifactNodeUrn,
-      predicate: 'tg:hasDetachedSignature',
+      predicate: 'sg:hasDetachedSignature',
       properties: {},
     });
     let inclusionProofRef = input.inclusion_proof_ref;
@@ -7664,7 +7664,7 @@ export class DefaultRegistryService implements RegistryService {
       await this.deps.graph.upsertEdge({
         from_urn: artifactNodeUrn,
         to_urn: proofArtifactUrn,
-        predicate: 'tg:hasInclusionProof',
+        predicate: 'sg:hasInclusionProof',
         properties: {},
       });
     }
@@ -7818,17 +7818,17 @@ function resolveSkillUrn(skillUrnValue?: string, skillKey?: string): string {
 }
 
 function parseArtifactSha256(artifactUrnValue: string): string | undefined {
-  const prefix = 'urn:tg:artifact:sha256:';
+  const prefix = 'urn:sg:artifact:sha256:';
   return artifactUrnValue.startsWith(prefix) ? artifactUrnValue.slice(prefix.length) : undefined;
 }
 
 function parseHarnessName(harnessUrnValue: string): string | undefined {
-  const prefix = 'urn:tg:harness:';
+  const prefix = 'urn:sg:harness:';
   return harnessUrnValue.startsWith(prefix) ? harnessUrnValue.slice(prefix.length) : undefined;
 }
 
 function parseSkillKey(skillUrnValue: string): string | undefined {
-  const prefix = 'urn:tg:skill:';
+  const prefix = 'urn:sg:skill:';
   return skillUrnValue.startsWith(prefix) ? skillUrnValue.slice(prefix.length) : undefined;
 }
 
@@ -8218,10 +8218,10 @@ const PUBLICATION_ENVELOPE_PROP_KEYS: ReadonlySet<string> = new Set([
 const PREPARED_PUBLICATION_SCHEMA = 'prepared-publication/v1';
 const PREPARED_PUBLICATION_TTL_MS = 30 * 60 * 1000;
 const PREPARED_PUBLICATION_EXCLUDED_EDGE_PREDICATES: ReadonlySet<string> = new Set([
-  'tg:hasCanonicalRdf',
+  'sg:hasCanonicalRdf',
   'prov:wasGeneratedBy',
-  'tg:hasDetachedSignature',
-  'tg:hasPublicationEnvelope',
+  'sg:hasDetachedSignature',
+  'sg:hasPublicationEnvelope',
 ]);
 
 type PreparedPublicationRecord = {
@@ -8421,11 +8421,11 @@ function collectAttestationSubjectSha256(statement: Record<string, unknown>): st
   return [...digests];
 }
 
-function extractLogicalKeyFromPublicationUrn(publicationUrn: string) {  if (publicationUrn.startsWith('urn:tg:skill-version:')) {
-    return publicationUrn.slice('urn:tg:skill-version:'.length).replace(/@v\d+$/, '');
+function extractLogicalKeyFromPublicationUrn(publicationUrn: string) {  if (publicationUrn.startsWith('urn:sg:skill-version:')) {
+    return publicationUrn.slice('urn:sg:skill-version:'.length).replace(/@v\d+$/, '');
   }
-  if (publicationUrn.startsWith('urn:tg:agent-version:')) {
-    return publicationUrn.slice('urn:tg:agent-version:'.length).replace(/@v\d+$/, '');
+  if (publicationUrn.startsWith('urn:sg:agent-version:')) {
+    return publicationUrn.slice('urn:sg:agent-version:'.length).replace(/@v\d+$/, '');
   }
   throw new RegistryCoreError('TRANSPARENCY_APPEND_INTENT_INVALID', `Unsupported publication URN: ${publicationUrn}`);
 }
@@ -8700,7 +8700,7 @@ function buildAppendIntentVerification(
   };
 }
 
-const GOVERNANCE_LOG_URN = 'urn:tg:governance-log:registry';
+const GOVERNANCE_LOG_URN = 'urn:sg:governance-log:registry';
 
 function sanitizePathSegment(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]+/g, '-');

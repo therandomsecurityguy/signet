@@ -178,11 +178,11 @@ ORDER BY STR(?from_urn)
 }
 
 const PREDICATES = {
-  entityType: 'urn:tg:meta:entityType',
-  properties: 'urn:tg:meta:properties',
-  edgeFrom: 'urn:tg:meta:from',
-  edgeTo: 'urn:tg:meta:to',
-  edgePredicate: 'urn:tg:meta:predicate',
+  entityType: 'urn:sg:meta:entityType',
+  properties: 'urn:sg:meta:properties',
+  edgeFrom: 'urn:sg:meta:from',
+  edgeTo: 'urn:sg:meta:to',
+  edgePredicate: 'urn:sg:meta:predicate',
 } as const;
 
 // IRIs are composed from registry URNs, which embed entity keys and other
@@ -217,7 +217,7 @@ function parseProperties(json: string): Record<string, unknown> {
 
 function edgeIriFor(edge: GraphEdge) {
   const encoded = Buffer.from(`${edge.from_urn}|${edge.predicate}|${edge.to_urn}`, 'utf8').toString('base64url');
-  return `urn:tg:edge:${encoded}`;
+  return `urn:sg:edge:${encoded}`;
 }
 
 function resolveUpdateUrl(cfg: SparqlGraphStoreConfig) {

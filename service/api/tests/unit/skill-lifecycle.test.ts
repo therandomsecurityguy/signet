@@ -263,7 +263,7 @@ async function createSignedTransparentSkillPublication(
   return {
     verificationPath: `/v1/skills/${encodeURIComponent(input.skillKey)}/versions/1/verification`,
     skillPath: `/v1/skills/${encodeURIComponent(input.skillKey)}`,
-    versionUrn: `urn:tg:skill-version:${input.skillKey}@v1`,
+    versionUrn: `urn:sg:skill-version:${input.skillKey}@v1`,
     signingKeyRef: input.signingKeyRef,
     transparencyLogRef: `tessera://log/${input.logId}/entry/1`,
   };
@@ -291,7 +291,7 @@ describe('skill lifecycle routes', () => {
         lineage: {
           upstream_skill_version_urns: [],
           openlineage: {
-            job_namespace: 'tg',
+            job_namespace: 'sg',
             job_name: 'skill-build',
             run_id: 'run-1',
           },
@@ -434,14 +434,14 @@ describe('skill lifecycle routes', () => {
     expect(logicalSkill.status).toBe(200);
     await expect(logicalSkill.json()).resolves.toMatchObject({
       skill: {
-        urn: 'urn:tg:skill:skill:lifecycle',
+        urn: 'urn:sg:skill:skill:lifecycle',
         properties: {
-          active_version_urn: 'urn:tg:skill-version:skill:lifecycle@v1',
+          active_version_urn: 'urn:sg:skill-version:skill:lifecycle@v1',
         },
       },
       artifacts: [
         {
-          artifact_urn: expect.stringMatching(/^urn:tg:artifact:sha256:/),
+          artifact_urn: expect.stringMatching(/^urn:sg:artifact:sha256:/),
           sha256: expect.any(String),
         },
       ],
@@ -457,8 +457,8 @@ describe('skill lifecycle routes', () => {
     const envelope = await app.request('/v1/skills/skill:lifecycle/versions/1/publication-envelope');
     expect(envelope.status).toBe(200);
     await expect(envelope.json()).resolves.toMatchObject({
-      publication_urn: 'urn:tg:skill-version:skill:lifecycle@v1',
-      logical_urn: 'urn:tg:skill:skill:lifecycle',
+      publication_urn: 'urn:sg:skill-version:skill:lifecycle@v1',
+      logical_urn: 'urn:sg:skill:skill:lifecycle',
       entity_type: 'SKILL_VERSION',
       canonical_json_sha256: expect.any(String),
       detached_signatures: [],
@@ -476,7 +476,7 @@ describe('skill lifecycle routes', () => {
     );
     await createTransparencyLog(app, token, {
       logId: 'trillian-log-skill',
-      origin: 'tg-log-skill',
+      origin: 'sg-log-skill',
       checkpointKeyRef: 'kms://registry/checkpoint-skill-key',
     });
 
@@ -498,7 +498,7 @@ describe('skill lifecycle routes', () => {
         signature: detachedSignature,
       }),
     ).toString('base64')}`;
-    const checkpointBody = buildCheckpointBody('tg-log-skill', 1, rootHash);
+    const checkpointBody = buildCheckpointBody('sg-log-skill', 1, rootHash);
     const checkpointSignature = `base64:${signBytes(
       null,
       Buffer.from(checkpointBody, 'utf8'),
@@ -535,7 +535,7 @@ describe('skill lifecycle routes', () => {
       key_ref: 'kms://registry/signing-key',
       algorithm: 'ed25519',
       transparency_log_ref: 'tessera://log/entry/1',
-      inclusion_proof_ref: expect.stringMatching(/^urn:tg:artifact:sha256:/),
+      inclusion_proof_ref: expect.stringMatching(/^urn:sg:artifact:sha256:/),
       envelope_sha256: expect.any(String),
     });
 
@@ -547,7 +547,7 @@ describe('skill lifecycle routes', () => {
           signer: 'alice',
           key_ref: 'kms://registry/signing-key',
           algorithm: 'ed25519',
-          inclusion_proof_ref: expect.stringMatching(/^urn:tg:artifact:sha256:/),
+          inclusion_proof_ref: expect.stringMatching(/^urn:sg:artifact:sha256:/),
         }),
       ],
     });
@@ -576,7 +576,7 @@ describe('skill lifecycle routes', () => {
         }),
       ],
       envelope: {
-        publication_urn: 'urn:tg:skill-version:skill:lifecycle@v1',
+        publication_urn: 'urn:sg:skill-version:skill:lifecycle@v1',
       },
     });
   });
@@ -668,7 +668,7 @@ describe('skill lifecycle routes', () => {
       skill_version: {
         properties: {
           publication_status: 'superseded',
-          superseded_by_version_urn: 'urn:tg:skill-version:skill:promotion@v2',
+          superseded_by_version_urn: 'urn:sg:skill-version:skill:promotion@v2',
           active: false,
         },
       },
@@ -685,7 +685,7 @@ describe('skill lifecycle routes', () => {
       signingKeyRef: 'kms://registry/signing-key-trusted-md',
       checkpointKeyRef: 'kms://registry/checkpoint-key-trusted-md',
       logId: 'trillian-log-trusted-md',
-      logOrigin: 'tg-log-trusted-md',
+      logOrigin: 'sg-log-trusted-md',
     });
 
     const skill = await app.request(seeded.skillPath);
@@ -700,7 +700,7 @@ describe('skill lifecycle routes', () => {
         },
         artifacts: [
           expect.objectContaining({
-            artifact_urn: expect.stringMatching(/^urn:tg:artifact:sha256:/),
+            artifact_urn: expect.stringMatching(/^urn:sg:artifact:sha256:/),
             sha256: expect.any(String),
           }),
         ],
@@ -716,7 +716,7 @@ describe('skill lifecycle routes', () => {
             signer: 'alice',
             key_ref: seeded.signingKeyRef,
             transparency_log_ref: seeded.transparencyLogRef,
-            inclusion_proof_ref: expect.stringMatching(/^urn:tg:artifact:sha256:/),
+            inclusion_proof_ref: expect.stringMatching(/^urn:sg:artifact:sha256:/),
             signed_at: expect.any(String),
           }),
         ],
@@ -754,7 +754,7 @@ describe('skill lifecycle routes', () => {
       signingKeyRef: 'kms://registry/signing-key-tampered-md',
       checkpointKeyRef: 'kms://registry/checkpoint-key-tampered-md',
       logId: 'trillian-log-tampered-md',
-      logOrigin: 'tg-log-tampered-md',
+      logOrigin: 'sg-log-tampered-md',
     });
 
     const before = await app.request(seeded.verificationPath);
@@ -791,7 +791,7 @@ describe('skill lifecycle routes', () => {
             signer: 'bob',
             key_ref: seeded.signingKeyRef,
             transparency_log_ref: seeded.transparencyLogRef,
-            inclusion_proof_ref: expect.stringMatching(/^urn:tg:artifact:sha256:/),
+            inclusion_proof_ref: expect.stringMatching(/^urn:sg:artifact:sha256:/),
             signed_at: expect.any(String),
           }),
         ],
@@ -833,7 +833,7 @@ describe('skill lifecycle routes', () => {
       signingKeyRef: 'kms://registry/signing-key-append-intents',
       checkpointKeyRef: 'kms://registry/checkpoint-key-append-intents',
       logId: 'trillian-log-append-intents',
-      logOrigin: 'tg-log-append-intents',
+      logOrigin: 'sg-log-append-intents',
     });
 
     const certify = await app.request('/v1/skills/skill:append-intents/versions/1/certify', {
@@ -876,7 +876,7 @@ describe('skill lifecycle routes', () => {
         tessera_checkpoint_url: expect.stringMatching(/\/checkpoint$/),
         tessera_checkpoint_tree_size: 8,
         tessera_checkpoint_root_hash: 'base64:checkpoint-root',
-        tessera_checkpoint_artifact_urn: expect.stringMatching(/^urn:tg:artifact:sha256:/),
+        tessera_checkpoint_artifact_urn: expect.stringMatching(/^urn:sg:artifact:sha256:/),
       },
       governance_artifacts: expect.arrayContaining([
         expect.objectContaining({
@@ -916,7 +916,7 @@ describe('skill lifecycle routes', () => {
           tessera_checkpoint_url: expect.stringMatching(/\/checkpoint$/),
           tessera_checkpoint_tree_size: 8,
           tessera_checkpoint_root_hash: 'base64:checkpoint-root',
-          tessera_checkpoint_artifact_urn: expect.stringMatching(/^urn:tg:artifact:sha256:/),
+          tessera_checkpoint_artifact_urn: expect.stringMatching(/^urn:sg:artifact:sha256:/),
         },
       },
       publication_append_intent: {

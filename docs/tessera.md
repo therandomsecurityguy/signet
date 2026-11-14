@@ -117,7 +117,7 @@ Implemented now:
 
 Implemented since:
 - canonical governance event JSON (RFC 8785 JCS) and SHA-256 digests for every lifecycle operation (create_draft, validate, publish, certify, promote/supersede, deprecate, revoke, archive), stored as immutable CAS artifacts
-- an internal append-only Merkle log (`urn:tg:governance-log:registry`) over those events with RFC 6962 inclusion-proof generation (`GET /v1/governance-log/proofs/:leafIndex`), log state (`GET /v1/governance-log`), and verifier replay (`GET /v1/governance-log/replay`) that recomputes the root from the event stream
+- an internal append-only Merkle log (`urn:sg:governance-log:registry`) over those events with RFC 6962 inclusion-proof generation (`GET /v1/governance-log/proofs/:leafIndex`), log state (`GET /v1/governance-log`), and verifier replay (`GET /v1/governance-log/replay`) that recomputes the root from the event stream
 - governance-event digests staged through the sidecar for all lifecycle operations when the sidecar is configured, anchoring the internal log to the external transparency backend
 
 Not implemented yet:

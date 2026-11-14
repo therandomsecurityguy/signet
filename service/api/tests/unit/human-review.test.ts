@@ -209,7 +209,7 @@ describe('human review workflow', () => {
     const pendingBefore = await app.request('/v1/reviews/pending');
     expect(pendingBefore.status).toBe(200);
     const beforeBody = (await pendingBefore.json()) as { pending: Array<{ publication_urn: string; entity_type: string }> };
-    expect(beforeBody.pending.some((p) => p.publication_urn === 'urn:tg:agent-version:agent:reviewable@v1')).toBe(true);
+    expect(beforeBody.pending.some((p) => p.publication_urn === 'urn:sg:agent-version:agent:reviewable@v1')).toBe(true);
 
     // Review the agent version (published state is reviewable).
     const review = await app.request('/v1/agents/agent:reviewable/versions/1/review', {
@@ -228,6 +228,6 @@ describe('human review workflow', () => {
     // Approved versions leave the queue.
     const pendingAfter = await app.request('/v1/reviews/pending');
     const afterBody = (await pendingAfter.json()) as { pending: Array<{ publication_urn: string }> };
-    expect(afterBody.pending.some((p) => p.publication_urn === 'urn:tg:agent-version:agent:reviewable@v1')).toBe(false);
+    expect(afterBody.pending.some((p) => p.publication_urn === 'urn:sg:agent-version:agent:reviewable@v1')).toBe(false);
   });
 });

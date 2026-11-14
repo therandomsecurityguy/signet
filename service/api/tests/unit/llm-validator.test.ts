@@ -9,7 +9,7 @@ const validator = new HeuristicLlmValidator();
 function input(overrides: Partial<LlmValidationInput> = {}): LlmValidationInput {
   return {
     entity_type: 'SKILL_VERSION',
-    publication_urn: 'urn:tg:skill-version:skill:demo@v1',
+    publication_urn: 'urn:sg:skill-version:skill:demo@v1',
     display_name: 'Data Pipeline',
     description: 'Processes data from the warehouse and produces reports.',
     capability_claims: ['data-processing', 'reporting'],
@@ -27,7 +27,7 @@ describe('heuristic LLM validator', () => {
     expect(overclaim?.score).toBe(1);
     expect(result.validator).toBe('llm-heuristic-v1');
     expect(result.confidence).toBe(0.5);
-    expect(result.prompt).toContain('urn:tg:skill-version:skill:demo@v1');
+    expect(result.prompt).toContain('urn:sg:skill-version:skill:demo@v1');
   });
 
   it('flags claims not grounded in the description as possible overclaims', async () => {

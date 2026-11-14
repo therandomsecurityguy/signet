@@ -80,14 +80,14 @@ Implemented now:
 - frozen publication envelope artifacts at publish with CAS digest verification on every read (warn by default, `enforce` opt-in) and explicit live-drift reporting in publication verification
 - HTTP artifact byte access on `service/api` (`GET|HEAD /v1/artifacts/{sha256}`) with `Content-Digest` and fail-closed digest verification (unverified bytes are never transported)
 - MCP read gates denying revoked publications by default (`REGISTRY_READ_DENY_REVOKED`, opt out with `false`) and optionally unverified publications (`REGISTRY_READ_REQUIRE_VERIFIED`) on `registry.get_skill`/`get_agent`/`get_artifact` with explicit reason codes; verification itself is never gated
-- DSSE/in-toto attestation ingestion (`POST /v1/attestations`): signatures verified over DSSE PAE bytes against trusted keys, predicate types recorded, subjects bound to publication artifacts, stored as CAS evidence linked `tg:attestedBy`, and folded into publication verification plus the read-only `registry.get_attestations` MCP tool
+- DSSE/in-toto attestation ingestion (`POST /v1/attestations`): signatures verified over DSSE PAE bytes against trusted keys, predicate types recorded, subjects bound to publication artifacts, stored as CAS evidence linked `sg:attestedBy`, and folded into publication verification plus the read-only `registry.get_attestations` MCP tool
 - certification state machine for skill and agent versions (`draft`, `validated`, `rejected`, `published`, `certified`, `deprecated`, `revoked`, `archived`)
 - deterministic draft validation with `rejected` transitions and recorded validation failures
 - certification bound to concrete policy and ontology versions, with optional expiry
 - supersession guards (revoked snapshots are never superseded)
 - full agent-version lifecycle parity with skills, including linked-skill dependency validation
 - durable, non-destructive GC job execution seam
-- SHACL-like policy packages as versioned CAS artifacts, with machine-readable violation reports (violation paths) linked via `tg:validatedBy`
+- SHACL-like policy packages as versioned CAS artifacts, with machine-readable violation reports (violation paths) linked via `sg:validatedBy`
 - graph-shape validation (required properties, edges, cardinalities) layered under policy validation, gating `draft` → `validated`
 - dual ontology packages (`registry_shape` and `skill_area` kinds) as versioned CAS artifacts, resolved by `ontology_version`
 - ontology validation of `capability_claims` (concept binding + disjoint-combination checks) with de facto candidates recorded in validation reports
@@ -98,13 +98,13 @@ Implemented now:
 - canonical governance event JSON (JCS) and digests for all lifecycle operations, stored as immutable CAS artifacts
 - internal append-only Merkle log with RFC 6962 inclusion-proof generation and verifier replay (`/v1/governance-log*`)
 - governance-event digests staged through the Tessera sidecar for all lifecycle operations when configured
-- native RFC 6962 companion transparency log in the Tessera sidecar (S3-backed tree state, signed-note checkpoints, per-entry inclusion proofs; activated by `TESSERA_LOG_PRIVATE_KEY`, origin via `TESSERA_LOG_ORIGIN`) with registry-side reconciliation at `POST /v1/transparency-logs/reconcile`: each recorded append intent is re-fetched, its staged record digest and leaf hash re-derived, its RFC 6962 inclusion proof validated against the signed checkpoint, the checkpoint signature verified against the trusted `TESSERA_LOG_PUBLIC_KEY`, and per-intent outcomes stored as CAS evidence linked `tg:hasTransparencyReconciliation`
+- native RFC 6962 companion transparency log in the Tessera sidecar (S3-backed tree state, signed-note checkpoints, per-entry inclusion proofs; activated by `TESSERA_LOG_PRIVATE_KEY`, origin via `TESSERA_LOG_ORIGIN`) with registry-side reconciliation at `POST /v1/transparency-logs/reconcile`: each recorded append intent is re-fetched, its staged record digest and leaf hash re-derived, its RFC 6962 inclusion proof validated against the signed checkpoint, the checkpoint signature verified against the trusted `TESSERA_LOG_PUBLIC_KEY`, and per-intent outcomes stored as CAS evidence linked `sg:hasTransparencyReconciliation`
 - canonical RDF (RDFC-1.0) projection of publication graphs with semantic digests recorded at publish and certify
 - dual signatures: detached signatures over canonical JSON (operational) or canonical RDF (semantic) bytes with cross-verification
 - semantic compiler ingestion: markdown frontmatter and tool-manifest parsing into normalized capability claims, interfaces, and constraints (`POST /v1/compile/skill`)
 - de facto vocabulary store with human-reviewed promotion into new normative ontology versions (`/v1/de-facto-terms*`)
-- advisory LLM validation layer (model-agnostic port, heuristic default, HTTP seam) emitting scorecard/prompt/confidence evidence via `tg:validatedBy`
-- human review workflow: `review_evidence` artifacts via `tg:reviewedBy`, policy-driven `require_human_review` gating at publish/certify, pending-review queue (`/v1/reviews/pending`)
+- advisory LLM validation layer (model-agnostic port, heuristic default, HTTP seam) emitting scorecard/prompt/confidence evidence via `sg:validatedBy`
+- human review workflow: `review_evidence` artifacts via `sg:reviewedBy`, policy-driven `require_human_review` gating at publish/certify, pending-review queue (`/v1/reviews/pending`)
 - policy-driven publication trust gates: `require_validation` at publish, and `require_signature`, `require_trusted_publisher`, `require_build_provenance`, `require_sbom` at certification (verified signatures owned by the publisher, and verified SLSA/SBOM attestations), each with explicit rejection codes
 - verify-then-load consumer contract: client-side verification helpers in the SDK (envelope digest/signature/inclusion-proof/artifact digest), `registry-operator verify publication|artifact`, MCP artifact re-hashing in `verify mcp`, and the model write-up in `docs/supply-chain-model.md`
 - single-request sign-then-publish (skills and agents): `prepare-publication` pins the candidate frozen envelope (including reserved transparency append intents); publish accepts `prepared_publication_urn` + `detached_signatures`, re-derives and fail-closes on drift (`*_PUBLISH_PREPARED_STALE`), validates each signature (trusted key, crypto, publisher binding) and freezes the signed envelope in one mutating request; the operator CLI seals seeded skills with it (falling back to envelope-attach when re-seeding already-published versions)

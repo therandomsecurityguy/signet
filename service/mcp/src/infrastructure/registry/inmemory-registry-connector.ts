@@ -130,9 +130,9 @@ export class InMemoryRegistryConnector implements RegistryConnector {
       return { agent: { urn: input.agent_urn, properties: {} }, skills: [], artifacts: [], harnesses: [] };
     }
 
-    const skillsEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:usesSkill');
-    const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:definedBy');
-    const harnessEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:runsOn');
+    const skillsEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:usesSkill');
+    const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:definedBy');
+    const harnessEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:runsOn');
 
     await this.readGate.assertPublicationReadable({
       publication_urn: activeVersionUrn(node.properties),
@@ -188,7 +188,7 @@ export class InMemoryRegistryConnector implements RegistryConnector {
     if (!node) {
       return { skill: { urn: input.skill_urn, properties: {} }, artifacts: [] };
     }
-    const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'tg:implementedBy');
+    const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:implementedBy');
     await this.readGate.assertPublicationReadable({
       publication_urn: activeVersionUrn(node.properties),
       properties: await this.activeVersionProperties(node.properties),
@@ -243,7 +243,7 @@ export class InMemoryRegistryConnector implements RegistryConnector {
     const derivation_chain: RegistryGetProvenanceOutput['derivation_chain'] = [];
     const replay: RegistryGetProvenanceOutput['replay'] = [];
     for (const versionUrn of chainUrns) {
-      const targeting = await this.deps.graph.listEdgesTo(versionUrn, 'tg:targets');
+      const targeting = await this.deps.graph.listEdgesTo(versionUrn, 'sg:targets');
       const activities: RegistryGetProvenanceOutput['derivation_chain'][number]['activities'] = [];
       for (const edge of targeting) {
         const taskNode = await this.deps.graph.getNode(edge.from_urn);
@@ -390,12 +390,12 @@ export class InMemoryRegistryConnector implements RegistryConnector {
 }
 
 function parseArtifactSha256(artifactUrn: string): string | undefined {
-  const prefix = 'urn:tg:artifact:sha256:';
+  const prefix = 'urn:sg:artifact:sha256:';
   return artifactUrn.startsWith(prefix) ? artifactUrn.slice(prefix.length) : undefined;
 }
 
 function parseHarnessName(harnessUrn: string): string | undefined {
-  const prefix = 'urn:tg:harness:';
+  const prefix = 'urn:sg:harness:';
   return harnessUrn.startsWith(prefix) ? harnessUrn.slice(prefix.length) : undefined;
 }
 

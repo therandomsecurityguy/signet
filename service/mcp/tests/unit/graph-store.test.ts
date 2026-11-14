@@ -28,15 +28,15 @@ describe('InMemoryGraphStore', () => {
     await g.upsertEdge({
       from_urn: a,
       to_urn: s,
-      predicate: 'tg:usesSkill',
+      predicate: 'sg:usesSkill',
       properties: {},
     });
 
-    const from = await g.listEdgesFrom(a, 'tg:usesSkill');
+    const from = await g.listEdgesFrom(a, 'sg:usesSkill');
     expect(from).toHaveLength(1);
     expect(from[0]!.to_urn).toBe(s);
 
-    const to = await g.listEdgesTo(s, 'tg:usesSkill');
+    const to = await g.listEdgesTo(s, 'sg:usesSkill');
     expect(to).toHaveLength(1);
     expect(to[0]!.from_urn).toBe(a);
   });

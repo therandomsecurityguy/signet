@@ -1,6 +1,6 @@
 name: COMMIT
 doc: An immutable semantic state transition for the time-aware registry core.
-urn_template: "urn:tg:commit:{commit_id}"
+urn_template: "urn:sg:commit:{commit_id}"
 key_fields:
   - commit_id
 aspects:

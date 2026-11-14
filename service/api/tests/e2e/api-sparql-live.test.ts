@@ -94,11 +94,11 @@ describe('API live SPARQL e2e', () => {
       expect(getAgent.status).toBe(200);
       await expect(getAgent.json()).resolves.toMatchObject({
         agent: {
-          urn: 'urn:tg:agent:cursor:live-sparql',
+          urn: 'urn:sg:agent:cursor:live-sparql',
         },
         skills: [
           {
-            skill_urn: 'urn:tg:skill:skill:live-sparql',
+            skill_urn: 'urn:sg:skill:skill:live-sparql',
           },
         ],
       });
@@ -321,7 +321,7 @@ async function clearAll(url: string, user: string, pass: string) {
 }
 
 async function seedTransparencySampleGraph(baseUrl: string, token: string) {
-  const logId = 'tg-live-sparql-sample-log';
+  const logId = 'sg-live-sparql-sample-log';
   const checkpointKey = await createTrustedKey(baseUrl, token, {
     keyRef: 'kms://registry/sample-checkpoint',
     owner: 'security-team',
@@ -550,7 +550,7 @@ function signedCheckpointNote(
         keyHintBytes?: number[];
       }>,
 ) {
-  const entries = typeof signatures === 'string' ? [{ signer: 'tg-main-log', detachedSignature: signatures }] : signatures;
+  const entries = typeof signatures === 'string' ? [{ signer: 'sg-main-log', detachedSignature: signatures }] : signatures;
   const signatureLines = entries.map((entry, index) => {
     const raw = Buffer.from(entry.detachedSignature.replace(/^base64:/, ''), 'base64');
     const keyHint = Buffer.from(entry.keyHintBytes ?? [0, 0, 0, index]);

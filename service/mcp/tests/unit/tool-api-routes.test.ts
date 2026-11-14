@@ -110,7 +110,7 @@ describe('Tool API routes', () => {
         'x-agent-client': 'test',
         authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ agent_urn: 'urn:tg:agent:missing' }),
+      body: JSON.stringify({ agent_urn: 'urn:sg:agent:missing' }),
     });
 
     expect(res.status).toBe(200);
