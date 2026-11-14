@@ -1,4 +1,5 @@
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
+import { promisify } from 'node:util';
 
 import type { ApiKeyMetadata, ApiKeyStore } from '../../application/ports/api-key-store.js';
 import { REGISTRY_WRITE_SCOPES } from '../../domain/principal/scopes.js';
@@ -39,7 +40,8 @@ export class SqliteApiKeyStore implements ApiKeyStore {
     // Always perform a constant-time comparison (against a dummy when absent)
     // so timing does not reveal whether the key id exists.
     const storedBuf = Buffer.from(row?.key_hash ?? dummyHashHex(), 'hex');
-    const matched = secretHashCandidates(parsed.secret, this.options.pepper).some((hex) => {
+    const candidateHashes = await secretHashCandidates(parsed.secret, this.options.pepper);
+    const matched = candidateHashes.some((hex) => {
       const candidateBuf = Buffer.from(hex, 'hex');
       return candidateBuf.length === storedBuf.length && timingSafeEqual(candidateBuf, storedBuf);
     });
@@ -73,7 +75,7 @@ export class SqliteApiKeyStore implements ApiKeyStore {
       `INSERT INTO api_keys (key_id, key_hash, owner_label, scopes, created_at, expires_at, last_used_at, created_by, revoked_at)
        VALUES (?, ?, ?, ?, ?, ?, NULL, ?, NULL)`,
       keyId,
-      hashSecret(secret, this.options.pepper),
+      await hashSecret(secret, this.options.pepper),
       input.owner_label,
       JSON.stringify(scopes),
       createdAt,
@@ -138,8 +140,8 @@ export class SqliteApiKeyStore implements ApiKeyStore {
     const secret = randomBytes(24).toString('hex');
     const token = `agk_${input.key_id}_${secret}`;
     await db.run(
-      'UPDATE api_keys SET key_hash = ?, last_used_at = NULL WHERE key_id = ?',
-      hashSecret(secret, this.options.pepper),
+      'UPDATE api_keys SET key_hash = ?, last_used_at = NULL WHERE key_id = ? AND revoked_at IS NULL',
+      await hashSecret(secret, this.options.pepper),
       input.key_id,
     );
     return { token, metadata: toMetadata(row) };
@@ -191,17 +193,21 @@ function parseApiKeyToken(token: string): { keyId: string; secret: string } | nu
   return { keyId, secret };
 }
 
-function hashSecret(secret: string, pepper: string | undefined): string {
-  // Strong KDF (scrypt) so the stored value is not a fast SHA-based digest.
+const scryptAsync = promisify(scrypt);
+
+async function hashSecret(secret: string, pepper: string | undefined): Promise<string> {
+  // Strong KDF (scrypt) so the stored value is not a fast SHA-based digest,
+  // computed asynchronously so auth load cannot block the event loop.
   // The pepper (required in production) is the salt; the constant is a
   // dev-only fallback.
   const salt = pepper ?? 'signet-dev-pepper';
-  return scryptSync(secret, salt, 32).toString('hex');
+  const derived = (await scryptAsync(secret, salt, 32)) as Buffer;
+  return derived.toString('hex');
 }
 
-/** Hex hash of a presented secret to compare against the stored hash. */
-function secretHashCandidates(secret: string, pepper: string | undefined): string[] {
-  return [hashSecret(secret, pepper)];
+/** Hex hashes of a presented secret to compare against the stored hash. */
+async function secretHashCandidates(secret: string, pepper: string | undefined): Promise<string[]> {
+  return [await hashSecret(secret, pepper)];
 }
 
 function dummyHashHex(): string {

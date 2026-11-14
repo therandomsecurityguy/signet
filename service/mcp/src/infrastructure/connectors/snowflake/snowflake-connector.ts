@@ -35,21 +35,23 @@ export class SnowflakeConnector {
       connection.connect((err) => (err ? reject(err) : resolve()));
     });
 
+    const timeoutMs = Math.min(
+      Math.max(input.timeout_ms ?? this.env.TOOL_TIMEOUT_MS_DEFAULT, 1),
+      this.env.TOOL_TIMEOUT_MS_HARD_MAX,
+    );
+
     try {
-      const { rows, queryId } = await new Promise<{ rows: Record<string, unknown>[]; queryId?: string }>(
-        (resolve, reject) => {
-          connection.execute({
-            sqlText: input.sql,
-            complete(err, stmt, rows) {
-              if (err) return reject(err);
-              resolve({
-                rows: (rows ?? []) as Record<string, unknown>[],
-                queryId: stmt?.getQueryId?.(),
-              });
-            },
-          });
-        },
+      // Enforce the caller's timeout server-side as well as client-side:
+      // STATEMENT_TIMEOUT_IN_SECONDS makes Snowflake abort the query itself,
+      // and the client-side timer destroys the session (cancelling the
+      // statement) if the server has not answered in time.
+      await this.runStatement(
+        connection,
+        `ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = ${Math.max(1, Math.ceil(timeoutMs / 1000))}`,
+        timeoutMs,
       );
+
+      const { rows, queryId } = await this.runStatement(connection, input.sql, timeoutMs);
 
       const columns =
         rows.length > 0
@@ -63,7 +65,10 @@ export class SnowflakeConnector {
         truncated: false,
         warehouse_execution_id: queryId,
       };
-    } catch {
+    } catch (err) {
+      if (err instanceof DomainError) {
+        throw err;
+      }
       throw new DomainError({
         code: ErrorCode.InternalError,
         httpStatus: 502,
@@ -72,6 +77,44 @@ export class SnowflakeConnector {
     } finally {
       connection.destroy((_) => undefined);
     }
+  }
+
+  private runStatement(
+    connection: snowflake.Connection,
+    sqlText: string,
+    timeoutMs: number,
+  ): Promise<{ rows: Record<string, unknown>[]; queryId?: string }> {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        // Destroy the session so Snowflake cancels the running statement
+        // instead of letting it burn warehouse credits after we gave up.
+        connection.destroy(() => undefined);
+        reject(
+          new DomainError({
+            code: ErrorCode.ConnectorTimeout,
+            httpStatus: 504,
+            safeMessage: 'Snowflake query timed out.',
+          }),
+        );
+      }, timeoutMs);
+
+      connection.execute({
+        sqlText,
+        complete(err, stmt, rows) {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          if (err) return reject(err);
+          resolve({
+            rows: (rows ?? []) as Record<string, unknown>[],
+            queryId: stmt?.getQueryId?.(),
+          });
+        },
+      });
+    });
   }
 
   async listTables(

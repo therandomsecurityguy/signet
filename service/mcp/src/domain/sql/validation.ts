@@ -45,8 +45,14 @@ export function validateReadOnlySql(sql: string): SqlValidationResult {
     normalized.startsWith('SELECT') || normalized.startsWith('WITH');
   if (!startsReadOnly) return { ok: false, reason: 'not_read_only' };
 
+  // Match keywords as whole words: substring matching previously rejected
+  // legitimate identifiers such as `users` (contains USE) and OFFSET
+  // (contains SET). This remains a defense-in-depth net behind the
+  // entitlement rules, not a SQL parser.
   for (const kw of FORBIDDEN_KEYWORDS) {
-    if (normalized.includes(kw)) return { ok: false, reason: 'forbidden_keyword' };
+    if (new RegExp(`(?<![A-Z0-9_])${kw}(?![A-Z0-9_])`, 'i').test(normalized)) {
+      return { ok: false, reason: 'forbidden_keyword' };
+    }
   }
 
   return { ok: true };
