@@ -13,7 +13,7 @@ const FIXTURES = path.resolve('tests/fixtures/keyless');
 const keylessEnv = {
   KEYLESS_TRUSTED_ROOTS: `${FIXTURES}/intermediate.pem,${FIXTURES}/root.pem`,
   KEYLESS_ALLOWED_ISSUERS: 'https://token.actions.githubusercontent.com',
-  KEYLESS_ALLOWED_SUBJECTS: '^https://github\\.com/togethercomputer/signet/',
+  KEYLESS_ALLOWED_SUBJECTS: '^https://github\\.com/therandomsecurityguy/signet/',
 };
 
 async function buildTestApp(overrides: NodeJS.ProcessEnv = {}) {
@@ -115,10 +115,10 @@ describe('keyless publication signatures', () => {
     expect(envelopeBody).toMatchObject({
       detached_signatures: [
         {
-          key_ref: 'https://github.com/togethercomputer/signet/.github/workflows/release.yaml@refs/tags/v0.1.28',
+          key_ref: 'https://github.com/therandomsecurityguy/signet/.github/workflows/release.yaml@refs/tags/v0.1.28',
           algorithm: 'ecdsa-p256-sha256',
           keyless: {
-            identity: 'https://github.com/togethercomputer/signet/.github/workflows/release.yaml@refs/tags/v0.1.28',
+            identity: 'https://github.com/therandomsecurityguy/signet/.github/workflows/release.yaml@refs/tags/v0.1.28',
             issuer: 'https://token.actions.githubusercontent.com',
           },
         },
@@ -141,7 +141,7 @@ describe('keyless publication signatures', () => {
           cryptographic_verification_passed: true,
           keyless: {
             verified: true,
-            identity: 'https://github.com/togethercomputer/signet/.github/workflows/release.yaml@refs/tags/v0.1.28',
+            identity: 'https://github.com/therandomsecurityguy/signet/.github/workflows/release.yaml@refs/tags/v0.1.28',
           },
         },
       ],

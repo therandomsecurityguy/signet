@@ -48,10 +48,6 @@ jobs:
     defaults:
       run:
         working-directory: infra/terraform
-    # Dependabot-triggered runs (and fork PRs) do not receive repository
-    # secrets, so the app id is surfaced as an env flag the steps can test.
-    env:
-      SDLC_BOT_ID: ${{ secrets.SDLC_BOT_ID }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -65,52 +61,10 @@ jobs:
       - name: terraform fmt
         run: terraform fmt -check -recursive modules/signet-registry modules/signet-data modules/signet-eks examples/dev/signet-stack
 
-      # The repo GITHUB_TOKEN can't read other private repos, so mint an SDLC bot
-      # token to clone the private terraform module (tf-mod-s3-soc2-compliant-bucket).
-      # Minted only when the app id is available: dependabot PRs and forks do
-      # not receive repository secrets, and failing here used to abort the whole
-      # check before any validation ran.
-      - name: Generate module-access token
-        id: module_token
-        if: ${{ env.SDLC_BOT_ID != '' }}
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          app-id: ${{ secrets.SDLC_BOT_ID }}
-          private-key: ${{ secrets.SDLC_BOT_PRIVATE_KEY }}
-          owner: togethercomputer
-          repositories: tf-mod-s3-soc2-compliant-bucket
-          # Cloning modules needs read only.
-          permission-contents: read
-
-      - name: Rewrite github.com git URLs to token auth
-        if: ${{ steps.module_token.outputs.token != '' }}
-        env:
-          GH_MODULE_TOKEN: ${{ steps.module_token.outputs.token }}
-        run: |
-          set -euo pipefail
-          # insteadOf is multi-valued: use --add so each form is kept.
-          base="https://x-access-token:${GH_MODULE_TOKEN}@github.com/"
-          for from in "ssh://git@github.com/" "git@github.com:"; do
-            git config --global --add url."${base}".insteadOf "$from"
-          done
-
       - name: terraform validate
-        env:
-          MODULE_ACCESS_TOKEN: ${{ steps.module_token.outputs.token }}
         run: |
           set -euo pipefail
           for dir in modules/signet-registry modules/signet-data modules/signet-eks examples/dev/signet-stack; do
-            case "$dir" in
-              modules/signet-data|examples/dev/signet-stack)
-                # These pull tf-mod-s3-soc2-compliant-bucket, which needs the
-                # SDLC bot token. Without it (dependabot PRs, forks) skip with a
-                # visible notice instead of failing on a missing secret.
-                if [ -z "${MODULE_ACCESS_TOKEN}" ]; then
-                  echo "::notice title=terraform validate skipped::$dir needs the private tf-mod-s3-soc2-compliant-bucket module and no SDLC bot token is available in this run. Default-branch runs validate it."
-                  continue
-                fi
-                ;;
-            esac
             echo "== $dir =="
             (cd "$dir" && terraform init -backend=false -input=false >/dev/null && terraform validate)
           done

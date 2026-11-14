@@ -1,15 +1,87 @@
-# ENG-94247: source buckets and their destination share this module's AWS
-# provider/account/Region. The destination does not log to itself; organization
-# CloudTrail data events audit access to the logs.
-module "s3_access_log_destination" {
-  source = "git::ssh://git@github.com/togethercomputer/tf-mod-s3-soc2-compliant-bucket.git//modules/access-log-destination?ref=v0.6.0"
+# Source buckets and their destination share this module's AWS
+# provider/account/Region. The destination does not log to itself;
+# organization CloudTrail data events audit access to the logs.
+locals {
+  access_logs_bucket_name = "${var.project_name}-${var.environment}-access-logs-${local.account_id}"
+}
 
-  source_bucket_arns = [aws_s3_bucket.artifacts.arn]
-  tags               = local.common_tags
+resource "aws_s3_bucket" "access_logs" {
+  bucket = local.access_logs_bucket_name
+  tags   = merge(local.common_tags, { Component = "access-logs" })
+}
+
+resource "aws_s3_bucket_ownership_controls" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+
+  rule {
+    object_ownership = "BucketOwnerEnforced"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+
+    bucket_key_enabled = true
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+
+  rule {
+    id     = "expire-access-logs"
+    status = "Enabled"
+
+    filter {}
+
+    expiration {
+      days = 365
+    }
+  }
+}
+
+data "aws_iam_policy_document" "access_logs" {
+  statement {
+    sid     = "AllowS3ServerAccessLogs"
+    effect  = "Allow"
+    actions = ["s3:PutObject"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["logging.s3.amazonaws.com"]
+    }
+
+    resources = ["${aws_s3_bucket.access_logs.arn}/s3/*"]
+
+    condition {
+      test     = "ArnLike"
+      variable = "aws:SourceArn"
+      values   = [aws_s3_bucket.artifacts.arn]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "access_logs" {
+  bucket = aws_s3_bucket.access_logs.id
+  policy = data.aws_iam_policy_document.access_logs.json
 }
 
 resource "aws_s3_bucket_logging" "artifacts_access_logging" {
   bucket        = aws_s3_bucket.artifacts.id
-  target_bucket = module.s3_access_log_destination.bucket_id
+  target_bucket = aws_s3_bucket.access_logs.id
   target_prefix = "s3/${aws_s3_bucket.artifacts.id}/"
 }

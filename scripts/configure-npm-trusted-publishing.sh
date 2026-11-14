@@ -19,7 +19,7 @@
 # script stops and prints the manual replace steps (list, revoke, re-run).
 set -euo pipefail
 
-repo="togethercomputer/signet"
+repo="therandomsecurityguy/signet"
 
 command -v npm >/dev/null 2>&1 || { echo "missing required command: npm" >&2; exit 1; }
 command -v node >/dev/null 2>&1 || { echo "missing required command: node" >&2; exit 1; }

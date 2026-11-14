@@ -1,4 +1,4 @@
-module github.com/togethercomputer/agents-registry/service/tessera-runtime
+module github.com/therandomsecurityguy/signet/service/tessera-runtime
 
 go 1.25.0
 

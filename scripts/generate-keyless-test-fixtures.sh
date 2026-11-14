@@ -61,13 +61,13 @@ gen_leaf() {
   rm -f "${name}.csr" "${ca}.srl" "${ca%.pem}.srl" "${ca%.pem}.pem.srl"
 }
 
-workflow_san="URI:https://github.com/togethercomputer/signet/.github/workflows/release.yaml@refs/tags/v0.1.28"
+workflow_san="URI:https://github.com/therandomsecurityguy/signet/.github/workflows/release.yaml@refs/tags/v0.1.28"
 gen_leaf leaf intermediate.pem intermediate-key.pem "$workflow_san" "$issuer"
 gen_leaf leaf-v2 intermediate.pem intermediate-key.pem "$workflow_san" "$issuer" "1.3.6.1.4.1.57264.1.8" true
 gen_leaf leaf-other-root other-root.pem other-root-key.pem "$workflow_san" "$issuer"
 gen_leaf leaf-other-issuer intermediate.pem intermediate-key.pem "$workflow_san" "https://accounts.google.com"
 gen_leaf leaf-other-subject intermediate.pem intermediate-key.pem "URI:https://github.com/someone/else/.github/workflows/build.yaml@refs/heads/main" "$issuer"
-gen_leaf leaf-email intermediate.pem intermediate-key.pem "email:release-bot@together.ai" "$issuer"
+gen_leaf leaf-email intermediate.pem intermediate-key.pem "email:release-bot@example.com" "$issuer"
 
 echo "fixtures written to ${out_dir}"
 ls -1

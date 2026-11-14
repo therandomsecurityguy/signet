@@ -36,3 +36,6 @@ client/registry-cli/release/*.tgz
 # Keyless test fixtures are generated at test time (test-only keys are never committed).
 service/api/tests/fixtures/keyless/
 client/registry-cli/tests/fixtures/keyless/
+
+# Compiled Go binary from local builds.
+/service/tessera-runtime/tessera-runtime

@@ -56,7 +56,7 @@ function bundleFor(input: {
 const policy = {
   trusted_root_pems: [fixturePem('intermediate'), fixturePem('root')],
   allowed_issuers: ['https://token.actions.githubusercontent.com'],
-  allowed_subject_patterns: ['^https://github\\.com/togethercomputer/signet/'],
+  allowed_subject_patterns: ['^https://github\\.com/therandomsecurityguy/signet/'],
 };
 
 function rekorFixtures() {
@@ -328,7 +328,7 @@ describe('verifyKeylessBundle', () => {
     const v03 = verifyKeylessBundle({ bundle: bundleFor({ leafName: 'leaf', signedBytes }), signed_bytes: signedBytes, policy });
     expect(v03).toMatchObject({
       verified: true,
-      identity: 'https://github.com/togethercomputer/signet/.github/workflows/release.yaml@refs/tags/v0.1.28',
+      identity: 'https://github.com/therandomsecurityguy/signet/.github/workflows/release.yaml@refs/tags/v0.1.28',
       issuer: 'https://token.actions.githubusercontent.com',
       algorithm: 'ecdsa-p256-sha256',
     });
@@ -351,9 +351,9 @@ describe('verifyKeylessBundle', () => {
     const outcome = verifyKeylessBundle({
       bundle: bundleFor({ leafName: 'leaf-email', signedBytes }),
       signed_bytes: signedBytes,
-      policy: { ...policy, allowed_subject_patterns: ['^release-bot@together\\.ai$'] },
+      policy: { ...policy, allowed_subject_patterns: ['^release-bot@example\\.com$'] },
     });
-    expect(outcome).toMatchObject({ verified: true, identity: 'release-bot@together.ai' });
+    expect(outcome).toMatchObject({ verified: true, identity: 'release-bot@example.com' });
   });
 
   it('rejects chains that do not resolve to a trusted root', () => {

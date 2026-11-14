@@ -23,7 +23,7 @@ manifest_path="${2:-}"
 
 # GitHub Actions keyless identity. Tag releases run release.yaml at the tag;
 # manual re-publishes run it on main.
-identity_regexp="${SIGNET_RELEASE_IDENTITY_REGEXP:-^https://github\.com/togethercomputer/signet/\.github/workflows/release\.yaml@(refs/tags/v.*|refs/heads/main)$}"
+identity_regexp="${SIGNET_RELEASE_IDENTITY_REGEXP:-^https://github\.com/therandomsecurityguy/signet/\.github/workflows/release\.yaml@(refs/tags/v.*|refs/heads/main)$}"
 oidc_issuer="${SIGNET_RELEASE_OIDC_ISSUER:-https://token.actions.githubusercontent.com}"
 
 for tool in cosign jq gh; do
