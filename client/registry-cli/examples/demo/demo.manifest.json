@@ -2,7 +2,7 @@
   "pack": {
     "pack_id": "blessed-first-user-demo",
     "version": "0.1.0",
-    "description": "The first-user demo pack for agents-registry.",
+    "description": "The first-user demo pack for signet.",
     "owner": "registry-operator",
     "tags": ["demo", "blessed", "mcp", "registry", "mock-okta"]
   },

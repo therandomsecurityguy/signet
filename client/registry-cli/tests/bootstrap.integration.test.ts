@@ -553,12 +553,12 @@ describe('registry-operator bootstrap test command', () => {
       }
 
       const output = JSON.parse(logs.at(-1) ?? '{}') as {
-        cursor_mcp_config?: { mcpServers?: { 'agents-registry'?: { url?: string } } };
+        cursor_mcp_config?: { mcpServers?: { 'signet'?: { url?: string } } };
         next_prompts?: string[];
         mock_okta_demo_command?: string;
         artifacts?: { report_file?: string; resume_file?: string };
       };
-      expect(output.cursor_mcp_config?.mcpServers?.['agents-registry']?.url).toBe(`${mcpServer.baseUrl}/mcp`);
+      expect(output.cursor_mcp_config?.mcpServers?.['signet']?.url).toBe(`${mcpServer.baseUrl}/mcp`);
       expect(output.next_prompts).toContain('Now answer: How do we tame a llama?');
       expect(output.mock_okta_demo_command).toContain('demo:mock-okta');
       expect(output.artifacts?.report_file).toBeTruthy();

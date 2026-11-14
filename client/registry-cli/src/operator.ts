@@ -1715,7 +1715,7 @@ async function sleep(ms: number) {
 function buildCursorMcpConfig(env: Env, mcpToken: string) {
   return {
     mcpServers: {
-      'agents-registry': {
+      'signet': {
         url: new URL('/mcp', env.MCP_ORIGIN).toString(),
         headers: {
           Authorization: `Bearer ${mcpToken}`,
@@ -1793,8 +1793,8 @@ async function writeBootstrapRunArtifacts(
     cursor_mcp_config: {
       ...input.cursorMcpConfig,
       mcpServers: {
-        'agents-registry': {
-          url: input.cursorMcpConfig.mcpServers['agents-registry'].url,
+        'signet': {
+          url: input.cursorMcpConfig.mcpServers['signet'].url,
           headers: {
             Authorization: '[REDACTED]',
           },
