@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.47](https://github.com/therandomsecurityguy/signet/compare/v0.1.46...v0.1.47) (2026-11-14)
+
+
+### Bug Fixes
+
+* **security:** close unauthenticated governance writes and CAS traversal ([9885b19](https://github.com/therandomsecurityguy/signet/commit/9885b19142f2131956f71f87e04b2259b80d79b7))
+* **security:** close unauthenticated governance writes and CAS traversal ([3f88566](https://github.com/therandomsecurityguy/signet/commit/3f88566c07d64c2f87d8b9e02a30668f6b0a5103))
+* **security:** harden webapp sessions (admin gates + CSRF) ([1889a75](https://github.com/therandomsecurityguy/signet/commit/1889a75b3a86faadf408d84c2e2eaab649c70daf))
+* **security:** harden webapp sessions (admin gates + CSRF) ([3a70a04](https://github.com/therandomsecurityguy/signet/commit/3a70a046e5d237589d7a1fa13e22be9b0868ae61))
+
 ## [0.1.46](https://github.com/therandomsecurityguy/signet/compare/v0.1.45...v0.1.46) (2026-11-14)
 
 
