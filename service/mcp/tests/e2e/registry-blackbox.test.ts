@@ -45,7 +45,7 @@ describe('MCP registry blackbox e2e', () => {
       const skill = skillUrn('skill:blackbox');
       const skillVersion = skillVersionUrn('skill:blackbox', 1);
       const harness = harnessUrn('cursor');
-      const artifact = artifactUrn('abc123');
+      const artifact = artifactUrn('abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789');
 
       await deps.registryGraph.upsertNode({
         urn: agent,
@@ -100,7 +100,7 @@ describe('MCP registry blackbox e2e', () => {
       await deps.registryGraph.upsertNode({
         urn: artifact,
         entity_type: 'ARTIFACT',
-        properties: { sha256: 'abc123', size_bytes: 10 },
+        properties: { sha256: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789', size_bytes: 10 },
       });
       await deps.registryGraph.upsertEdge({
         from_urn: agent,
@@ -206,7 +206,7 @@ describe('MCP registry blackbox e2e', () => {
           },
           skills: [{ skill_urn: 'urn:sg:skill:skill:blackbox' }],
           harnesses: [{ harness_urn: 'urn:sg:harness:cursor' }],
-          artifacts: [{ artifact_urn: 'urn:sg:artifact:sha256:abc123' }],
+          artifacts: [{ artifact_urn: 'urn:sg:artifact:sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789' }],
         },
       });
 

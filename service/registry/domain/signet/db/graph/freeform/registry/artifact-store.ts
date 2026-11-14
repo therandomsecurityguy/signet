@@ -43,6 +43,11 @@ export class CasIntegrityError extends Error {
   }
 }
 
+// Content addresses are opaque keys. Anything that is not a lowercase hex
+// sha256 is rejected before it can reach a filesystem path or object key, so
+// a crafted address can never escape the CAS root.
+const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+
 export type S3ArtifactStoreConfig = {
   bucket: string;
   prefix?: string;
@@ -91,6 +96,9 @@ export class FsCasArtifactStore implements ArtifactStore {
   }
 
   async getBySha256(sha256: string): Promise<GetArtifactResult | null> {
+    if (!SHA256_PATTERN.test(sha256)) {
+      return null;
+    }
     const objectPath = this.objectPath(sha256);
     try {
       const bytes = await readFile(objectPath);
@@ -113,9 +121,14 @@ export class FsCasArtifactStore implements ArtifactStore {
   }
 
   private objectPath(sha256: string): string {
+    const root = path.resolve(this.objectsRootDir);
     // Spread objects by prefix to avoid huge directories.
     const prefix = sha256.slice(0, 2);
-    return path.join(this.objectsRootDir, prefix, sha256);
+    const resolved = path.resolve(root, prefix, sha256);
+    if (!resolved.startsWith(root + path.sep)) {
+      throw new Error(`Refusing to resolve a CAS path outside the objects root: ${sha256}`);
+    }
+    return resolved;
   }
 }
 
@@ -176,6 +189,9 @@ export class S3CasArtifactStore implements ArtifactStore {
   }
 
   async getBySha256(sha256: string): Promise<GetArtifactResult | null> {
+    if (!SHA256_PATTERN.test(sha256)) {
+      return null;
+    }
     try {
       const response = (await this.client.send(
         new GetObjectCommand({

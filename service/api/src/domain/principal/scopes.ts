@@ -12,6 +12,7 @@ export const REGISTRY_WRITE_SCOPES = [
   'transparency-logs:write',
   'time-aware:write',
   'ontologies:write',
+  'policies:write',
 ] as const;
 
 export type RegistryWriteScope = (typeof REGISTRY_WRITE_SCOPES)[number];
@@ -29,6 +30,9 @@ const PATH_SCOPE_PREFIXES: ReadonlyArray<[prefix: string, scope: RegistryWriteSc
   // they get their own scope instead of riding an unscoped path.
   ['/v1/ontology-packages', 'ontologies:write'],
   ['/v1/de-facto-terms', 'ontologies:write'],
+  // Policy packages gate draft validation and certification, so they are a
+  // governance surface with their own scope.
+  ['/v1/policy-packages', 'policies:write'],
   // Semantic compilation feeds skill drafts; it is a skill-surface write.
   ['/v1/compile', 'skills:write'],
 ];

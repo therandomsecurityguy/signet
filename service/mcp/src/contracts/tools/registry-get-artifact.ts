@@ -1,9 +1,14 @@
 import { z } from 'zod';
 
+const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+
 export const RegistryGetArtifactInputSchema = z
   .object({
-    sha256: z.string().min(1).optional(),
-    artifact_urn: z.string().min(1).optional(),
+    sha256: z.string().regex(SHA256_PATTERN, 'sha256 must be 64 lowercase hex characters').optional(),
+    artifact_urn: z
+      .string()
+      .regex(/^urn:sg:artifact:sha256:[0-9a-f]{64}$/, 'artifact_urn must be a sha256 artifact URN')
+      .optional(),
   })
   .refine((v) => Boolean(v.sha256 || v.artifact_urn), {
     message: 'Either sha256 or artifact_urn is required.',

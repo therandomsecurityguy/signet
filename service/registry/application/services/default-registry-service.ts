@@ -7817,9 +7817,13 @@ function resolveSkillUrn(skillUrnValue?: string, skillKey?: string): string {
   throw new RegistryCoreError('SKILL_REFERENCE_INVALID', 'Skill reference must include skill_urn or skill_key.');
 }
 
+const ARTIFACT_SHA256_PATTERN = /^[0-9a-f]{64}$/;
+
 function parseArtifactSha256(artifactUrnValue: string): string | undefined {
   const prefix = 'urn:sg:artifact:sha256:';
-  return artifactUrnValue.startsWith(prefix) ? artifactUrnValue.slice(prefix.length) : undefined;
+  if (!artifactUrnValue.startsWith(prefix)) return undefined;
+  const sha256 = artifactUrnValue.slice(prefix.length);
+  return ARTIFACT_SHA256_PATTERN.test(sha256) ? sha256 : undefined;
 }
 
 function parseHarnessName(harnessUrnValue: string): string | undefined {

@@ -259,6 +259,7 @@ Current guarantees:
 - successful writes are audited
 - validation/conflict/not-found write failures are audited
 - nested lifecycle and time-aware write routes are protected by the same write-auth middleware as top-level create routes
+- governance routes (policy packages, ontology packages, semantic compilation, de-facto term review) are protected by the same write-auth middleware; API keys need the matching fine-grained scope (`policies:write`, `ontologies:write`, `skills:write`) and scope enforcement defaults to `enforce` (`SCOPE_ENFORCEMENT=warn` is a compat opt-in)
 
 Current auth modes:
 - `AUTH_MODE=api_key`
