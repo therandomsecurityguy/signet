@@ -30,7 +30,11 @@ locals {
 
   # Operator-seeded secrets (never generated or stored in state) plus any extra
   # keys. Generated secrets are created in secrets.tf.
-  operator_secret_keys = ["okta-client-secret", "tessera-log-private-key"]
+  operator_secret_keys = [
+    "okta-client-secret",
+    "tessera-log-private-key",
+    "tessera-sidecar-auth-token",
+  ]
 
   generated_secret_keys = [
     "database-url",
@@ -114,6 +118,35 @@ resource "aws_s3_bucket_public_access_block" "artifacts" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
+}
+
+data "aws_iam_policy_document" "artifacts_bucket" {
+  statement {
+    sid    = "DenyInsecureTransport"
+    effect = "Deny"
+
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+
+    actions = ["s3:*"]
+    resources = [
+      aws_s3_bucket.artifacts.arn,
+      "${aws_s3_bucket.artifacts.arn}/*",
+    ]
+
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "artifacts" {
+  bucket = aws_s3_bucket.artifacts.id
+  policy = data.aws_iam_policy_document.artifacts_bucket.json
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {

@@ -16,6 +16,9 @@ const EnvSchema = z.object({
   DATABASE_URL: z.string().default('file:./var/knowledge-manager.db'),
   AUTH_MODE: z.enum(['api_key', 'okta', 'dual']).default('api_key'),
   OKTA_MODE: z.enum(['mock', 'real']).default('mock'),
+  // Mock auth is dev/test-only; any other environment (staging, prod, unset)
+  // must opt in explicitly with ALLOW_MOCK_AUTH=true.
+  ALLOW_MOCK_AUTH: z.string().optional(),
   OKTA_ISSUER: z.string().url().optional(),
   OKTA_CLIENT_ID: z.string().optional(),
   OKTA_CLIENT_SECRET: z.string().optional(),
@@ -28,6 +31,20 @@ const EnvSchema = z.object({
   SEMANTIC_TURKEY_EMAIL: z.string().optional(),
   SEMANTIC_TURKEY_PASSWORD: z.string().optional(),
 }).superRefine((env, ctx) => {
+  // Mock auth is dev/test-only when Okta auth is actually selected: staging,
+  // prod, or any unrecognized NODE_ENV requires an explicit opt-in.
+  if (
+    env.OKTA_MODE === 'mock' &&
+    (env.AUTH_MODE === 'okta' || env.AUTH_MODE === 'dual') &&
+    env.NODE_ENV !== 'test' &&
+    env.NODE_ENV !== 'development' &&
+    env.ALLOW_MOCK_AUTH !== 'true'
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'OKTA_MODE=mock is only allowed in test/development or with ALLOW_MOCK_AUTH=true.',
+    });
+  }
   if (env.NODE_ENV === 'production') {
     if (env.OKTA_MODE === 'mock') {
       ctx.addIssue({

@@ -6569,7 +6569,21 @@ export class DefaultRegistryService implements RegistryService {
       return appendIntent;
     }
     try {
-      const response = await fetch(appendIntent.tessera_checkpoint_url);
+      // The URL originates from the sidecar/runtime response; keep the fetch
+      // bounded and pinned: only http(s), no redirects, hard timeout.
+      let checkpointUrl: URL;
+      try {
+        checkpointUrl = new URL(appendIntent.tessera_checkpoint_url);
+      } catch {
+        return appendIntent;
+      }
+      if (checkpointUrl.protocol !== 'http:' && checkpointUrl.protocol !== 'https:') {
+        return appendIntent;
+      }
+      const response = await fetch(checkpointUrl, {
+        redirect: 'error',
+        signal: AbortSignal.timeout(5_000),
+      });
       if (!response.ok) {
         return appendIntent;
       }

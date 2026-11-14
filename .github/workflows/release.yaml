@@ -352,4 +352,9 @@ jobs:
           # digest pinning consumers can be verified end to end.
           cosign sign-blob --yes --bundle release-manifest.sigstore.json release-manifest.json
           sha256sum release-manifest.json release-manifest.sigstore.json dist/sbom/*.spdx.json > SHA256SUMS
-          gh release upload "$tag" release-manifest.json SHA256SUMS release-manifest.sigstore.json dist/sbom/*.spdx.json --clobber
+          # SBOMs may be re-uploaded on a dispatch re-run; the signed
+          # manifest/bundle/checksums must never be silently replaced — an
+          # existing asset fails the job and requires an explicit operator
+          # delete first.
+          gh release upload "$tag" dist/sbom/*.spdx.json --clobber
+          gh release upload "$tag" release-manifest.json SHA256SUMS release-manifest.sigstore.json

@@ -56,6 +56,28 @@ resource "aws_s3_bucket_lifecycle_configuration" "access_logs" {
 
 data "aws_iam_policy_document" "access_logs" {
   statement {
+    sid    = "DenyInsecureTransport"
+    effect = "Deny"
+
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+
+    actions = ["s3:*"]
+    resources = [
+      aws_s3_bucket.access_logs.arn,
+      "${aws_s3_bucket.access_logs.arn}/*",
+    ]
+
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+
+  statement {
     sid     = "AllowS3ServerAccessLogs"
     effect  = "Allow"
     actions = ["s3:PutObject"]

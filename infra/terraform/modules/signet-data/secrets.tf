@@ -11,8 +11,9 @@ resource "aws_secretsmanager_secret" "this" {
 }
 
 # Generated values. Operator-seeded keys (okta-client-secret,
-# tessera-log-private-key) intentionally have no version here — seed them with
-# `aws secretsmanager put-secret-value` so they never transit Terraform state.
+# tessera-log-private-key, tessera-sidecar-auth-token) intentionally have no
+# version here — seed them with `aws secretsmanager put-secret-value` so they
+# never transit Terraform state.
 locals {
   generated_secret_values = {
     "database-url"          = "postgresql://${var.db_username}:${urlencode(random_password.db.result)}@${aws_db_instance.this.address}:${aws_db_instance.this.port}/${var.db_name}?sslmode=require"
