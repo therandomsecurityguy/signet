@@ -19,16 +19,36 @@ spec:
         {{- include "signet.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: fuseki
     spec:
-      # The image's entrypoint copies shiro.ini into the data volume; run as
-      # root so the copy into the PVC succeeds (fsGroup alone was insufficient
-      # for the fuseki user). See chart release notes.
+      # The fuseki user (uid 8983) owns the data volume. A one-shot init
+      # container chowns the PVC so the entrypoint can copy shiro.ini into it
+      # without running the workload as root.
       securityContext:
-        runAsUser: 0
-        fsGroup: 0
+        runAsUser: 8983
+        runAsGroup: 8983
+        fsGroup: 8983
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: volume-permissions
+          image: {{ if .Values.fuseki.image.digest }}{{ .Values.fuseki.image.repository }}@{{ .Values.fuseki.image.digest }}{{ else }}{{ .Values.fuseki.image.repository }}:{{ .Values.fuseki.image.tag }}{{ end }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["sh", "-c", "chown -R 8983:8983 /fuseki"]
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: data
+              mountPath: /fuseki
       containers:
         - name: fuseki
           image: {{ if .Values.fuseki.image.digest }}{{ .Values.fuseki.image.repository }}@{{ .Values.fuseki.image.digest }}{{ else }}{{ .Values.fuseki.image.repository }}:{{ .Values.fuseki.image.tag }}{{ end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: http
               containerPort: {{ .Values.fuseki.port }}

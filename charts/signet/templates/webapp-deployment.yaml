@@ -25,10 +25,28 @@ spec:
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        # Default webapp session store is SQLite under /workspace/data.
+        - name: data
+          emptyDir: {}
       containers:
         - name: webapp
           image: {{ include "signet.image" (dict "repository" .Values.webapp.image.repository "tag" .Values.webapp.image.tag "digest" .Values.webapp.image.digest "registry" .Values.image.registry "Chart" .Chart) }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: http
               containerPort: {{ .Values.webapp.port }}
@@ -80,6 +98,11 @@ spec:
             - name: {{ $k }}
               value: {{ $v | quote }}
             {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: data
+              mountPath: /workspace/data
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           lifecycle:

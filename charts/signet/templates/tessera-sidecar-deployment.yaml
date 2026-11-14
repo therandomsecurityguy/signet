@@ -25,10 +25,25 @@ spec:
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: tmp
+          emptyDir: {}
       containers:
         - name: tessera-sidecar
           image: {{ include "signet.image" (dict "repository" .Values.tesseraSidecar.image.repository "tag" .Values.tesseraSidecar.image.tag "digest" .Values.tesseraSidecar.image.digest "registry" .Values.image.registry "Chart" .Chart) }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: http
               containerPort: {{ .Values.tesseraSidecar.port }}
@@ -75,6 +90,9 @@ spec:
             - name: {{ $k }}
               value: {{ $v | quote }}
             {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           lifecycle:

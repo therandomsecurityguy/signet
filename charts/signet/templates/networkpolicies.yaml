@@ -47,9 +47,17 @@ spec:
           port: {{ $.Values.api.port }}
     {{- end }}
     # HTTPS egress: Okta, S3 SDK, witnesses, cognitive-layer HTTP seam.
+    # RFC1918 + link-local (including the IMDS at 169.254.169.254) are
+    # excluded; in-VPC HTTPS endpoints are reachable via the explicit
+    # egressCidrs entries below.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
       ports:
         - protocol: TCP
           port: 443
@@ -136,5 +144,128 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.tesseraSidecar.port }}
+    {{- end }}
+---
+# The management API is fronted by the cluster ingress controller; the webapp
+# proxies its flows through it; Prometheus scrapes metrics.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "signet.fullname" . }}-api-ingress
+  labels:
+    {{- include "signet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "signet.componentSelectorLabels" (dict "root" . "component" "api") | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        {{- if .Values.networkPolicies.ingressControllerNamespaces }}
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  {{- range .Values.networkPolicies.ingressControllerNamespaces }}
+                  - {{ . | quote }}
+                  {{- end }}
+        {{- end }}
+        - podSelector:
+            matchLabels:
+              {{- include "signet.componentSelectorLabels" (dict "root" . "component" "webapp") | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.api.port }}
+    {{- if .Values.networkPolicies.metricsNamespace }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicies.metricsNamespace | quote }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.api.port }}
+    {{- end }}
+---
+# The MCP gateway is fronted by the cluster ingress controller (external agent
+# traffic); Prometheus scrapes metrics.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "signet.fullname" . }}-mcp-ingress
+  labels:
+    {{- include "signet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: mcp
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "signet.componentSelectorLabels" (dict "root" . "component" "mcp") | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    {{- if .Values.networkPolicies.ingressControllerNamespaces }}
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  {{- range .Values.networkPolicies.ingressControllerNamespaces }}
+                  - {{ . | quote }}
+                  {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.mcp.port }}
+    {{- end }}
+    {{- if .Values.networkPolicies.metricsNamespace }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicies.metricsNamespace | quote }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.mcp.port }}
+    {{- end }}
+---
+# The webapp is fronted by the cluster ingress controller; Prometheus scrapes
+# metrics.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "signet.fullname" . }}-webapp-ingress
+  labels:
+    {{- include "signet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: webapp
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "signet.componentSelectorLabels" (dict "root" . "component" "webapp") | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    {{- if .Values.networkPolicies.ingressControllerNamespaces }}
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  {{- range .Values.networkPolicies.ingressControllerNamespaces }}
+                  - {{ . | quote }}
+                  {{- end }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.webapp.port }}
+    {{- end }}
+    {{- if .Values.networkPolicies.metricsNamespace }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicies.metricsNamespace | quote }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.webapp.port }}
     {{- end }}
 {{- end }}
