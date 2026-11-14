@@ -522,3 +522,8 @@ Current implementation note:
 - real Okta-backed ontology access via the Semantic Turkey / VocBench companion remains intentionally deferred
 - ontology authoring is still intentionally externalized to VocBench / Semantic Turkey rather than rebuilt inside the repo webapp
 - optional local VocBench / Semantic Turkey can be enabled as a compose companion for ontology-authoring experiments
+
+### Credits
+
+Signet is built by [Derek C.](https://github.com/therandomsecurityguy) and
+[Pablo Ferrari](https://github.com/pabshazon).
