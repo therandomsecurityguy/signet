@@ -755,7 +755,7 @@ function renderPage(title: string, body: string, page?: PageChromeInput) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(title)} · Cachet</title>
+    <title>${escapeHtml(title)} · Signet</title>
     <link rel="stylesheet" href="/assets/app.css" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%234f46e5'/%3E%3Ctext x='8' y='12' font-size='10' text-anchor='middle' fill='white'%3EC%3C/text%3E%3C/svg%3E" />
   </head>
@@ -765,7 +765,7 @@ function renderPage(title: string, body: string, page?: PageChromeInput) {
       <div class="container app-header-inner">
         <a class="brand" href="/">
           <span class="brand-logo" aria-hidden="true">C</span>
-          <span class="brand-name">Cachet</span>
+          <span class="brand-name">Signet</span>
         </a>
         <nav class="app-nav" aria-label="Primary">
           ${navItem('/', 'Home', active, 'home')}
@@ -790,7 +790,7 @@ function renderPage(title: string, body: string, page?: PageChromeInput) {
       ${page ? renderBanner(page.session) : ''}
       ${body}
     </main>
-    <footer class="container app-footer"><small>Cachet registry · internal beta</small></footer>
+    <footer class="container app-footer"><small>Signet registry · internal beta</small></footer>
     <script>
       // Client-side row filter for list pages (#table-filter + #filterable-table).
       (function () {

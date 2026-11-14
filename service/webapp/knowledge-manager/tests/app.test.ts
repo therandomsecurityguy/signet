@@ -22,7 +22,7 @@ const env: Env = {
   OKTA_MODE: 'mock',
   OKTA_REDIRECT_URI: 'http://localhost:3200/session/callback',
   OKTA_SCOPES: 'openid profile email registry.write',
-  OKTA_ADMIN_GROUPS: 'app_cachet_admin',
+  OKTA_ADMIN_GROUPS: 'app_signet_admin',
   SESSION_COOKIE_NAME: 'knowledge_manager_session',
   SESSION_TTL_MINUTES: 60,
 };
@@ -635,7 +635,7 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
         id: apiToken.startsWith('agk_') ? 'api-key-principal' : 'okta-principal',
         auth_method: apiToken.startsWith('agk_') ? 'api_key' : 'okta_access_token',
         scopes: ['registry.write'],
-        groups: ['mock-group', 'app_cachet_admin'],
+        groups: ['mock-group', 'app_signet_admin'],
         ...(apiToken.startsWith('agk_') ? {} : { display_name: 'Mock Okta User' }),
       },
     }),

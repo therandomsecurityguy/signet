@@ -21,7 +21,7 @@ const EnvSchema = z.object({
   OKTA_CLIENT_SECRET: z.string().optional(),
   OKTA_REDIRECT_URI: z.string().url().default('http://localhost:3200/session/callback'),
   OKTA_SCOPES: z.string().default('openid profile email'),
-  OKTA_ADMIN_GROUPS: z.string().default('app_cachet_admin'),
+  OKTA_ADMIN_GROUPS: z.string().default('app_signet_admin'),
   SESSION_COOKIE_NAME: z.string().min(1).default('knowledge_manager_session'),
   SESSION_TTL_MINUTES: z.coerce.number().int().positive().default(480),
   SEMANTIC_TURKEY_BASE_URL: z.string().url().optional(),
