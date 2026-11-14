@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.50](https://github.com/therandomsecurityguy/signet/compare/v0.1.49...v0.1.50) (2026-11-14)
+
+
+### Bug Fixes
+
+* **security:** per-key salt for API key hashes with legacy migration ([d0a65ad](https://github.com/therandomsecurityguy/signet/commit/d0a65ad3a884725463e05123328ee859d02375db))
+* **security:** per-key salt for API key hashes with legacy migration ([7db30ea](https://github.com/therandomsecurityguy/signet/commit/7db30ea043a5d57107c1991bbde2b5885602b63d))
+
 ## [0.1.49](https://github.com/therandomsecurityguy/signet/compare/v0.1.48...v0.1.49) (2026-11-14)
 
 
