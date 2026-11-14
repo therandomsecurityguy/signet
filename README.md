@@ -441,7 +441,7 @@ Current implementation status (incremental):
 - `service/registry` now projects publication graphs to canonical RDF (RDFC-1.0) with semantic digests, and verifies dual (operational/semantic) detached signatures.
 - `service/registry` now tracks PROV-O provenance for all lifecycle operations, with traversal and audit-replay endpoints and the read-only `registry.get_provenance` MCP tool.
 - `service/api` now serves a generated OpenAPI 3.1 spec at `GET /v1/openapi.json` and a Swagger UI at `GET /v1/docs`, derived from the route contracts via `@hono/zod-openapi`.
-- `client/registry-sdk` now provides a typed, read-first client SDK (`@signet/registry-sdk`) generated from the OpenAPI spec, with a CI publish workflow on `registry-sdk-v*` tags.
+- `client/registry-sdk` now provides a typed, read-first client SDK (`@signet-registry/sdk`) generated from the OpenAPI spec, with a CI publish workflow on `registry-sdk-v*` tags.
 - `service/mcp` now exposes a `registry.search` discovery tool so a fresh agent can self-orient by searching skills and agents, plus a read-only `registry.verify_publication` tool that returns envelope digest, signature, and transparency verdicts for a version.
 - `service/mcp` now includes an opt-in cognitive layer that estimates tool-result token cost and summarizes payloads that exceed a configured LLM context budget, with ephemeral summary caching.
 - the repo now includes Terraform for a locked-down shared S3 bucket seam, Aurora/Secrets Manager wiring for the Tessera AWS backend state, and optional `tessera-sidecar` / `tessera-runtime` companions for future transparency-backend experiments.
@@ -451,10 +451,10 @@ Current implementation status (incremental):
 ### Agent integration surfaces
 Signet is designed to be available to every agent workflow. The current surfaces:
 - **OpenAPI 3.1 spec + Swagger UI** — `GET /v1/openapi.json` and `GET /v1/docs` on `service/api`. See `docs/api-reference.md`.
-- **Typed read-first SDK** — `@signet/registry-sdk` under `client/registry-sdk`, generated from the spec. See `client/registry-sdk/README.md`.
+- **Typed read-first SDK** — `@signet-registry/sdk` under `client/registry-sdk`, generated from the spec. See `client/registry-sdk/README.md`.
 - **MCP gateway** — `service/mcp` exposes read-only `registry.*` tools (including `registry.search`, `registry.verify_publication`, and `registry.get_attestations`) over Streamable HTTP at `/mcp`. See `docs/mcp-onboarding.md` for per-harness config (Claude Code, Cursor, opencode, generic MCP clients).
 - **Cognitive layer** — opt-in token-context estimation + summarization in `service/mcp` (see `service/mcp/README.md`).
-- **Operator CLI** — `@signet/registry-operator` under `client/registry-cli`, packaged for CLI-first agents (see `client/registry-cli/README.md`).
+- **Operator CLI** — `@signet-registry/operator` under `client/registry-cli`, packaged for CLI-first agents (see `client/registry-cli/README.md`).
 - **Onboarding skill** — a distributable `signet-registry` skill teaching the discover → inspect → load → trust → use flow (see `skills/` and `.cursor/skills/signet-registry/`).
 
 ### Infrastructure

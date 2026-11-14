@@ -41,10 +41,10 @@ Read these first:
 ## Agent integration surfaces
 
 - OpenAPI 3.1 spec + Swagger UI on `service/api` (`GET /v1/openapi.json`, `GET /v1/docs`); see `docs/api-reference.md`.
-- Typed read-first SDK `@signet/registry-sdk` under `client/registry-sdk`, generated from the spec, with client-side verification helpers (`verifyEnvelopeSignatures`, `verifyDetachedSignature`, `verifyRfc6962InclusionProof`, `fetchArtifact`).
+- Typed read-first SDK `@signet-registry/sdk` under `client/registry-sdk`, generated from the spec, with client-side verification helpers (`verifyEnvelopeSignatures`, `verifyDetachedSignature`, `verifyRfc6962InclusionProof`, `fetchArtifact`).
 - MCP gateway `service/mcp` with read-only `registry.*` tools (including `registry.search` and `registry.verify_publication`); see `docs/mcp-onboarding.md`.
 - Opt-in cognitive layer in `service/mcp` (token-context estimation + summarization).
-- Operator CLI `@signet/registry-operator` under `client/registry-cli`, including `verify publication|artifact` (verify before load) and MCP artifact re-hashing.
+- Operator CLI `@signet-registry/operator` under `client/registry-cli`, including `verify publication|artifact` (verify before load) and MCP artifact re-hashing.
 - Distributable `signet-registry` onboarding skill under `skills/` and `.cursor/skills/signet-registry/`.
 
 ## Governance rules

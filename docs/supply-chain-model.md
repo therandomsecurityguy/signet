@@ -105,7 +105,7 @@ The model covers four control points, in the order content moves through them:
 The verify-then-load contract (see `adoption.md`) moves verification to the
 consumer:
 
-- `@signet/registry-sdk` ships `verifyEnvelopeSignatures`,
+- `@signet-registry/sdk` ships `verifyEnvelopeSignatures`,
   `verifyDetachedSignature`, `verifyRfc6962InclusionProof`, and
   `fetchArtifact` (local re-hash against the requested digest and the
   `Content-Digest` header).

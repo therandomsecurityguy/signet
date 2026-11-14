@@ -1,4 +1,4 @@
-# Client npm releases (`@signet/registry-sdk`, `@signet/registry-operator`)
+# Client npm releases (`@signet-registry/sdk`, `@signet-registry/operator`)
 
 Where this goes: the **public npm registry** (`https://registry.npmjs.org`),
 scope `@signet`. Both packages are world-readable (`--access public`); they
@@ -25,7 +25,7 @@ Publish workflows: `.github/workflows/publish-registry-sdk.yml` and
 `.github/workflows/publish-registry-cli.yml`, triggered by
 `registry-sdk-v*` / `registry-cli-v*` tags (and `workflow_dispatch`).
 
-## One-time bootstrap (already done for 0.1.0)
+## One-time bootstrap (first publish per package)
 
 Trusted publishers can only be configured for a package that **exists**, so
 the first version of each package must be published by a maintainer, with the
@@ -36,22 +36,24 @@ commit to publish:
 git worktree add /tmp/signet-publish origin/main
 cd /tmp/signet-publish/client/registry-sdk     # or client/registry-cli
 npm config get registry    # must be https://registry.npmjs.org/
-npm whoami                 # @signet maintainer, 2FA on
-# Auth: `npm login --auth-type=web` (browser 2FA), or a granular access token
-# with bypass-2FA supplied through an environment variable — never committed
-# and never echoed. The bootstrap token used for 0.1.0 came from a secret
-# manager and was revoked right after.
+npm whoami                 # @signet-registry maintainer, 2FA on
+# Auth: `npm login --auth-type=web` (browser 2FA). With an auth-and-writes
+# account, `npm publish` prompts for a one-time password from the
+# authenticator app. Never use a committed/echoed token.
 npm ci --ignore-scripts    # lockfile-exact; dependency scripts do not run
 npm run build              # build from the reviewed source
 npm pack --ignore-scripts  # artifact == exactly what you inspected
-tar -tzf signet-registry-sdk-0.1.0.tgz | sort
-npm publish ./signet-registry-sdk-0.1.0.tgz --access public --ignore-scripts
-npm view @signet/registry-sdk@0.1.0 dist.integrity   # must equal the local
+tar -tzf signet-registry-sdk-0.1.1.tgz | sort
+npm publish ./signet-registry-sdk-0.1.1.tgz --access public --ignore-scripts
+npm view @signet-registry/sdk@0.1.1 dist.integrity   # must equal the local
 npm pack --json --ignore-scripts                        # integrity of the tarball
 git worktree remove /tmp/signet-publish
 ```
 
-Then configure the trusted publishers (run once, after 0.1.0 exists):
+The first published versions are `@signet-registry/sdk@0.1.1` and
+`@signet-registry/operator@0.1.3`.
+
+Then configure the trusted publishers (run once, after the package exists):
 
 ```bash
 scripts/configure-npm-trusted-publishing.sh
