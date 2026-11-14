@@ -1,0 +1,90 @@
+{
+  "pack": {
+    "pack_id": "blessed-first-user-demo",
+    "version": "0.1.0",
+    "description": "The first-user demo pack for signet.",
+    "owner": "registry-operator",
+    "tags": ["demo", "blessed", "mcp", "registry", "mock-okta"]
+  },
+  "defaults": {
+    "skill": {
+      "author": "registry-operator",
+      "artifact_media_type": "text/markdown",
+      "validate_note": "validated during blessed demo bootstrap",
+      "publish_note": "published during blessed demo bootstrap",
+      "certify": true,
+      "certify_note": "certified during blessed demo bootstrap"
+    },
+    "agent": {
+      "artifact_media_type": "text/markdown"
+    }
+  },
+  "profiles": {
+    "blessed": {
+      "description": "Seed the full first-user blessed demo path.",
+      "skill_item_ids": ["skill_registry_mcp", "skill_tame_llama"],
+      "agent_item_ids": ["agent_registry"]
+    },
+    "minimal": {
+      "description": "Alias for the same first-user demo pack.",
+      "skill_item_ids": ["skill_registry_mcp", "skill_tame_llama"],
+      "agent_item_ids": ["agent_registry"]
+    }
+  },
+  "skills": [
+    {
+      "item_id": "skill_registry_mcp",
+      "skill_key": "skill:registry-mcp",
+      "artifact_path": "skills/registry-mcp.md",
+      "display_name": "Registry MCP Demo Skill",
+      "description": "Install, discover, and load guidance for the registry MCP demo path.",
+      "source_path": "client/registry-cli/examples/demo/skills/registry-mcp.md",
+      "commit_sha": "demo-pack-registry-mcp-001",
+      "git_tag": "demo-pack-v0-registry-mcp",
+      "artifact_signature": "demo-pack-registry-mcp-sig-001",
+      "lineage": {
+        "upstream_skill_version_urns": [],
+        "openlineage": {
+          "job_namespace": "registry-operator",
+          "job_name": "blessed-demo-seed",
+          "run_id": "blessed-demo-registry-mcp"
+        }
+      }
+    },
+    {
+      "item_id": "skill_tame_llama",
+      "skill_key": "skill:tame-llama",
+      "artifact_path": "skills/tame-llama.md",
+      "display_name": "Tame A Llama",
+      "description": "A playful skill used to prove MCP discovery and load.",
+      "source_path": "client/registry-cli/examples/demo/skills/tame-llama.md",
+      "commit_sha": "demo-pack-tame-llama-001",
+      "git_tag": "demo-pack-v0-tame-llama",
+      "artifact_signature": "demo-pack-tame-llama-sig-001",
+      "lineage": {
+        "upstream_skill_version_urns": [],
+        "openlineage": {
+          "job_namespace": "registry-operator",
+          "job_name": "blessed-demo-seed",
+          "run_id": "blessed-demo-tame-llama"
+        }
+      }
+    }
+  ],
+  "agents": [
+    {
+      "item_id": "agent_registry",
+      "depends_on": ["skill_registry_mcp", "skill_tame_llama"],
+      "agent_key": "cursor:registry-agent",
+      "harness_name": "cursor",
+      "display_name": "Registry Demo Agent",
+      "description": "A demo agent that points humans toward the registry MCP usage skill and the tame llama skill.",
+      "source_path": "client/registry-cli/examples/demo/agents/registry-agent.md",
+      "artifact_path": "agents/registry-agent.md",
+      "skill_refs": [
+        { "skill_item_id": "skill_registry_mcp" },
+        { "skill_item_id": "skill_tame_llama" }
+      ]
+    }
+  ]
+}

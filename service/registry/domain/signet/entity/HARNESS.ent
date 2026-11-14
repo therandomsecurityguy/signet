@@ -1,0 +1,8 @@
+name: HARNESS
+doc: An execution harness/environment for agents (Cursor, Claude Code, etc.).
+urn_template: "urn:sg:harness:{harness_name}"
+key_fields:
+  - harness_name
+aspects:
+  - HarnessProperties
+

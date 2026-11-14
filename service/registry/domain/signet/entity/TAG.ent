@@ -1,0 +1,9 @@
+name: TAG
+doc: An immutable named operational pointer to a commit.
+urn_template: "urn:sg:tag:{tag_name}"
+key_fields:
+  - tag_name
+aspects:
+  - TagProperties
+  - Ownership
+  - Tags

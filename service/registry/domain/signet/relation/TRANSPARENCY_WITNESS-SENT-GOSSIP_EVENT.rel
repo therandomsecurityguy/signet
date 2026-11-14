@@ -1,0 +1,7 @@
+name: TRANSPARENCY_WITNESS-SENT-GOSSIP_EVENT
+doc: Witness sent a transparency gossip event.
+from: TRANSPARENCY_WITNESS
+to: TRANSPARENCY_GOSSIP_EVENT
+predicate: "sg:sentGossipEvent"
+inverse: "TRANSPARENCY_GOSSIP_EVENT-SENT-BY-TRANSPARENCY_WITNESS"
+cardinality: "N:N"

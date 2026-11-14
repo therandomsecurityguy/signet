@@ -1,0 +1,9 @@
+name: GC_JOB
+doc: A reachability-based cleanup analysis or purge workflow over commits and artifacts.
+urn_template: "urn:sg:gc-job:{job_id}"
+key_fields:
+  - job_id
+aspects:
+  - GcJobProperties
+  - Ownership
+  - Tags

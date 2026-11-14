@@ -1,0 +1,18 @@
+{{- if .Values.keyless.enabled }}
+# Keyless (sigstore) trust anchors for api + mcp. The PEMs bundled under
+# files/ are the public sigstore trust root: Fulcio's certificate
+# authorities (root + intermediate) and the public Rekor log key. The
+# expected Rekor log id (sha256 of the key's SPKI DER, hex) lives in
+# values.keyless.rekorLogId.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "signet.fullname" . }}-keyless
+  labels:
+    {{- include "signet.labels" . | nindent 4 }}
+data:
+  fulcio-roots.pem: |-
+{{ .Files.Get "files/fulcio-roots.pem" | indent 4 }}
+  rekor-public-key.pem: |-
+{{ .Files.Get "files/rekor-public-key.pem" | indent 4 }}
+{{- end }}

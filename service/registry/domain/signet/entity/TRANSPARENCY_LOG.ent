@@ -1,0 +1,19 @@
+name: TRANSPARENCY_LOG
+doc: Trusted transparency log identity used to verify checkpoints and inclusion proofs.
+fields:
+  - name: log_id
+    type: string
+  - name: origin
+    type: string
+  - name: checkpoint_key_ref
+    type: string
+  - name: trust_status
+    type: string
+  - name: log_type
+    type: string
+    optional: true
+  - name: trust_scope
+    type: string
+    optional: true
+  - name: created_at
+    type: string

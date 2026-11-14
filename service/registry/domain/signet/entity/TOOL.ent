@@ -1,0 +1,8 @@
+name: TOOL
+doc: A canonical Tool API tool (source-of-truth contract) exposed via adapters like MCP.
+urn_template: "urn:sg:tool:{tool_name}"
+key_fields:
+  - tool_name
+aspects:
+  - ToolProperties
+

@@ -1,0 +1,9 @@
+name: TASK
+doc: A management-plane operation task capturing lifecycle actions, actor, status, timestamps, and evidence metadata.
+urn_template: "urn:sg:task:{task_id}"
+key_fields:
+  - task_id
+aspects:
+  - TaskProperties
+  - Ownership
+  - Tags

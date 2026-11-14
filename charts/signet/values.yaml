@@ -1,0 +1,313 @@
+# Default values for the Signet chart.
+# Per-env overrides live in values-<env>.yaml.
+
+# Environment name (dev/staging/prod). Used to build the AWS Secrets Manager path
+# for the ExternalSecret when secrets.external.prefix is empty.
+env: ""
+
+replicaCount: 1
+# Per-component replica overrides (fall back to replicaCount). Prod runs
+# api and mcp at 2 replicas; webapp and tessera-sidecar stay single.
+#   api:  { replicas: 2 }
+#   mcp:  { replicas: 2 }
+
+image:
+  registry: ""
+  pullPolicy: IfNotPresent
+
+# Component images. The release pipeline publishes each component to the
+# signet-owned ECR at the same version as the chart. Pin by digest for
+# reproducible, supply-chain-safe deploys (digest takes precedence over tag).
+api:
+  enabled: true
+  image:
+    repository: signet/api
+    # tag is omitted on purpose — it resolves to Chart.AppVersion so the image
+    # tag always matches the chart version published in the same release.
+    digest: ""
+  port: 3100
+  env: {}
+
+mcp:
+  enabled: true
+  image:
+    repository: signet/mcp
+    digest: ""
+  port: 3000
+  # MCP read gates. Revocation denial is on by default (serving revoked
+  # publications unchecked is treated as a bug); set denyRevoked to false to
+  # restore the legacy fail-open behaviour. The verification gate is opt-in.
+  # Setting both to true gives a default-deny posture for revoked or
+  # unverified publications on the MCP read path; verification itself is
+  # never gated.
+  readGates:
+    denyRevoked: true
+    requireVerified: false
+  env: {}
+
+# Postgres TLS. The terraform RDS instance uses a regional CA
+# (Amazon RDS us-west-2 Root CA RSA2048 G1) that is not in public trust
+# stores, so verified connections need the region's CA bundle. When enabled,
+# api and mcp mount the bundled us-west-2 CA and pin sslmode=verify-full.
+database:
+  sslRootCert:
+    enabled: false
+
+# Keyless (sigstore) signature trust for api + mcp. When enabled, both mount
+# the bundled public trust anchors (Fulcio certificate authorities and the
+# public Rekor log key, see charts/signet/files/) and verify keyless
+# publication signatures against the keyless trust policy. allowedIssuers and
+# allowedSubjects scope which OIDC identities are accepted (comma-separated
+# values / regexes matched against the certificate SAN — see
+# docs/runbooks/keyless-publishing.md); leaving them empty mounts the anchors
+# but keeps the policy unconfigured (keyless signatures verify as
+# not_configured, never as trusted). rekorLogId must match the bundled Rekor
+# key (sha256 of its SPKI DER, hex); set it to "" to ship without Rekor
+# (SET/proof) verification.
+keyless:
+  enabled: false
+  allowedIssuers: ""
+  allowedSubjects: ""
+  rekorLogId: "c0d23d6ad406973f9559f3ba2d1ca01f84147d8ffc5b8445c224f98b9591801d"
+
+webapp:
+  enabled: true
+  image:
+    repository: signet/webapp
+    digest: ""
+  port: 3200
+  # Links surfaced on the home page. Empty falls back to the tunnel defaults.
+  apiDocsUrl: ""
+  mcpUrl: ""
+  # Ontology authoring (opt-in). Empty disables the VocBench link and Semantic
+  # Turkey. Enabling Semantic Turkey also needs SEMANTIC_TURKEY_PASSWORD via a
+  # secret (see docs/runbooks/deploy.md).
+  vocbenchUiUrl: ""
+  semanticTurkey:
+    baseUrl: ""
+    email: ""
+  env: {}
+
+tesseraSidecar:
+  enabled: true
+  image:
+    repository: signet/tessera-sidecar
+    digest: ""
+  port: 3400
+  # Inject TESSERA_LOG_PRIVATE_KEY from the release Secret (secrets.name). Set
+  # false only when supplying the key another way — the signer identity must
+  # never differ across replicas or deployments.
+  logPrivateKeyFromSecret: true
+  # Local-development escape hatch only: run /v1/* without a token. Never
+  # enable in a deployed environment (seed tessera-sidecar-auth-token instead).
+  allowUnauthenticated: false
+  # Signed-checkpoint note origin for the native companion log.
+  logOrigin: ""
+  # PEM content of the native log's checkpoint public key. Setting it enables
+  # registry-side transparency reconciliation (POST /v1/transparency-logs/reconcile).
+  logPublicKeyPem: ""
+  env: {}
+
+# In-cluster watchdog for the tessera-sidecar (probes /healthz + /v1/config
+# and publishes Signet/Watchdog/SidecarHealthy for the Terraform alarm).
+# Enable together with signet-data's sidecar_watchdog_enabled.
+sidecarWatchdog:
+  enabled: false
+  schedule: "*/2 * * * *"
+
+# Daily Fuseki graph backup into the artifact bucket; publishes
+# Signet/Watchdog/FusekiBackupSuccess. Enable together with signet-data's
+# fuseki_backup_enabled (alarm) where the S3 artifact backend is used.
+fusekiBackup:
+  enabled: false
+  schedule: "17 3 * * *"
+
+# Fuseki graph backend (registry metadata store).
+fuseki:
+  enabled: true
+  image:
+    repository: stain/jena-fuseki
+    # Pinned to an immutable digest (not a mutable tag) for reproducible,
+    # supply-chain-safe deploys. This digest is tag 5.1.0 (single-arch amd64).
+    # digest takes precedence over tag when set.
+    digest: "sha256:b1d0c96f19adddef417520184471ac816cf36c6e72936a88ea02b29f4305929a"
+    tag: "5.1.0"
+  port: 3030
+  # Fuseki is a JVM and needs its own resources (the shared `resources` limit
+  # is too small and OOMKills it). jvmArgs sets the heap.
+  resources:
+    requests:
+      cpu: 200m
+      memory: 768Mi
+    limits:
+      memory: 1536Mi
+  jvmArgs: "-Xmx768m"
+  # Fuseki dataset name; the api/mcp query /<name>/sparql and /<name>/update.
+  datasetName: registry
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClass: ""
+
+# Auth / identity.
+auth:
+  mode: okta        # api_key | okta | dual
+  oktaMode: real    # mock | real
+  oktaIssuer: ""
+  oktaAudience: ""
+  oktaClientId: ""
+  oktaRedirectUri: ""
+  oktaScopes: "openid profile email groups offline_access"
+  oktaAdminGroups: "app_signet_admin"
+  # Comma-separated CORS origin allowlist. Required in production (the app
+  # refuses to start with NODE_ENV=production and an empty allowlist).
+  corsAllowedOrigins: ""
+
+# Artifacts (S3).
+artifacts:
+  backend: s3       # fs | s3
+  # CAS read integrity: warn (report digest mismatches) | enforce (fail reads).
+  integrityMode: warn
+  s3:
+    bucket: ""
+    prefix: signet/prod
+    region: us-west-2
+
+# Audit/auth state (Postgres) — provided via secrets.databaseUrl.
+
+# Sensitive values. When secrets.create is true the chart renders a Kubernetes
+# Secret and the workloads reference it via secretKeyRef (never plaintext env).
+# When false, the chart assumes an existing Secret named secrets.name and only
+# references it. Set these via values-<env>.yaml or the deploy pipeline.
+#
+# On the platform, secrets live in AWS Secrets Manager and are injected into the
+# `secrets.name` Secret by an ExternalSecret (secrets.external.enabled). In that
+# mode set secrets.create: false so ESO owns the Secret.
+secrets:
+  create: true
+  name: signet
+  oktaClientSecret: ""
+  databaseUrl: ""
+  fusekiAdminPassword: ""
+  redisUrl: ""
+  # Peppers the self-serve API-key hash (HMAC-SHA256). Required in production.
+  apiKeyPepper: ""
+  # Transparency-log signer key. Byte-identical across the migration cutover —
+  # a different key breaks the signature chain. Prefer supplying via ESO.
+  tesseraLogPrivateKey: ""
+  # Shared bearer token for registry <-> tessera-sidecar calls
+  # (TESSERA_SIDECAR_AUTH_TOKEN). Empty keeps the sidecar unauthenticated for
+  # local dev only; set it in every deployment (prefer supplying via ESO).
+  tesseraSidecarAuthToken: ""
+  external:
+    enabled: false
+    # When true, the chart renders a namespace-scoped SecretStore backed by AWS
+    # Secrets Manager using IRSA JWT auth (no platform-provisioned store). The
+    # service account must carry an IRSA role with secretsmanager:GetSecretValue
+    # on the prefix below (see deploy/terraform modules).
+    createSecretStore: false
+    # Name of the rendered SecretStore when createSecretStore is true.
+    secretStoreName: signet-secretsmanager
+    # Existing SecretStore name when createSecretStore is false.
+    secretStoreRef: aws-secretsmanager
+    # Service account used for IRSA JWT auth of the rendered SecretStore.
+    serviceAccountName: signet
+    # AWS region for the Secrets Manager endpoint. Empty falls back to
+    # artifacts.s3.region.
+    region: ""
+    # AWS Secrets Manager path prefix, e.g. "signet-prod/runtime". When empty,
+    # derived from .Values.env as "signet-<env>/runtime".
+    prefix: ""
+    refreshInterval: "1h"
+
+# IRSA role attached to the release service account (used by the SecretStore JWT
+# auth and any workload AWS SDK calls without static credentials). When empty,
+# no eks.amazonaws.com/role-arn annotation is rendered.
+serviceAccount:
+  create: true
+  name: signet
+  roleArn: ""
+
+# Observability.
+metrics:
+  # Add prometheus.io/scrape + prometheus.io/port pod annotations so the platform
+  # Prometheus scrapes each workload's /metrics endpoint.
+  prometheusScrape: true
+  # Render a PrometheusRule with basic SLO alerts (requires Prometheus Operator).
+  prometheusRule:
+    enabled: false
+    # SLO targets used by the default alerts.
+    availabilityTarget: 99.0   # % of non-5xx responses
+    latencyP99Seconds: 1.0
+  # Render ServiceMonitors (Prometheus Operator CRD) for each stateless workload.
+  serviceMonitor:
+    enabled: false
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+
+# Resource requests/limits applied to every workload container.
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Graceful shutdown: how long to wait for in-flight requests to drain.
+terminationGracePeriodSeconds: 30
+
+# PodDisruptionBudget for the stateless workloads: rendered per component
+# for api and mcp (the replicated ones), so node drains keep one pod serving
+# each. Single-replica components (webapp, tessera-sidecar) intentionally
+# have no PDB — their recovery is alerting + fast rescheduling, and the
+# sidecar must stay single-writer.
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# HorizontalPodAutoscaler for the stateless workloads (optional).
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+
+ingress:
+  enabled: true
+  className: ""
+  host: ""
+  tls: true
+  # Extra annotations (e.g. internal ALB scheme for the aws-load-balancer-controller).
+  annotations: {}
+
+# Kubernetes NetworkPolicies restricting pod-to-pod and egress traffic.
+networkPolicies:
+  enabled: false
+  # Namespace label value (kubernetes.io/metadata.name) of the platform
+  # Prometheus when it scrapes from another namespace; set it (e.g.
+  # "monitoring") when enabling network policies so scrapes of
+  # tessera-sidecar stay allowed.
+  metricsNamespace: ""
+  # Extra egress CIDRs for managed AWS services reached by IP (Postgres 5432,
+  # Redis 6379, S3 gateway endpoints). HTTPS 443 to the internet is allowed by
+  # default for Okta/JWKS/S3 SDK calls.
+  egressCidrs: []
+    # - cidr: 10.0.0.0/16
+    #   ports:
+    #     - protocol: TCP
+    #       port: 5432
+    #     - protocol: TCP
+    #       port: 6379
+  dns:
+    # NOTE: selector bodies must use matchLabels; raw keys here break Argo
+    # CD's structured-merge diff ('field not declared in schema') and the API
+    # prunes them, leaving effectively-empty selectors in the live netpol.
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: kube-system
+    podSelector:
+      matchLabels:
+        k8s-app: kube-dns

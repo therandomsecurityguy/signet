@@ -1,0 +1,100 @@
+services:
+  mcp:
+    init: true
+    tty: true
+    stdin_open: true
+    stop_grace_period: 5s
+    environment:
+      CHOKIDAR_USEPOLLING: "1"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../service/mcp:/workspace/service/mcp:delegated
+      - ../service/registry:/workspace/service/registry:delegated
+      - ../data:/workspace/data:delegated
+
+  api:
+    init: true
+    tty: true
+    stdin_open: true
+    stop_grace_period: 5s
+    environment:
+      CHOKIDAR_USEPOLLING: "1"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../service/api:/workspace/service/api:delegated
+      - ../service/registry:/workspace/service/registry:delegated
+      - ../data:/workspace/data:delegated
+
+  webapp:
+    init: true
+    tty: true
+    stdin_open: true
+    stop_grace_period: 5s
+    environment:
+      CHOKIDAR_USEPOLLING: "1"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../service/webapp/knowledge-manager:/workspace/service/webapp/knowledge-manager:delegated
+      - ../data:/workspace/data:delegated
+
+  registry-graph:
+    init: true
+    tty: true
+    stdin_open: true
+    stop_grace_period: 5s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  registry:
+    init: true
+    tty: true
+    stdin_open: true
+    stop_grace_period: 5s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../service/registry:/workspace/service/registry:delegated
+      - ../service/mcp:/workspace/service/mcp:delegated
+      - ../data:/workspace/data:delegated
+
+  tessera-sidecar:
+    init: true
+    tty: true
+    stdin_open: true
+    stop_grace_period: 5s
+    environment:
+      CHOKIDAR_USEPOLLING: "1"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../service/tessera-sidecar:/workspace/service/tessera-sidecar:delegated
+      - ../data:/workspace/data:delegated
+
+  tessera-db:
+    init: true
+    tty: true
+    stdin_open: true
+    stop_grace_period: 5s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  tessera-runtime:
+    init: true
+    tty: true
+    stdin_open: true
+    stop_grace_period: 5s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  vocbench:
+    init: true
+    tty: true
+    stdin_open: true
+    stop_grace_period: 5s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../tools/vocbench:/workspace/tools/vocbench:delegated

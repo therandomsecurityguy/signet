@@ -1,0 +1,7 @@
+name: WORKSPACE-BASED-ON-COMMIT
+doc: A workspace is based on a base commit and acts as a mutable overlay.
+from: WORKSPACE
+to: COMMIT
+predicate: "sg:basedOnCommit"
+inverse: "COMMIT-BASE-OF-WORKSPACE"
+cardinality: "M:1"

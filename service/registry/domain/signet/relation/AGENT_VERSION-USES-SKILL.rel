@@ -1,0 +1,7 @@
+name: AGENT_VERSION-USES-SKILL
+doc: Agent publication snapshot references the skills that were part of the released agent configuration.
+from: AGENT_VERSION
+to: SKILL
+predicate: "sg:usesSkill"
+inverse: "SKILL-USED-BY-AGENT_VERSION"
+cardinality: "N:N"

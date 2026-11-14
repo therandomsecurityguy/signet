@@ -1,0 +1,10 @@
+name: AGENT_VERSION
+doc: An immutable or version-addressable publication snapshot of an agent release.
+urn_template: "urn:sg:agent-version:{agent_key}@v{version}"
+key_fields:
+  - agent_key
+  - version
+aspects:
+  - AgentVersionProperties
+  - Ownership
+  - Tags

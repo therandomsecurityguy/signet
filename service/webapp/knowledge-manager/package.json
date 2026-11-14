@@ -1,0 +1,41 @@
+{
+  "name": "signet-knowledge-manager",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --import tsx src/server/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/src/server/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "demo:mock-okta": "node --import tsx scripts/mock-okta-demo.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.6",
+    "@picocss/pico": "^2.1.1",
+    "cytoscape": "^3.34.4",
+    "hono": "^4.13.17",
+    "pino": "^10.4.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@typescript-eslint/eslint-plugin": "^8.72.1",
+    "@typescript-eslint/parser": "^8.26.0",
+    "eslint": "^10.14.0",
+    "playwright": "^1.65.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
+  },
+  "overrides": {
+    "tar": "^7.5.21",
+    "@tootallnate/once": "^2.0.1"
+  }
+}

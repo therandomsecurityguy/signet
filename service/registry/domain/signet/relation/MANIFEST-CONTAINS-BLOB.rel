@@ -1,0 +1,7 @@
+name: MANIFEST-CONTAINS-BLOB
+doc: An artifact manifest contains one or more content-addressed blobs.
+from: ARTIFACT_MANIFEST
+to: ARTIFACT_BLOB
+predicate: "sg:containsBlob"
+inverse: "ARTIFACT_BLOB-CONTAINED-IN-MANIFEST"
+cardinality: "M:N"

@@ -1,0 +1,80 @@
+name: publish-registry-cli
+
+on:
+  push:
+    tags:
+      - 'registry-cli-v*'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish @signet/registry-operator to npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # npm provenance: signs the publish attestation with the workflow's
+      # GitHub OIDC identity.
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          # No package-manager caching in a publish workflow: a poisoned npm
+          # cache could influence the artifact we publish (cache-poisoning).
+          package-manager-cache: false
+
+      # The bootstrap integration test imports service/api and service/mcp
+      # source (which import service/registry), so their dependencies must be
+      # installed for module resolution — same as the CI job in test.yml.
+      - name: Install registry core dependencies
+        run: npm ci
+        working-directory: service/registry
+
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: service/api
+
+      - name: Install MCP dependencies
+        run: npm ci
+        working-directory: service/mcp
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: client/registry-cli
+
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: client/registry-cli
+
+      - name: Lint
+        run: npm run lint
+        working-directory: client/registry-cli
+
+      - name: Test
+        run: npx vitest run
+        working-directory: client/registry-cli
+
+      - name: Build
+        run: npm run build
+        working-directory: client/registry-cli
+
+      # Trusted publishing (OIDC) requires npm >= 11.5.1; Node 22 bundles npm 10.
+      - name: Upgrade npm for trusted publishing
+        run: npm install -g npm@12.2.1
+
+      # Auth is OIDC (npmjs.com trusted publisher for this workflow file);
+      # there is no NPM_TOKEN. Provenance is explicitly DISABLED: npm rejects
+      # attestations from source repos with "internal" visibility (E422,
+      # "Only public source repositories are supported when publishing with
+      # provenance"), and trusted publishing defaults provenance to ON. When
+      # this repository becomes public, drop these env/flags to re-enable it.
+      - name: Publish to npm
+        run: npm publish --access public
+        working-directory: client/registry-cli
+        env:
+          NPM_CONFIG_PROVENANCE: 'false'

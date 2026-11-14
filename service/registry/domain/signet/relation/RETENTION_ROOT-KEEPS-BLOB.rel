@@ -1,0 +1,7 @@
+name: RETENTION_ROOT-KEEPS-BLOB
+doc: A retention root keeps an artifact blob reachable and protected from cleanup.
+from: RETENTION_ROOT
+to: ARTIFACT_BLOB
+predicate: "sg:keepsBlob"
+inverse: "ARTIFACT_BLOB-KEPT-BY-RETENTION_ROOT"
+cardinality: "M:N"

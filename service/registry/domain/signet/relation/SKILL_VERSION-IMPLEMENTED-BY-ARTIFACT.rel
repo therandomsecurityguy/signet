@@ -1,0 +1,7 @@
+name: SKILL_VERSION-IMPLEMENTED-BY-ARTIFACT
+doc: Skill version content is stored as a content-addressed artifact.
+from: SKILL_VERSION
+to: ARTIFACT
+predicate: "sg:implementedBy"
+inverse: "ARTIFACT-IMPLEMENTS-SKILL_VERSION"
+cardinality: "M:1"

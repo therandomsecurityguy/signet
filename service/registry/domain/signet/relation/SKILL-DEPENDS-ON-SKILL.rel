@@ -1,0 +1,8 @@
+name: SKILL-DEPENDS-ON-SKILL
+doc: Skill depends on another skill (composition).
+from: SKILL
+to: SKILL
+predicate: "sg:dependsOn"
+inverse: "SKILL-DEPENDENT-OF-SKILL"
+cardinality: "M:N"
+

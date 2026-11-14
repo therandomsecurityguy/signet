@@ -1,0 +1,7 @@
+name: GC_JOB-ANALYZES-RETENTION_ROOT
+doc: A GC job analyzes one or more retention roots when deciding what remains reachable.
+from: GC_JOB
+to: RETENTION_ROOT
+predicate: "sg:analyzesRetentionRoot"
+inverse: "RETENTION_ROOT-ANALYZED-BY-GC_JOB"
+cardinality: "M:N"

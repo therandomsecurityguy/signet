@@ -1,0 +1,10 @@
+name: SKILL_VERSION
+doc: An immutable or version-addressable management-plane view of a skill release candidate or published version.
+urn_template: "urn:sg:skill-version:{skill_key}@v{version}"
+key_fields:
+  - skill_key
+  - version
+aspects:
+  - SkillVersionProperties
+  - Ownership
+  - Tags

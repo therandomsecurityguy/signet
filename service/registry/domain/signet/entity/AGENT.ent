@@ -1,0 +1,10 @@
+name: AGENT
+doc: A runnable agent definition (Claude/Cursor/.af) with associated skills.
+urn_template: "urn:sg:agent:{agent_key}"
+key_fields:
+  - agent_key
+aspects:
+  - AgentProperties
+  - Ownership
+  - Tags
+

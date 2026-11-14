@@ -1,0 +1,38 @@
+name: TRANSPARENCY_GOSSIP_EVENT
+doc: Recorded witness-to-witness gossip event about a checkpoint.
+fields:
+  - name: event_id
+    type: string
+  - name: log_id
+    type: string
+  - name: from_witness_id
+    type: string
+  - name: to_witness_id
+    type: string
+  - name: checkpoint_artifact_urn
+    type: string
+  - name: occurred_at
+    type: string
+  - name: event_type
+    type: string
+  - name: note_format
+    type: string
+    optional: true
+  - name: parse_strategy
+    type: string
+    optional: true
+  - name: payload_sha256
+    type: string
+    optional: true
+  - name: source_channel
+    type: string
+    optional: true
+  - name: relayed_by_id
+    type: string
+    optional: true
+  - name: relay_hop_count
+    type: number
+    optional: true
+  - name: source_checkpoint_occurred_at
+    type: string
+    optional: true

@@ -1,0 +1,57 @@
+name: spec-sync
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: OpenAPI spec + SDK types in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            service/api/package-lock.json
+            service/registry/package-lock.json
+            client/registry-sdk/package-lock.json
+
+      # service/registry declares its own dependencies; the API dump-openapi
+      # script imports registry core modules, so registry deps must be
+      # installed for module resolution to work.
+      - name: Install registry core dependencies
+        run: npm ci
+        working-directory: service/registry
+
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: service/api
+
+      - name: Install SDK dependencies
+        run: npm ci
+        working-directory: client/registry-sdk
+
+      - name: Regenerate OpenAPI spec
+        run: npm run dump-openapi -- ../../client/registry-sdk/openapi.json
+        working-directory: service/api
+
+      - name: Regenerate SDK types
+        run: npm run generate:types
+        working-directory: client/registry-sdk
+
+      - name: Fail if spec or types are stale
+        run: |
+          if ! git diff --exit-code -- client/registry-sdk/openapi.json client/registry-sdk/src/generated/api.ts; then
+            echo "::error::OpenAPI spec or SDK types are out of date. Run 'npm run dump-openapi' in service/api and 'npm run generate:types' in client/registry-sdk, then commit the changes."
+            exit 1
+          fi

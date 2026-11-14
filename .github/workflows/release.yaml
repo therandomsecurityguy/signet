@@ -1,0 +1,348 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  # Re-publish artifacts for an existing tag (e.g. after infra/secrets are set
+  # up). release-please does not run on dispatch; the tag must already exist.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release tag to publish (e.g. v0.1.1)
+        required: true
+        type: string
+      dry_run:
+        description: Resolve the tag without publishing
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.SIGNET_AWS_REGION || 'us-west-2' }}
+  AWS_ROLE_ARN: ${{ vars.SIGNET_AWS_ROLE_ARN }}
+  API_ECR_REPOSITORY: ${{ vars.SIGNET_API_ECR_REPOSITORY || 'signet/api' }}
+  MCP_ECR_REPOSITORY: ${{ vars.SIGNET_MCP_ECR_REPOSITORY || 'signet/mcp' }}
+  WEBAPP_ECR_REPOSITORY: ${{ vars.SIGNET_WEBAPP_ECR_REPOSITORY || 'signet/webapp' }}
+  TESSERA_ECR_REPOSITORY: ${{ vars.SIGNET_TESSERA_ECR_REPOSITORY || 'signet/tessera-sidecar' }}
+  CHART_REPOSITORY: ${{ vars.SIGNET_CHART_REPOSITORY || 'charts' }}
+
+jobs:
+  release-please:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      # Mint an SDLC_BOT app token so the release commit + tag created by
+      # release-please can trigger downstream workflows (the default GITHUB_TOKEN
+      # cannot trigger other workflow runs).
+      - uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
+        id: app-token
+        with:
+          app-id: ${{ secrets.SDLC_BOT_ID }}
+          private-key: ${{ secrets.SDLC_BOT_PRIVATE_KEY }}
+          # Scope the token to only what release-please needs (contents + PRs),
+          # rather than inheriting the app's blanket installation permissions.
+          permission-contents: write
+          permission-pull-requests: write
+
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: .release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # On a release, publish each component image (digest-pinned, immutable ECR) and
+  # the Helm chart to signet-owned ECR using GitHub OIDC. Also runnable manually
+  # to re-publish an existing tag (workflow_dispatch). The environment repo
+  # (or equivalent environment repo) then pins the released chart version and applies. No static AWS
+  # credentials and no shared org reusable workflow.
+  publish:
+    needs: [release-please]
+    if: >-
+      always() && !cancelled() &&
+      (github.event_name == 'push' && needs.release-please.outputs.release_created == 'true'
+       || github.event_name == 'workflow_dispatch' && inputs.dry_run != true)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      # Tag (v-prefixed). Push -> release-please tag; dispatch -> input.
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.version || needs.release-please.outputs.tag_name }}
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Setup Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v3.16.4
+
+      # Pinned release binaries with SHA256 verification (no "latest", no
+      # unverified binary), mirroring the grype install in security.yml.
+      - name: Install release signing tools (cosign, syft; SHA256-verified)
+        shell: bash
+        run: |
+          set -euo pipefail
+          COSIGN_VERSION="v3.1.3"
+          COSIGN_SHA256="4629c757b7618056f8ddd7e2625ae9fdd94c0372a65049520bc7d9df9efc7f71"
+          curl -sSfL "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64" -o /tmp/cosign
+          echo "${COSIGN_SHA256}  /tmp/cosign" | sha256sum -c -
+          install -m 0755 /tmp/cosign /usr/local/bin/cosign
+          SYFT_VERSION="v1.54.1"
+          SYFT_SHA256="c069905b391cc4c20a5ba65ad5c10be2a7ba074f8ea6ad203e24d14e303dad47"
+          curl -sSfL "https://github.com/anchore/syft/releases/download/${SYFT_VERSION}/syft_${SYFT_VERSION#v}_linux_amd64.tar.gz" -o /tmp/syft.tar.gz
+          echo "${SYFT_SHA256}  /tmp/syft.tar.gz" | sha256sum -c -
+          tar -xz -C /usr/local/bin -f /tmp/syft.tar.gz syft
+          cosign version
+          syft version
+
+      - name: Assume AWS release role (OIDC)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$AWS_ROLE_ARN" ]]; then
+            echo "Missing required repository variable: SIGNET_AWS_ROLE_ARN" >&2
+            exit 1
+          fi
+          token_json="$(curl --silent --show-error --fail -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com")"
+          oidc_token="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<<"$token_json")"
+          credentials="$(aws sts assume-role-with-web-identity --role-arn "$AWS_ROLE_ARN" --role-session-name "signet-release-$GITHUB_RUN_ID" --web-identity-token "$oidc_token" --duration-seconds 3600)"
+          access_key_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["Credentials"]["AccessKeyId"])' <<<"$credentials")"
+          secret_access_key="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["Credentials"]["SecretAccessKey"])' <<<"$credentials")"
+          session_token="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["Credentials"]["SessionToken"])' <<<"$credentials")"
+          echo "::add-mask::$access_key_id"
+          echo "::add-mask::$secret_access_key"
+          echo "::add-mask::$session_token"
+          {
+            echo "AWS_ACCESS_KEY_ID=$access_key_id"
+            echo "AWS_SECRET_ACCESS_KEY=$secret_access_key"
+            echo "AWS_SESSION_TOKEN=$session_token"
+          } >> "$GITHUB_ENV"
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Authenticate to ECR
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws_account_id="$(aws sts get-caller-identity --query Account --output text)"
+          ecr_registry="$aws_account_id.dkr.ecr.$AWS_REGION.amazonaws.com"
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ecr_registry"
+          echo "ECR_REGISTRY=$ecr_registry" >> "$GITHUB_ENV"
+          echo "ECR_REGISTRY=$ecr_registry" >> "$GITHUB_OUTPUT"
+
+      - name: Publish component images
+        id: images
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${RELEASE_TAG#v}"
+          get_digest() {
+            local repository=$1 tag=$2 digest
+            for _ in $(seq 1 12); do
+              digest="$(aws ecr describe-images --repository-name "$repository" --image-ids "imageTag=$tag" --query 'imageDetails[0].imageDigest' --output text 2>/dev/null || true)"
+              if [[ "$digest" == sha256:* ]]; then echo "$digest"; return; fi
+              sleep 5
+            done
+            echo "Unable to resolve ECR digest for $repository:$tag" >&2
+            return 1
+          }
+
+          require_immutable_repository() {
+            local mutability
+            mutability="$(aws ecr describe-repositories --repository-names "$1" --query 'repositories[0].imageTagMutability' --output text)"
+            if [[ "$mutability" != "IMMUTABLE" ]]; then
+              echo "ECR repository must use immutable tags: $1" >&2
+              return 1
+            fi
+          }
+
+          require_absent_tag() {
+            local repository=$1 tag=$2 output status
+            set +e
+            output="$(aws ecr describe-images --repository-name "$repository" --image-ids "imageTag=$tag" --output json 2>&1)"
+            status=$?
+            set -e
+            if [[ $status -eq 0 ]]; then
+              echo "Refusing to overwrite existing ECR tag: $repository:$tag" >&2
+              return 1
+            fi
+            if [[ "$output" != *"ImageNotFoundException"* ]]; then
+              echo "$output" >&2
+              return 1
+            fi
+          }
+
+          specs=(
+            "api|$API_ECR_REPOSITORY|service/api/Dockerfile"
+            "mcp|$MCP_ECR_REPOSITORY|service/mcp/Dockerfile"
+            "webapp|$WEBAPP_ECR_REPOSITORY|service/webapp/knowledge-manager/Dockerfile"
+            "tessera-sidecar|$TESSERA_ECR_REPOSITORY|service/tessera-sidecar/Dockerfile"
+          )
+
+          images='{}'
+          for spec in "${specs[@]}"; do
+            IFS='|' read -r target repository dockerfile <<<"$spec"
+            image="$ECR_REGISTRY/$repository"
+            require_immutable_repository "$repository"
+            require_absent_tag "$repository" "$version"
+            docker buildx build --platform linux/amd64 --file "$dockerfile" \
+              --tag "$image:$version" \
+              --provenance=mode=max --sbom=true --push .
+            digest="$(get_digest "$repository" "$version")"
+
+            # Boot smoke against the pushed digest: build-time success did
+            # not catch the v0.1.30/31 runtime breaks (missing registry deps,
+            # incompatible OTel pairing), so every release proves /healthz.
+            host_port=0; container_port=0; smoke_env=()
+            case "$target" in
+              api) host_port=13100; container_port=3100; smoke_env=(-e NODE_ENV=test -e LOG_LEVEL=silent -e DATABASE_URL=:memory: -e REGISTRY_GRAPH_BACKEND=memory) ;;
+              mcp) host_port=13000; container_port=3000; smoke_env=(-e NODE_ENV=test -e LOG_LEVEL=silent -e DATABASE_URL=:memory: -e REGISTRY_GRAPH_BACKEND=memory -e REGISTRY_OBJECTS_DIR=/tmp/objects) ;;
+              webapp) host_port=13200; container_port=3200; smoke_env=(-e NODE_ENV=test -e PORT=3200) ;;
+              tessera-sidecar) host_port=13400; container_port=3400; smoke_env=(-e NODE_ENV=test -e TESSERA_SIDECAR_BUCKET=smoke -e PORT=3400) ;;
+              *) echo "no boot smoke defined for $target" >&2; exit 1 ;;
+            esac
+            docker run -d --name "smoke-$target" "${smoke_env[@]}" -p "$host_port:$container_port" "$image@$digest" >/dev/null
+            smoke_ok=false
+            for _ in $(seq 1 20); do
+              sleep 1
+              if curl -sf -o /dev/null "http://127.0.0.1:$host_port/healthz"; then smoke_ok=true; break; fi
+            done
+            if [[ "$smoke_ok" != true ]]; then
+              echo "boot smoke failed for $target" >&2
+              docker logs "smoke-$target" >&2 || true
+              docker rm -f "smoke-$target" >/dev/null || true
+              exit 1
+            fi
+            docker rm -f "smoke-$target" >/dev/null
+            echo "boot smoke ok: $target"
+            images="$(jq --arg target "$target" --arg repository "$repository" --arg digest "$digest" \
+              '. + {($target): {repository: $repository, reference: ($repository + "@" + $digest), digest: $digest}}' <<<"$images")"
+          done
+          echo "$images" > images.json
+          {
+            echo "images<<EOF"
+            echo "$images"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # Keyless (GitHub OIDC -> Fulcio/Rekor) signatures over every released
+      # image, and the checksums file that feeds the GitHub provenance
+      # attestation (format: "<hex-sha256>  <subject-name>" per line).
+      - name: Sign component images and prepare attestation subjects (keyless)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/attest
+          : > dist/attest/images.checksums
+          for target in api mcp webapp tessera-sidecar; do
+            repository="$(jq -r --arg t "$target" '.[$t].repository' images.json)"
+            digest="$(jq -r --arg t "$target" '.[$t].digest' images.json)"
+            image="$ECR_REGISTRY/$repository"
+            cosign sign --yes "$image@$digest"
+            printf '%s  %s\n' "${digest#sha256:}" "$image" >> dist/attest/images.checksums
+            echo "signed $image@$digest"
+          done
+
+      # SPDX SBOMs per image: attached to the registry via cosign (verifiable
+      # with cosign verify-attestation) and uploaded as release assets.
+      - name: Generate image SBOMs and attach them to the registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/sbom
+          for target in api mcp webapp tessera-sidecar; do
+            repository="$(jq -r --arg t "$target" '.[$t].repository' images.json)"
+            digest="$(jq -r --arg t "$target" '.[$t].digest' images.json)"
+            image="$ECR_REGISTRY/$repository"
+            syft "$image@$digest" --output spdx-json > "dist/sbom/$target.spdx.json"
+            cosign attest --yes --type spdxjson --predicate "dist/sbom/$target.spdx.json" "$image@$digest"
+          done
+
+      - name: Attest image provenance (GitHub attestations)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-checksums: dist/attest/images.checksums
+
+      - name: Publish Helm chart
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          aws ecr get-login-password --region "$AWS_REGION" | helm registry login "$ECR_REGISTRY" --username AWS --password-stdin
+          helm package charts/signet --version "$version" --app-version "$version" --destination dist
+          require_immutable_chart() {
+            # helm push to oci://<registry>/<CHART_REPOSITORY> publishes to the
+            # repository <CHART_REPOSITORY>/<chart name>, so verify that repo.
+            local repository="$CHART_REPOSITORY/signet" mutability
+            mutability="$(aws ecr describe-repositories --repository-names "$repository" --query 'repositories[0].imageTagMutability' --output text)"
+            if [[ "$mutability" != "IMMUTABLE" ]]; then
+              echo "ECR chart repository must use immutable tags: $repository" >&2
+              return 1
+            fi
+          }
+          require_immutable_chart
+          push_output="$(helm push "dist/signet-$version.tgz" "oci://$ECR_REGISTRY/$CHART_REPOSITORY" 2>&1)"
+          printf '%s\n' "$push_output"
+          chart_digest="$(printf '%s\n' "$push_output" | sed -n 's/^Digest: //p' | tr -d '[:space:]')"
+          if [[ "$chart_digest" != sha256:* ]]; then
+            echo "Unable to resolve the pushed chart digest." >&2
+            exit 1
+          fi
+          echo "CHART_DIGEST=$chart_digest" >> "$GITHUB_ENV"
+
+      - name: Sign chart (keyless)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cosign sign --yes "$ECR_REGISTRY/$CHART_REPOSITORY/signet@$CHART_DIGEST"
+
+      - name: Attest chart provenance (GitHub attestations)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.ECR_REGISTRY }}/${{ env.CHART_REPOSITORY }}/signet
+          subject-digest: ${{ env.CHART_DIGEST }}
+
+      - name: Publish release manifest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          tag="$RELEASE_TAG"
+          jq -n \
+            --arg version "$version" \
+            --arg tag "$tag" \
+            --arg sourceSha "$GITHUB_SHA" \
+            --arg chart "oci://$ECR_REGISTRY/$CHART_REPOSITORY/signet:$version" \
+            --slurpfile images images.json \
+            '{version: $version, tag: $tag, sourceSha: $sourceSha, chart: $chart, images: $images[0]}' \
+            > release-manifest.json
+          # Keyless signature (with its bundle) over the manifest, so the
+          # digest pinning consumers can be verified end to end.
+          cosign sign-blob --yes --bundle release-manifest.sigstore.json release-manifest.json
+          sha256sum release-manifest.json release-manifest.sigstore.json dist/sbom/*.spdx.json > SHA256SUMS
+          gh release upload "$tag" release-manifest.json SHA256SUMS release-manifest.sigstore.json dist/sbom/*.spdx.json --clobber

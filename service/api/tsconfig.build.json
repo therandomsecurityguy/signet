@@ -1,0 +1,8 @@
+{
+  // Production build: excludes tests (and repo tooling) so the image build
+  // only compiles what ships. Tests may import sibling packages that are not
+  // part of the image context (e.g. service/tessera-sidecar for the
+  // reconciliation e2e); CI typechecks and runs them separately.
+  "extends": "./tsconfig.json",
+  "exclude": ["dist", "node_modules", "tests", "scripts", "vitest.config.ts"]
+}

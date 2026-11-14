@@ -1,0 +1,7 @@
+name: SKILL_VERSION-VALIDATED-BY-ARTIFACT
+doc: Skill publication snapshot points to the validation-report artifact produced by the publish gate.
+from: SKILL_VERSION
+to: ARTIFACT
+predicate: "sg:validatedBy"
+inverse: "ARTIFACT-VALIDATES-SKILL_VERSION"
+cardinality: "N:1"

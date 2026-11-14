@@ -1,0 +1,16 @@
+{
+  "sampleSlug": "transparency-sample",
+  "logId": "sg-transparency-sample-log",
+  "checkpointKeyRef": "kms://registry/transparency-sample-checkpoint",
+  "witnessAlphaKeyRef": "kms://registry/transparency-sample-witness-alpha",
+  "witnessBetaKeyRef": "kms://registry/transparency-sample-witness-beta",
+  "entryOneLabel": "transparency-sample-entry-1",
+  "entryTwoLabel": "transparency-sample-entry-2",
+  "entryTwoAltLabel": "transparency-sample-entry-2-alt",
+  "signerName": "sg-transparency-sample-cosignature",
+  "observationOccurredAt": "2026-01-03T00:10:00.000Z",
+  "witnessAlphaObservationAt": "2026-01-03T00:11:00.000Z",
+  "witnessBetaObservationAt": "2026-01-03T00:12:00.000Z",
+  "gossipOccurredAt": "2026-01-03T00:13:00.000Z",
+  "sourceCheckpointOccurredAt": "2026-01-03T00:00:00.000Z"
+}

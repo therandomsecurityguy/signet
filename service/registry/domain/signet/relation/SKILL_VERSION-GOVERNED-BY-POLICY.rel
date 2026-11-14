@@ -1,0 +1,7 @@
+name: SKILL_VERSION-GOVERNED-BY-POLICY
+doc: Skill publication snapshot points to the policy-package artifact that governed its publication.
+from: SKILL_VERSION
+to: ARTIFACT
+predicate: "sg:governedByPolicy"
+inverse: "ARTIFACT-GOVERNS-SKILL_VERSION"
+cardinality: "N:1"

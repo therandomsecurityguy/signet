@@ -1,0 +1,8 @@
+name: AGENT-USES-SKILL
+doc: Agent depends on and uses a skill at runtime.
+from: AGENT
+to: SKILL
+predicate: "sg:usesSkill"
+inverse: "SKILL-USED-BY-AGENT"
+cardinality: "M:N"
+

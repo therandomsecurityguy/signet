@@ -1,0 +1,7 @@
+name: TAG-POINTS-TO-COMMIT
+doc: An immutable tag points to a specific commit.
+from: TAG
+to: COMMIT
+predicate: "sg:pointsToCommit"
+inverse: "COMMIT-POINTED-TO-BY-TAG"
+cardinality: "M:1"

@@ -1,0 +1,8 @@
+bucket_name = "replace-me-signet-dev"
+
+# Optional: attach explicit principals once you know the IAM roles/users that should read or write.
+allowed_read_principal_arns = []
+allowed_write_principal_arns = []
+
+# Optional: supply a KMS key if you want stronger-than-default SSE-S3 for dev/test.
+# kms_key_arn = "arn:aws:kms:us-west-2:123456789012:key/replace-me"

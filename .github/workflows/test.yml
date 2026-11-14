@@ -1,0 +1,375 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  service-api:
+    name: service/api (registry core + management plane)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            service/api/package-lock.json
+            service/registry/package-lock.json
+            service/tessera-sidecar/package-lock.json
+
+      # service/registry declares its own dependencies; the API test suite
+      # imports registry core modules, so registry deps must be installed
+      # for module resolution to work.
+      - name: Install registry core dependencies
+        run: npm ci
+        working-directory: service/registry
+
+      # The transparency reconciliation e2e boots the real sidecar app, so
+      # its dependencies must resolve too.
+      - name: Install tessera sidecar dependencies
+        run: npm ci
+        working-directory: service/tessera-sidecar
+
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: service/api
+
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: service/api
+
+      - name: Lint
+        run: npm run lint
+        working-directory: service/api
+
+      - name: Test
+        run: npx vitest run
+        working-directory: service/api
+
+      - name: Production build boot smoke
+        run: |
+          npm run build
+          ln -sfn "$PWD/../registry/node_modules" ../node_modules
+          NODE_ENV=test LOG_LEVEL=silent DATABASE_URL=:memory: REGISTRY_GRAPH_BACKEND=memory PORT=3199 \
+            node dist/service/api/src/app/main.js > /tmp/api-boot.log 2>&1 &
+          pid=$!
+          rc=1
+          for i in $(seq 1 20); do
+            sleep 1
+            if curl -sf -o /dev/null http://127.0.0.1:3199/healthz; then rc=0; break; fi
+          done
+          kill $pid 2>/dev/null || true
+          if [ "$rc" -ne 0 ]; then cat /tmp/api-boot.log; exit 1; fi
+        working-directory: service/api
+
+  service-mcp:
+    name: service/mcp (AI-facing read plane)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            service/mcp/package-lock.json
+            service/registry/package-lock.json
+
+      - name: Install registry core dependencies
+        run: npm ci
+        working-directory: service/registry
+
+      - name: Install MCP dependencies
+        run: npm ci
+        working-directory: service/mcp
+
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: service/mcp
+
+      - name: Lint
+        run: npm run lint
+        working-directory: service/mcp
+
+      - name: Test
+        run: npx vitest run
+        working-directory: service/mcp
+
+      - name: Production build boot smoke
+        run: |
+          npm run build
+          ln -sfn "$PWD/../registry/node_modules" ../node_modules
+          NODE_ENV=test LOG_LEVEL=silent DATABASE_URL=:memory: REGISTRY_GRAPH_BACKEND=memory REGISTRY_OBJECTS_DIR=/tmp/objects PORT=3099 \
+            node dist/service/mcp/src/app/main.js > /tmp/mcp-boot.log 2>&1 &
+          pid=$!
+          rc=1
+          for i in $(seq 1 20); do
+            sleep 1
+            if curl -sf -o /dev/null http://127.0.0.1:3099/healthz; then rc=0; break; fi
+          done
+          kill $pid 2>/dev/null || true
+          if [ "$rc" -ne 0 ]; then cat /tmp/mcp-boot.log; exit 1; fi
+        working-directory: service/mcp
+
+  service-mcp-cognitive:
+    name: service/mcp (cognitive layer enabled)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            service/mcp/package-lock.json
+            service/registry/package-lock.json
+
+      - name: Install registry core dependencies
+        run: npm ci
+        working-directory: service/registry
+
+      - name: Install MCP dependencies
+        run: npm ci
+        working-directory: service/mcp
+
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: service/mcp
+
+      - name: Test (cognitive layer enabled)
+        run: npx vitest run
+        working-directory: service/mcp
+        env:
+          COGNITIVE_LAYER_ENABLED: 'true'
+
+  tessera-sidecar:
+    name: service/tessera-sidecar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: service/tessera-sidecar/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: service/tessera-sidecar
+
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: service/tessera-sidecar
+
+  registry-sdk:
+    name: client/registry-sdk (typed read-first SDK)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/registry-sdk/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: client/registry-sdk
+
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: client/registry-sdk
+
+      - name: Lint
+        run: npm run lint
+        working-directory: client/registry-sdk
+
+      - name: Test
+        run: npx vitest run
+        working-directory: client/registry-sdk
+
+      - name: Build
+        run: npm run build
+        working-directory: client/registry-sdk
+
+  registry-cli:
+    name: client/registry-cli (operator CLI)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            client/registry-cli/package-lock.json
+            service/api/package-lock.json
+            service/mcp/package-lock.json
+            service/registry/package-lock.json
+
+      # The bootstrap integration test imports service/api and service/mcp
+      # source, which declare their own dependencies (and service/api and
+      # service/mcp import service/registry). Install all of them so module
+      # resolution works.
+      - name: Install registry core dependencies
+        run: npm ci
+        working-directory: service/registry
+
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: service/api
+
+      - name: Install MCP dependencies
+        run: npm ci
+        working-directory: service/mcp
+
+      - name: Install CLI dependencies
+        run: npm ci
+        working-directory: client/registry-cli
+
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: client/registry-cli
+
+      - name: Lint
+        run: npm run lint
+        working-directory: client/registry-cli
+
+      - name: Test
+        run: npx vitest run
+        working-directory: client/registry-cli
+
+      - name: Build
+        run: npm run build
+        working-directory: client/registry-cli
+
+  e2e:
+    name: service/api e2e (live SPARQL against Fuseki)
+    runs-on: ubuntu-latest
+    services:
+      fuseki:
+        image: stain/jena-fuseki@sha256:b1d0c96f19adddef417520184471ac816cf36c6e72936a88ea02b29f4305929a # 5.1.0
+        env:
+          ADMIN_PASSWORD: admin
+          FUSEKI_DATASET_1: registry
+        ports:
+          - 3030:3030
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            service/api/package-lock.json
+            service/registry/package-lock.json
+
+      - name: Install registry core dependencies
+        run: npm ci
+        working-directory: service/registry
+
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: service/api
+
+      - name: Wait for Fuseki
+        run: |
+          for _ in $(seq 1 30); do
+            if curl -sf http://localhost:3030/$/ping > /dev/null; then
+              echo "Fuseki is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Fuseki did not become ready in time"
+          exit 1
+
+      - name: Run live SPARQL e2e
+        run: npm run test:live-sparql
+        working-directory: service/api
+        env:
+          REGISTRY_SPARQL_QUERY_URL: http://localhost:3030/registry/sparql
+          REGISTRY_SPARQL_UPDATE_URL: http://localhost:3030/registry/update
+          REGISTRY_SPARQL_USERNAME: admin
+          REGISTRY_SPARQL_PASSWORD: admin
+
+  e2e-postgres:
+    name: e2e persistence (Postgres api keys and audit)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea # 16-alpine
+        env:
+          POSTGRES_PASSWORD: signet
+          POSTGRES_DB: signet
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            service/api/package-lock.json
+            service/mcp/package-lock.json
+
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: service/api
+
+      - name: Run API persistence e2e (migrates the database)
+        run: npm run test:postgres
+        working-directory: service/api
+        env:
+          TEST_POSTGRES_URL: postgresql://postgres:signet@localhost:5432/signet
+
+      - name: Install MCP dependencies
+        run: npm ci
+        working-directory: service/mcp
+
+      - name: Run MCP persistence e2e against the API-migrated database
+        run: npm run test:postgres
+        working-directory: service/mcp
+        env:
+          TEST_POSTGRES_URL: postgresql://postgres:signet@localhost:5432/signet
+

@@ -1,0 +1,7 @@
+name: TRANSPARENCY_GOSSIP_EVENT-ABOUT-CHECKPOINT
+doc: Gossip event refers to a checkpoint artifact that was exchanged between witnesses.
+from: TRANSPARENCY_GOSSIP_EVENT
+to: ARTIFACT
+predicate: "sg:aboutCheckpoint"
+inverse: "ARTIFACT-REFERRED-BY-TRANSPARENCY_GOSSIP_EVENT"
+cardinality: "N:1"

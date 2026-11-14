@@ -1,0 +1,7 @@
+name: TRANSPARENCY_LOG-HAS-CHECKPOINT
+doc: Transparency log points to checkpoint artifacts that represent observed log states over time.
+from: TRANSPARENCY_LOG
+to: ARTIFACT
+predicate: "sg:hasCheckpoint"
+inverse: "ARTIFACT-IS-CHECKPOINT-FOR-TRANSPARENCY_LOG"
+cardinality: "N:N"

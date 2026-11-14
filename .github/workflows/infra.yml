@@ -1,0 +1,70 @@
+name: infra
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'charts/**'
+      - 'infra/terraform/modules/signet-*/**'
+      - 'infra/terraform/examples/dev/signet-stack/**'
+      - 'scripts/validate-deployment-modules.sh'
+      - '.github/workflows/infra.yml'
+  pull_request:
+    paths:
+      - 'charts/**'
+      - 'infra/terraform/modules/signet-*/**'
+      - 'infra/terraform/examples/dev/signet-stack/**'
+      - 'scripts/validate-deployment-modules.sh'
+      - '.github/workflows/infra.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  chart:
+    name: chart (lint, schema, render, invariants)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v3.16.4
+
+      - name: helm lint
+        run: |
+          for env in dev staging prod; do
+            helm lint charts/signet -f "charts/signet/values-$env.yaml"
+          done
+
+      - name: Deployment module invariants
+        run: bash scripts/validate-deployment-modules.sh
+
+  terraform:
+    name: terraform (fmt, validate)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive modules/signet-registry modules/signet-data modules/signet-eks examples/dev/signet-stack
+
+      - name: terraform validate
+        run: |
+          set -euo pipefail
+          for dir in modules/signet-registry modules/signet-data modules/signet-eks examples/dev/signet-stack; do
+            echo "== $dir =="
+            (cd "$dir" && terraform init -backend=false -input=false >/dev/null && terraform validate)
+          done

@@ -1,0 +1,43 @@
+{{- if .Values.metrics.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "signet.fullname" . }}
+  labels:
+    {{- include "signet.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: signet.slo
+      rules:
+        - alert: SignetHighErrorRate
+          # 5xx share of all requests over 5m exceeds (100 - availabilityTarget)%.
+          expr: |
+            (
+              sum(rate(http_requests_total{status=~"5.."}[5m]))
+              /
+              sum(rate(http_requests_total[5m]))
+            ) > {{ sub 100 .Values.metrics.prometheusRule.availabilityTarget | div 100 }}
+          for: 5m
+          labels:
+            severity: warning
+            service: {{ include "signet.name" . }}
+          annotations:
+            summary: Signet elevated 5xx error rate
+            description: >-
+              Signet is returning 5xx on more than {{ sub 100 .Values.metrics.prometheusRule.availabilityTarget }}%
+              of requests over the last 5m (SLO: {{ .Values.metrics.prometheusRule.availabilityTarget }}% availability).
+        - alert: SignetHighLatencyP99
+          # p99 request latency over 5m exceeds the SLO.
+          expr: |
+            histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+              > {{ .Values.metrics.prometheusRule.latencyP99Seconds }}
+          for: 5m
+          labels:
+            severity: warning
+            service: {{ include "signet.name" . }}
+          annotations:
+            summary: Signet p99 latency above SLO
+            description: >-
+              Signet p99 request latency is above {{ .Values.metrics.prometheusRule.latencyP99Seconds }}s
+              over the last 5m.
+{{- end }}
