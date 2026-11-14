@@ -1,0 +1,11 @@
+{{- if .Values.database.sslRootCert.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "signet.fullname" . }}-database-ssl
+  labels:
+    {{- include "signet.labels" . | nindent 4 }}
+data:
+  us-west-2-bundle.pem: |-
+{{ .Files.Get "files/rds-us-west-2-bundle.pem" | indent 4 }}
+{{- end }}

@@ -8,7 +8,7 @@ This example provisions the minimal AWS shape for the current productionization 
 From this directory:
 
 ```bash
-cd agents-registry/infra/terraform/examples/dev/registry-tessera-aws-backend
+cd signet/infra/terraform/examples/dev/registry-tessera-aws-backend
 cp terraform.tfvars.example terraform.tfvars
 terraform init
 terraform plan
@@ -26,14 +26,14 @@ Typical next step:
 1. wire the outputs into the compose-backed service env files:
 
 ```bash
-cd agents-registry/infra
+cd signet/infra
 make wire-tessera-aws
 ```
 
 2. start the optional Tessera companion profile:
 
 ```bash
-cd agents-registry/infra
+cd signet/infra
 make up-tessera
 ```
 

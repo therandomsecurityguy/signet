@@ -3,7 +3,7 @@
 From this directory:
 
 ```bash
-cd agents-registry/infra/terraform/examples/dev/registry-tessera-s3
+cd signet/infra/terraform/examples/dev/registry-tessera-s3
 cp terraform.tfvars.example terraform.tfvars
 terraform init
 terraform plan
@@ -22,6 +22,6 @@ Typical next step:
 3. start the optional sidecar profile with:
 
 ```bash
-cd agents-registry/infra
+cd signet/infra
 make up-tessera
 ```

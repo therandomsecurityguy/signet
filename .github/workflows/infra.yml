@@ -5,15 +5,15 @@ on:
     branches: [main]
     paths:
       - 'charts/**'
-      - 'infra/terraform/modules/cachet-*/**'
-      - 'infra/terraform/examples/dev/cachet-stack/**'
+      - 'infra/terraform/modules/signet-*/**'
+      - 'infra/terraform/examples/dev/signet-stack/**'
       - 'scripts/validate-deployment-modules.sh'
       - '.github/workflows/infra.yml'
   pull_request:
     paths:
       - 'charts/**'
-      - 'infra/terraform/modules/cachet-*/**'
-      - 'infra/terraform/examples/dev/cachet-stack/**'
+      - 'infra/terraform/modules/signet-*/**'
+      - 'infra/terraform/examples/dev/signet-stack/**'
       - 'scripts/validate-deployment-modules.sh'
       - '.github/workflows/infra.yml'
 
@@ -36,7 +36,7 @@ jobs:
       - name: helm lint
         run: |
           for env in dev staging prod; do
-            helm lint charts/cachet -f "charts/cachet/values-$env.yaml"
+            helm lint charts/signet -f "charts/signet/values-$env.yaml"
           done
 
       - name: Deployment module invariants
@@ -63,7 +63,7 @@ jobs:
           terraform_wrapper: false
 
       - name: terraform fmt
-        run: terraform fmt -check -recursive modules/cachet-registry modules/cachet-data modules/cachet-eks examples/dev/cachet-stack
+        run: terraform fmt -check -recursive modules/signet-registry modules/signet-data modules/signet-eks examples/dev/signet-stack
 
       # The repo GITHUB_TOKEN can't read other private repos, so mint an SDLC bot
       # token to clone the private terraform module (tf-mod-s3-soc2-compliant-bucket).
@@ -99,9 +99,9 @@ jobs:
           MODULE_ACCESS_TOKEN: ${{ steps.module_token.outputs.token }}
         run: |
           set -euo pipefail
-          for dir in modules/cachet-registry modules/cachet-data modules/cachet-eks examples/dev/cachet-stack; do
+          for dir in modules/signet-registry modules/signet-data modules/signet-eks examples/dev/signet-stack; do
             case "$dir" in
-              modules/cachet-data|examples/dev/cachet-stack)
+              modules/signet-data|examples/dev/signet-stack)
                 # These pull tf-mod-s3-soc2-compliant-bucket, which needs the
                 # SDLC bot token. Without it (dependabot PRs, forks) skip with a
                 # visible notice instead of failing on a missing secret.

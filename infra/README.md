@@ -1,11 +1,11 @@
 ## Local infra (Docker Compose)
 
-This directory contains the system-level local infra wiring for `agents-registry`.
+This directory contains the system-level local infra wiring for `signet`.
 
 ### Get value fast
 
 ```bash
-cd agents-registry/infra
+cd signet/infra
 make up
 ```
 
@@ -61,7 +61,7 @@ Copy from examples when needed:
 ### Run
 
 ```bash
-cd agents-registry/infra
+cd signet/infra
 make up
 ```
 

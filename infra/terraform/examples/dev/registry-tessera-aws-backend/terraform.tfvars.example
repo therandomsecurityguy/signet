@@ -1,7 +1,7 @@
 aws_region         = "us-west-2"
 environment        = "dev"
 bucket_name        = "replace-with-unique-bucket-name"
-cluster_identifier = "agents-registry-tessera-dev"
+cluster_identifier = "signet-tessera-dev"
 vpc_id             = "vpc-0123456789abcdef0"
 subnet_ids = [
   "subnet-0123456789abcdef0",
@@ -25,4 +25,4 @@ skip_final_snapshot     = true
 registry_artifact_prefix = "registry/artifacts/dev"
 tessera_tiles_prefix     = "tessera/tiles/dev"
 tessera_requests_prefix  = "tessera/requests/dev"
-ssm_parameter_prefix     = "/agents-registry/dev"
+ssm_parameter_prefix     = "/signet/dev"

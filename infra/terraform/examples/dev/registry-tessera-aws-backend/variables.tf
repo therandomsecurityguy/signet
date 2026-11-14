@@ -18,7 +18,7 @@ variable "bucket_name" {
 variable "cluster_identifier" {
   description = "Aurora cluster identifier."
   type        = string
-  default     = "agents-registry-tessera-dev"
+  default     = "signet-tessera-dev"
 }
 
 variable "vpc_id" {
@@ -148,7 +148,7 @@ variable "create_ssm_config_parameters" {
 variable "ssm_parameter_prefix" {
   description = "SSM parameter prefix used for the bucket outputs."
   type        = string
-  default     = "/agents-registry/dev"
+  default     = "/signet/dev"
 }
 
 variable "force_destroy" {

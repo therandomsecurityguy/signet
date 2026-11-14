@@ -6,8 +6,8 @@
       "bump-patch-for-minor-pre-major": true,
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
-        { "type": "yaml", "path": "charts/cachet/Chart.yaml", "jsonpath": "$.version" },
-        { "type": "yaml", "path": "charts/cachet/Chart.yaml", "jsonpath": "$.appVersion" }
+        { "type": "yaml", "path": "charts/signet/Chart.yaml", "jsonpath": "$.version" },
+        { "type": "yaml", "path": "charts/signet/Chart.yaml", "jsonpath": "$.appVersion" }
       ]
     }
   }

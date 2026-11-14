@@ -6,7 +6,7 @@ variable "cluster_identifier" {
 variable "project_name" {
   description = "Project tag/name prefix."
   type        = string
-  default     = "agents-registry"
+  default     = "signet"
 }
 
 variable "environment" {

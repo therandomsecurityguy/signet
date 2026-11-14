@@ -32,7 +32,7 @@ Optional:
 module "registry_tessera_s3" {
   source = "../../modules/registry-tessera-s3"
 
-  bucket_name             = "my-agents-registry-dev"
+  bucket_name             = "my-signet-dev"
   environment             = "dev"
   registry_artifact_prefix = "registry/artifacts/dev"
   tessera_tiles_prefix     = "tessera/tiles/dev"

@@ -1,12 +1,12 @@
-name: agents-registry-local
+name: signet-local
 
 services:
   mcp:
     build:
       context: ..
       dockerfile: service/mcp/infra/Dockerfile
-    image: agents-registry/mcp:dev
-    container_name: agents-registry-mcp
+    image: signet/mcp:dev
+    container_name: signet-mcp
     working_dir: /workspace/service/mcp
     command:
       - sh
@@ -35,8 +35,8 @@ services:
     build:
       context: ..
       dockerfile: service/api/infra/Dockerfile
-    image: agents-registry/api:dev
-    container_name: agents-registry-api
+    image: signet/api:dev
+    container_name: signet-api
     working_dir: /workspace/service/api
     command:
       - sh
@@ -65,8 +65,8 @@ services:
     build:
       context: ..
       dockerfile: service/webapp/knowledge-manager/infra/Dockerfile
-    image: agents-registry/webapp-knowledge-manager:dev
-    container_name: agents-registry-webapp
+    image: signet/webapp-knowledge-manager:dev
+    container_name: signet-webapp
     working_dir: /workspace/service/webapp/knowledge-manager
     command:
       - sh
@@ -94,7 +94,7 @@ services:
 
   registry-graph:
     image: stain/jena-fuseki:latest
-    container_name: agents-registry-registry-graph
+    container_name: signet-registry-graph
     env_file:
       - ../service/registry/infra/fuseki.env
     ports:
@@ -109,8 +109,8 @@ services:
     build:
       context: ..
       dockerfile: service/registry/infra/Dockerfile
-    image: agents-registry/registry:dev
-    container_name: agents-registry-registry
+    image: signet/registry:dev
+    container_name: signet-registry
     working_dir: /workspace/service/registry
     env_file:
       - ../service/registry/infra/.env
@@ -126,8 +126,8 @@ services:
     build:
       context: ..
       dockerfile: service/tessera-sidecar/infra/Dockerfile
-    image: agents-registry/tessera-sidecar:dev
-    container_name: agents-registry-tessera-sidecar
+    image: signet/tessera-sidecar:dev
+    container_name: signet-tessera-sidecar
     profiles:
       - tessera
     working_dir: /workspace/service/tessera-sidecar
@@ -156,7 +156,7 @@ services:
 
   tessera-db:
     image: mysql:8.4
-    container_name: agents-registry-tessera-db
+    container_name: signet-tessera-db
     profiles:
       - tessera
     environment:
@@ -176,8 +176,8 @@ services:
     build:
       context: ..
       dockerfile: service/tessera-runtime/infra/Dockerfile
-    image: agents-registry/tessera-runtime:dev
-    container_name: agents-registry-tessera-runtime
+    image: signet/tessera-runtime:dev
+    container_name: signet-tessera-runtime
     profiles:
       - tessera
     env_file:
@@ -194,8 +194,8 @@ services:
     build:
       context: ..
       dockerfile: service/webapp/knowledge-manager/infra/vocbench.Dockerfile
-    image: agents-registry/vocbench:dev
-    container_name: agents-registry-vocbench
+    image: signet/vocbench:dev
+    container_name: signet-vocbench
     profiles:
       - knowledge
     ports:

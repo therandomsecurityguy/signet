@@ -37,7 +37,7 @@ describe('S3CasArtifactStore', () => {
     const fake = new FakeS3Client();
     const store = new S3CasArtifactStore({
       bucket: 'registry-artifacts',
-      prefix: 'agents-registry/dev',
+      prefix: 'signet/dev',
       client: fake,
     });
 
@@ -50,7 +50,7 @@ describe('S3CasArtifactStore', () => {
 
     expect(rec.sha256).toMatch(/^[a-f0-9]{64}$/);
     expect(rec.size_bytes).toBe(5);
-    expect(fake.lastPutKey).toBe(`agents-registry/dev/${rec.sha256.slice(0, 2)}/${rec.sha256}`);
+    expect(fake.lastPutKey).toBe(`signet/dev/${rec.sha256.slice(0, 2)}/${rec.sha256}`);
 
     const got = await store.getBySha256(rec.sha256);
     expect(got).not.toBeNull();

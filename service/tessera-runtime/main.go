@@ -287,7 +287,7 @@ func mustLoadEnv() env {
 		s3SecretAccessKey:         os.Getenv("TESSERA_S3_SECRET_ACCESS_KEY"),
 		s3ForcePathStyle:          mustBoolEnv("TESSERA_S3_FORCE_PATH_STYLE", true),
 		logPrivateKey:             os.Getenv("TESSERA_LOG_PRIVATE_KEY"),
-		logName:                   getEnvDefault("TESSERA_LOG_NAME", "agents-registry-dev"),
+		logName:                   getEnvDefault("TESSERA_LOG_NAME", "signet-dev"),
 		publishInterval:           mustDurationEnv("TESSERA_PUBLISH_INTERVAL", 3*time.Second),
 		checkpointRepublishPeriod: mustDurationEnv("TESSERA_CHECKPOINT_REPUBLISH_INTERVAL", 30*time.Second),
 		waitForCheckpointTimeout:  mustDurationEnv("TESSERA_WAIT_FOR_CHECKPOINT_TIMEOUT", 5*time.Second),

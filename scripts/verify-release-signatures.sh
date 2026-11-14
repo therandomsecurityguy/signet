@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verifies the signatures and attestations attached to a cachet release before
+# Verifies the signatures and attestations attached to a signet release before
 # its pinned digests are applied: the release manifest (keyless blob
 # signature), every component image (keyless container signature), and the
 # Helm chart (keyless container signature).
@@ -23,8 +23,8 @@ manifest_path="${2:-}"
 
 # GitHub Actions keyless identity. Tag releases run release.yaml at the tag;
 # manual re-publishes run it on main.
-identity_regexp="${CACHET_RELEASE_IDENTITY_REGEXP:-^https://github\.com/togethercomputer/cachet/\.github/workflows/release\.yaml@(refs/tags/v.*|refs/heads/main)$}"
-oidc_issuer="${CACHET_RELEASE_OIDC_ISSUER:-https://token.actions.githubusercontent.com}"
+identity_regexp="${SIGNET_RELEASE_IDENTITY_REGEXP:-^https://github\.com/togethercomputer/signet/\.github/workflows/release\.yaml@(refs/tags/v.*|refs/heads/main)$}"
+oidc_issuer="${SIGNET_RELEASE_OIDC_ISSUER:-https://token.actions.githubusercontent.com}"
 
 for tool in cosign jq gh; do
   if ! command -v "$tool" >/dev/null 2>&1; then
@@ -76,10 +76,10 @@ else
 fi
 
 # Image references in the manifest are repository-relative (for example
-# "cachet/api"); the registry comes from the fully-qualified chart OCI URL so
+# "signet/api"); the registry comes from the fully-qualified chart OCI URL so
 # cosign resolves against ECR and not Docker Hub.
 chart_ref="$(jq -r '.chart' "$manifest_path" | sed 's|^oci://||')"
-registry="${CACHET_RELEASE_REGISTRY:-${chart_ref%%/*}}"
+registry="${SIGNET_RELEASE_REGISTRY:-${chart_ref%%/*}}"
 if [ -z "$registry" ] || [ "$registry" = "$chart_ref" ]; then
   echo "FAIL unable to resolve the image registry from the manifest chart reference: $chart_ref" >&2
   exit 2

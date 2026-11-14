@@ -16,12 +16,12 @@ updates:
     # TypeScript 6.x and 7.x are not yet installable across the toolchain:
     # @typescript-eslint (incl. latest 8.71.2) declares peer typescript
     # ">=4.8.4 <6.1.0" (blocks 7.x), and openapi-typescript declares
-    # peer typescript "^5.x" (blocks 6.x for SDK codegen; cachet#146).
-    # Revisit when those projects ship support (see cachet#117, cachet#146).
+    # peer typescript "^5.x" (blocks 6.x for SDK codegen; upstream #146).
+    # Revisit when those projects ship support (see upstream #117, upstream #146).
     #
     # @opentelemetry/sdk-trace-base (latest 2.12.0) declares
     # peer @opentelemetry/api ">=1.3.0 <1.10.0", so 1.10.x cannot install
-    # alongside the pinned SDK (npm ci ERESOLVE; cachet#264). Revisit when a
+    # alongside the pinned SDK (npm ci ERESOLVE; upstream #264). Revisit when a
     # sdk-trace-base release widens the peer range.
     # OTel packages move together (sdk/api peer ranges; the v0.1.31 exporter
     # incident); minor/patch land as a single PR.
@@ -38,7 +38,7 @@ updates:
       # The exporter's 0.3xx line (0.300 crashes at module load with api 1.9;
       # 0.301 requires api >=1.10) is blocked until @opentelemetry/api can
       # move past 1.9, which sdk-trace-base's <1.10.0 peer range prevents
-      # (cachet#264, #295, #348, #350). Revisit when the SDK widens it.
+      # (upstream #264, #295, #348, #350). Revisit when the SDK widens it.
       - dependency-name: "@opentelemetry/exporter-trace-otlp-http"
         versions: [">= 0.224.0"]
 
@@ -70,7 +70,7 @@ updates:
       - dependency-name: "@opentelemetry/exporter-trace-otlp-http"
         versions: [">= 0.224.0"]
       # Same constraint as /service/api: sdk-trace-base pins the api peer
-      # below 1.10 (npm ci ERESOLVE; cachet#295).
+      # below 1.10 (npm ci ERESOLVE; upstream #295).
       - dependency-name: "@opentelemetry/api"
         versions: ["1.10.x"]
 
@@ -142,7 +142,7 @@ updates:
       prefix: "chore(deps)"
       include: "scope"
     # ESLint 10 no longer ships @eslint/js transitively, so eslint and
-    # @eslint/js must move together or install/lint break (cachet#200).
+    # @eslint/js must move together or install/lint break (upstream #200).
     groups:
       eslint-toolchain:
         patterns:
@@ -166,7 +166,7 @@ updates:
       prefix: "chore(deps)"
       include: "scope"
     # ESLint 10 no longer ships @eslint/js transitively, so eslint and
-    # @eslint/js must move together or install/lint break (cachet#200).
+    # @eslint/js must move together or install/lint break (upstream #200).
     groups:
       eslint-toolchain:
         patterns:
@@ -238,7 +238,7 @@ updates:
       include: "scope"
 
   - package-ecosystem: "terraform"
-    directory: "/infra/terraform/modules/cachet-data"
+    directory: "/infra/terraform/modules/signet-data"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -252,7 +252,7 @@ updates:
       include: "scope"
 
   - package-ecosystem: "terraform"
-    directory: "/infra/terraform/modules/cachet-eks"
+    directory: "/infra/terraform/modules/signet-eks"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -267,14 +267,14 @@ updates:
     # Helm provider v3 changed helm_release set/set_list/set_sensitive from
     # nested blocks to attributes and reshaped the provider config, so this
     # module (and the provider config generated in tf-io-sec) is v2-only.
-    # Widening to 3.x fails terraform validate (cachet#176). Revisit with a
+    # Widening to 3.x fails terraform validate (upstream #176). Revisit with a
     # deliberate v3 migration.
     ignore:
       - dependency-name: "hashicorp/helm"
         versions: ["3.x"]
 
   - package-ecosystem: "terraform"
-    directory: "/infra/terraform/modules/cachet-registry"
+    directory: "/infra/terraform/modules/signet-registry"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -331,7 +331,7 @@ updates:
       include: "scope"
     # init/analyze/upload-sarif must run the same codeql-action version, or
     # CodeQL aborts with "Loaded a configuration file for version X, but
-    # running version Y". Group them so they bump together (see cachet#199).
+    # running version Y". Group them so they bump together (see upstream #199).
     groups:
       codeql-action:
         patterns:

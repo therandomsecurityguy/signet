@@ -331,8 +331,8 @@ jobs:
       postgres:
         image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea # 16-alpine
         env:
-          POSTGRES_PASSWORD: cachet
-          POSTGRES_DB: cachet
+          POSTGRES_PASSWORD: signet
+          POSTGRES_DB: signet
         ports:
           - 5432:5432
         options: >-
@@ -361,7 +361,7 @@ jobs:
         run: npm run test:postgres
         working-directory: service/api
         env:
-          TEST_POSTGRES_URL: postgresql://postgres:cachet@localhost:5432/cachet
+          TEST_POSTGRES_URL: postgresql://postgres:signet@localhost:5432/signet
 
       - name: Install MCP dependencies
         run: npm ci
@@ -371,5 +371,5 @@ jobs:
         run: npm run test:postgres
         working-directory: service/mcp
         env:
-          TEST_POSTGRES_URL: postgresql://postgres:cachet@localhost:5432/cachet
+          TEST_POSTGRES_URL: postgresql://postgres:signet@localhost:5432/signet
 

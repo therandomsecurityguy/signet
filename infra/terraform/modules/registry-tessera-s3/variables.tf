@@ -6,7 +6,7 @@ variable "bucket_name" {
 variable "project_name" {
   description = "Project tag/name prefix."
   type        = string
-  default     = "agents-registry"
+  default     = "signet"
 }
 
 variable "environment" {
@@ -66,7 +66,7 @@ variable "create_ssm_config_parameters" {
 variable "ssm_parameter_prefix" {
   description = "SSM parameter prefix used when create_ssm_config_parameters is true."
   type        = string
-  default     = "/agents-registry/dev"
+  default     = "/signet/dev"
 }
 
 variable "tags" {

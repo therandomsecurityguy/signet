@@ -1,4 +1,4 @@
-bucket_name = "replace-me-agents-registry-dev"
+bucket_name = "replace-me-signet-dev"
 
 # Optional: attach explicit principals once you know the IAM roles/users that should read or write.
 allowed_read_principal_arns = []

@@ -17,7 +17,7 @@ issuer_der="0c$(printf '%02x' "$issuer_len")${issuer_hex}"
 gen_ca() {
   local name="$1"
   openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:prime256v1 -out "${name}-key.pem"
-  openssl req -new -x509 -key "${name}-key.pem" -days 3650 -subj "/CN=cachet test keyless ${name}" \
+  openssl req -new -x509 -key "${name}-key.pem" -days 3650 -subj "/CN=signet test keyless ${name}" \
     -addext "basicConstraints=critical,CA:TRUE" \
     -addext "keyUsage=critical,keyCertSign" \
     -out "${name}.pem"
@@ -32,7 +32,7 @@ openssl pkey -in rekor-key.pem -pubout -out rekor.pem
 
 # Intermediate signed by the root.
 openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:prime256v1 -out intermediate-key.pem
-openssl req -new -key intermediate-key.pem -subj "/CN=cachet test keyless intermediate" -out intermediate.csr
+openssl req -new -key intermediate-key.pem -subj "/CN=signet test keyless intermediate" -out intermediate.csr
 openssl x509 -req -in intermediate.csr -CA root.pem -CAkey root-key.pem -CAcreateserial -days 3650 \
   -extfile <(printf 'basicConstraints=critical,CA:TRUE\nkeyUsage=critical,keyCertSign\n') \
   -out intermediate.pem
@@ -61,7 +61,7 @@ gen_leaf() {
   rm -f "${name}.csr" "${ca}.srl" "${ca%.pem}.srl" "${ca%.pem}.pem.srl"
 }
 
-workflow_san="URI:https://github.com/togethercomputer/cachet/.github/workflows/release.yaml@refs/tags/v0.1.28"
+workflow_san="URI:https://github.com/togethercomputer/signet/.github/workflows/release.yaml@refs/tags/v0.1.28"
 gen_leaf leaf intermediate.pem intermediate-key.pem "$workflow_san" "$issuer"
 gen_leaf leaf-v2 intermediate.pem intermediate-key.pem "$workflow_san" "$issuer" "1.3.6.1.4.1.57264.1.8" true
 gen_leaf leaf-other-root other-root.pem other-root-key.pem "$workflow_san" "$issuer"

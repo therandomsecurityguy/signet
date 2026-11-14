@@ -25,13 +25,13 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AWS_REGION: ${{ vars.CACHET_AWS_REGION || 'us-west-2' }}
-  AWS_ROLE_ARN: ${{ vars.CACHET_AWS_ROLE_ARN }}
-  API_ECR_REPOSITORY: ${{ vars.CACHET_API_ECR_REPOSITORY || 'cachet/api' }}
-  MCP_ECR_REPOSITORY: ${{ vars.CACHET_MCP_ECR_REPOSITORY || 'cachet/mcp' }}
-  WEBAPP_ECR_REPOSITORY: ${{ vars.CACHET_WEBAPP_ECR_REPOSITORY || 'cachet/webapp' }}
-  TESSERA_ECR_REPOSITORY: ${{ vars.CACHET_TESSERA_ECR_REPOSITORY || 'cachet/tessera-sidecar' }}
-  CHART_REPOSITORY: ${{ vars.CACHET_CHART_REPOSITORY || 'charts' }}
+  AWS_REGION: ${{ vars.SIGNET_AWS_REGION || 'us-west-2' }}
+  AWS_ROLE_ARN: ${{ vars.SIGNET_AWS_ROLE_ARN }}
+  API_ECR_REPOSITORY: ${{ vars.SIGNET_API_ECR_REPOSITORY || 'signet/api' }}
+  MCP_ECR_REPOSITORY: ${{ vars.SIGNET_MCP_ECR_REPOSITORY || 'signet/mcp' }}
+  WEBAPP_ECR_REPOSITORY: ${{ vars.SIGNET_WEBAPP_ECR_REPOSITORY || 'signet/webapp' }}
+  TESSERA_ECR_REPOSITORY: ${{ vars.SIGNET_TESSERA_ECR_REPOSITORY || 'signet/tessera-sidecar' }}
+  CHART_REPOSITORY: ${{ vars.SIGNET_CHART_REPOSITORY || 'charts' }}
 
 jobs:
   release-please:
@@ -66,7 +66,7 @@ jobs:
           manifest-file: .release-please-manifest.json
 
   # On a release, publish each component image (digest-pinned, immutable ECR) and
-  # the Helm chart to cachet-owned ECR using GitHub OIDC. Also runnable manually
+  # the Helm chart to signet-owned ECR using GitHub OIDC. Also runnable manually
   # to re-publish an existing tag (workflow_dispatch). The environment repo
   # (tf-io-sec) then pins the released chart version and applies. No static AWS
   # credentials and no shared org reusable workflow.
@@ -121,12 +121,12 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "$AWS_ROLE_ARN" ]]; then
-            echo "Missing required repository variable: CACHET_AWS_ROLE_ARN" >&2
+            echo "Missing required repository variable: SIGNET_AWS_ROLE_ARN" >&2
             exit 1
           fi
           token_json="$(curl --silent --show-error --fail -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com")"
           oidc_token="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<<"$token_json")"
-          credentials="$(aws sts assume-role-with-web-identity --role-arn "$AWS_ROLE_ARN" --role-session-name "cachet-release-$GITHUB_RUN_ID" --web-identity-token "$oidc_token" --duration-seconds 3600)"
+          credentials="$(aws sts assume-role-with-web-identity --role-arn "$AWS_ROLE_ARN" --role-session-name "signet-release-$GITHUB_RUN_ID" --web-identity-token "$oidc_token" --duration-seconds 3600)"
           access_key_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["Credentials"]["AccessKeyId"])' <<<"$credentials")"
           secret_access_key="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["Credentials"]["SecretAccessKey"])' <<<"$credentials")"
           session_token="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["Credentials"]["SessionToken"])' <<<"$credentials")"
@@ -292,11 +292,11 @@ jobs:
           set -euo pipefail
           version="${RELEASE_TAG#v}"
           aws ecr get-login-password --region "$AWS_REGION" | helm registry login "$ECR_REGISTRY" --username AWS --password-stdin
-          helm package charts/cachet --version "$version" --app-version "$version" --destination dist
+          helm package charts/signet --version "$version" --app-version "$version" --destination dist
           require_immutable_chart() {
             # helm push to oci://<registry>/<CHART_REPOSITORY> publishes to the
             # repository <CHART_REPOSITORY>/<chart name>, so verify that repo.
-            local repository="$CHART_REPOSITORY/cachet" mutability
+            local repository="$CHART_REPOSITORY/signet" mutability
             mutability="$(aws ecr describe-repositories --repository-names "$repository" --query 'repositories[0].imageTagMutability' --output text)"
             if [[ "$mutability" != "IMMUTABLE" ]]; then
               echo "ECR chart repository must use immutable tags: $repository" >&2
@@ -304,7 +304,7 @@ jobs:
             fi
           }
           require_immutable_chart
-          push_output="$(helm push "dist/cachet-$version.tgz" "oci://$ECR_REGISTRY/$CHART_REPOSITORY" 2>&1)"
+          push_output="$(helm push "dist/signet-$version.tgz" "oci://$ECR_REGISTRY/$CHART_REPOSITORY" 2>&1)"
           printf '%s\n' "$push_output"
           chart_digest="$(printf '%s\n' "$push_output" | sed -n 's/^Digest: //p' | tr -d '[:space:]')"
           if [[ "$chart_digest" != sha256:* ]]; then
@@ -317,12 +317,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cosign sign --yes "$ECR_REGISTRY/$CHART_REPOSITORY/cachet@$CHART_DIGEST"
+          cosign sign --yes "$ECR_REGISTRY/$CHART_REPOSITORY/signet@$CHART_DIGEST"
 
       - name: Attest chart provenance (GitHub attestations)
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-name: ${{ env.ECR_REGISTRY }}/${{ env.CHART_REPOSITORY }}/cachet
+          subject-name: ${{ env.ECR_REGISTRY }}/${{ env.CHART_REPOSITORY }}/signet
           subject-digest: ${{ env.CHART_DIGEST }}
 
       - name: Publish release manifest
@@ -337,7 +337,7 @@ jobs:
             --arg version "$version" \
             --arg tag "$tag" \
             --arg sourceSha "$GITHUB_SHA" \
-            --arg chart "oci://$ECR_REGISTRY/$CHART_REPOSITORY/cachet:$version" \
+            --arg chart "oci://$ECR_REGISTRY/$CHART_REPOSITORY/signet:$version" \
             --slurpfile images images.json \
             '{version: $version, tag: $tag, sourceSha: $sourceSha, chart: $chart, images: $images[0]}' \
             > release-manifest.json

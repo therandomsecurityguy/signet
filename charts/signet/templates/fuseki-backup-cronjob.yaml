@@ -1,0 +1,59 @@
+{{- if .Values.fusekiBackup.enabled }}
+# Daily Fuseki graph backup into the artifact bucket (versioned + KMS).
+# Publishes Signet/Watchdog/FusekiBackupSuccess for the signet-data alarm;
+# missing data is breaching, so a missed day is itself an alert.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "signet.fullname" . }}-fuseki-backup
+  labels:
+    {{- include "signet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: fuseki-backup
+spec:
+  schedule: {{ .Values.fusekiBackup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 900
+      template:
+        metadata:
+          labels:
+            {{- include "signet.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: fuseki-backup
+        spec:
+          serviceAccountName: {{ .Values.serviceAccount.name }}
+          restartPolicy: Never
+          containers:
+            - name: fuseki-backup
+              image: {{ include "signet.image" (dict "repository" .Values.tesseraSidecar.image.repository "tag" .Values.tesseraSidecar.image.tag "digest" .Values.tesseraSidecar.image.digest "registry" .Values.image.registry "Chart" .Chart) }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["node", "dist/src/fuseki-backup-main.js"]
+              env:
+                - name: NODE_ENV
+                  value: production
+                - name: REGISTRY_SPARQL_QUERY_URL
+                  value: {{ printf "http://%s-fuseki:%v/%s/sparql" (include "signet.fullname" .) .Values.fuseki.port .Values.fuseki.datasetName | quote }}
+                - name: REGISTRY_SPARQL_USERNAME
+                  value: admin
+                - name: REGISTRY_SPARQL_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.secrets.name }}
+                      key: fuseki-admin-password
+                - name: REGISTRY_S3_BUCKET
+                  value: {{ .Values.artifacts.s3.bucket | quote }}
+                - name: REGISTRY_S3_PREFIX
+                  value: {{ .Values.artifacts.s3.prefix | quote }}
+                - name: REGISTRY_S3_REGION
+                  value: {{ .Values.artifacts.s3.region | quote }}
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+{{- end }}

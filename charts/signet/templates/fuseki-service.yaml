@@ -1,0 +1,18 @@
+{{- if .Values.fuseki.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "signet.fullname" . }}-fuseki
+  labels:
+    {{- include "signet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: fuseki
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "signet.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: fuseki
+  ports:
+    - name: http
+      port: {{ .Values.fuseki.port }}
+      targetPort: http
+{{- end }}

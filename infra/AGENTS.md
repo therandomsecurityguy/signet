@@ -21,7 +21,7 @@ Use this directory as the source of truth for local system infrastructure.
 - Do not encode production-only assumptions in local compose.
 
 ## Local operation
-Run commands from `projects/agents-registry/infra`:
+Run commands from `projects/signet/infra`:
 
 ```bash
 make up

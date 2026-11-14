@@ -54,5 +54,5 @@ variable "create_ssm_config_parameters" {
 
 variable "ssm_parameter_prefix" {
   type    = string
-  default = "/agents-registry/dev"
+  default = "/signet/dev"
 }

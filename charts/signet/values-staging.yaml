@@ -1,0 +1,75 @@
+# Per-env overrides for the Signet chart (staging).
+# Secrets live in the signet-owned Secrets Manager prefix and are injected by
+# ESO via IRSA; never committed.
+
+image:
+  registry: <account>.dkr.ecr.us-west-2.amazonaws.com
+
+api:
+  image:
+    repository: signet/api
+
+mcp:
+  image:
+    repository: signet/mcp
+
+webapp:
+  image:
+    repository: signet/webapp
+
+tesseraSidecar:
+  image:
+    repository: signet/tessera-sidecar
+
+auth:
+  mode: okta
+  oktaMode: real
+  oktaIssuer: <okta-issuer>
+  oktaAudience: https://signet.internal.together.ai
+  oktaClientId: <okta-client-id>
+  oktaRedirectUri: https://signet.staging.security.internal.together.ai/session/callback
+  oktaScopes: "openid profile email groups offline_access"
+  oktaAdminGroups: app_signet_admin
+  corsAllowedOrigins: "https://signet.staging.security.internal.together.ai"
+
+artifacts:
+  backend: s3
+  s3:
+    bucket: <artifacts-bucket>
+    prefix: signet/staging
+    region: us-west-2
+
+secrets:
+  create: false
+  name: signet
+  external:
+    enabled: true
+    createSecretStore: true
+    prefix: signet-staging/runtime
+
+serviceAccount:
+  roleArn: <irsa-role-arn>
+
+ingress:
+  enabled: true
+  className: alb
+  host: signet.staging.security.internal.together.ai
+  tls: true
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+
+networkPolicies:
+  enabled: true
+  # VPC CIDRs hosting RDS/ElastiCache/VPC endpoints; filled by tf-io-sec.
+  egressCidrs:
+    - cidr: <vpc-cidr>
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+
+metrics:
+  serviceMonitor:
+    enabled: true
