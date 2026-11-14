@@ -44,11 +44,16 @@ for entry in "${packages[@]}"; do
   echo "== ${pkg} =="
 
   if ! npm view "$pkg" version >/dev/null 2>&1; then
-    echo "  ${pkg} does not exist on npm yet; publish 0.1.0 first (docs/runbooks/npm-release.md)." >&2
+    echo "  ${pkg} does not exist on npm yet; publish it first (docs/runbooks/npm-release.md)." >&2
     exit 1
   fi
 
   listing="$(npm trust list "$pkg" 2>/dev/null || true)"
+  # npm prints a human-readable empty-state message to stdout; treat it as no
+  # configuration so it is not mistaken for an existing (different) publisher.
+  if grep -qi "no trust configurations found" <<<"$listing"; then
+    listing=""
+  fi
   if grep -q "$workflow" <<<"$listing"; then
     echo "  already configured for ${workflow}; leaving it untouched."
     continue
