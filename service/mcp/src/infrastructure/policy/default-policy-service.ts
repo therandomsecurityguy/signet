@@ -17,8 +17,10 @@ export class DefaultPolicyService implements PolicyService {
   async evaluate(input: PolicyEvaluationInput): Promise<PolicyDecision> {
     const limits = mergeLimits(this.env, input.parsed_input);
 
-    // Stage 2 authorization (Phase 9): enforce Okta-derived entitlements when available.
-    if (input.principal.type === 'okta_user' && this.authz) {
+    // Stage 2 authorization (Phase 9): enforce entitlements when configured.
+    // Rules apply to every authenticated principal type, not just Okta users —
+    // API keys with no matching rule are denied (fail closed).
+    if (this.authz) {
       const rule = matchAuthzRule({ rules: this.authz, groups: input.principal.groups });
       if (!rule) {
         return { effect: 'deny', reason: 'no_matching_entitlement', limits_applied: limits };
@@ -48,10 +50,23 @@ export class DefaultPolicyService implements PolicyService {
         if (!matchesPattern(dsRule.tables, table)) return { effect: 'deny', reason: 'table_not_allowed', limits_applied: limits };
       }
 
+      if (input.tool_name === ToolName.DataListTables) {
+        const database = getString(input.parsed_input, 'database');
+        const schema = getString(input.parsed_input, 'schema');
+        if (!matchesPattern(dsRule.databases, database)) return { effect: 'deny', reason: 'database_not_allowed', limits_applied: limits };
+        if (!matchesPattern(dsRule.schemas, schema)) return { effect: 'deny', reason: 'schema_not_allowed', limits_applied: limits };
+      }
+
       if (input.tool_name === ToolName.DataQuery) {
         const sql = getString(input.parsed_input, 'sql');
         if (sql) {
           const refs = extractTableRefs(sql);
+          // Fail closed when the statement references FROM/JOIN objects that
+          // the conservative extractor cannot identify: an unparsed object
+          // cannot be checked against the allowlist.
+          if (refs.length === 0 && /\b(from|join)\b/i.test(sql)) {
+            return { effect: 'deny', reason: 'unparseable_object_refs', limits_applied: limits };
+          }
           for (const ref of refs) {
             if (ref.database && !matchesPattern(dsRule.databases, ref.database)) {
               return { effect: 'deny', reason: 'database_not_allowed', limits_applied: limits };

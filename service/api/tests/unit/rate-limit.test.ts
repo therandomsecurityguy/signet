@@ -131,4 +131,39 @@ describe('rate-limit middleware', () => {
       expect(res.status).toBe(200);
     }
   });
+
+  it('budgets failed authentications per client address', async () => {
+    const app = new Hono();
+    const env = createMockEnv({
+      RATE_LIMIT_REQUESTS: 100,
+      AUTH_FAILURE_LIMIT: 3,
+      AUTH_FAILURE_WINDOW_MS: 60_000,
+    });
+    app.use('*', buildRateLimitMiddleware(env));
+    app.get('/test', (c) =>
+      c.req.header('Authorization') === 'Bearer good-token'
+        ? c.json({ ok: true })
+        : c.json({ error: { code: 'AUTH_UNAUTHENTICATED' } }, 401),
+    );
+
+    for (let i = 0; i < 3; i++) {
+      const res = await app.request(createMockRequest({ auth: `bogus-${i}`, ip: '203.0.113.9' }));
+      expect(res.status).toBe(401);
+    }
+
+    // A fresh guessed token would get its own per-credential bucket; the
+    // per-address failure budget must still stop it.
+    const blocked = await app.request(createMockRequest({ auth: 'bogus-4', ip: '203.0.113.9' }));
+    expect(blocked.status).toBe(429);
+    const blockedBody = await blocked.json();
+    expect(blockedBody).toMatchObject({ error: { code: 'RATE_LIMIT_EXCEEDED' } });
+
+    // Even valid credentials from the same address wait out the window.
+    const stillBlocked = await app.request(createMockRequest({ auth: 'good-token', ip: '203.0.113.9' }));
+    expect(stillBlocked.status).toBe(429);
+
+    // Other addresses are unaffected.
+    const other = await app.request(createMockRequest({ auth: 'good-token', ip: '203.0.113.10' }));
+    expect(other.status).toBe(200);
+  });
 });

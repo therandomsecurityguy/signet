@@ -88,6 +88,11 @@ const EnvSchema = z.object({
     .transform((value) => value !== 'false'),
   RATE_LIMIT_REQUESTS: z.coerce.number().int().positive().default(100),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  // Credential-guessing budget: failed authentications per client address
+  // before the limiter rejects with 429. Independent of the per-credential
+  // bucket, which cannot see guessing attempts (each guess is a new key).
+  AUTH_FAILURE_LIMIT: z.coerce.number().int().positive().default(20),
+  AUTH_FAILURE_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60_000),
   REDIS_URL: z.string().optional(),
 
   // CORS. Comma-separated allowlist of origins. When unset, CORS falls back to

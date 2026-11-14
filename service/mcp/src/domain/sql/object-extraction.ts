@@ -5,19 +5,21 @@ export type SqlObjectRef = {
 };
 
 // Conservative extractor for Stage 2:
-// - handles simple FROM/JOIN patterns
+// - handles simple FROM/JOIN patterns, including quoted ("db"."t"),
+//   backticked (`t`), and bracketed ([t]) identifiers
 // - does not attempt full SQL parsing
-// - intended to be replaced by a real parser later
+// - callers must fail closed when a FROM/JOIN statement yields no refs
+//   (see default-policy-service); the allowlist cannot be applied otherwise
 export function extractTableRefs(sql: string): SqlObjectRef[] {
   const normalized = sql.replace(/\s+/g, ' ');
   const refs: SqlObjectRef[] = [];
 
-  const regex = /\b(from|join)\s+([A-Za-z0-9_."-]+)\b/gi;
+  const regex = /\b(from|join)\s+([A-Za-z0-9_."`[\]]+)/gi;
   let m: RegExpExecArray | null;
   while ((m = regex.exec(normalized)) !== null) {
     const raw = m[2];
     if (!raw) continue;
-    const cleaned = raw.replace(/"/g, '');
+    const cleaned = raw.replace(/["`[\]]/g, '');
     const parts = cleaned.split('.').filter(Boolean);
 
     if (parts.length === 1) {
