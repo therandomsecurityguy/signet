@@ -16,11 +16,7 @@ resource "helm_release" "this" {
   # each values file's contents.
   values = [for f in var.values_files : file(f)]
 
-  dynamic "set" {
-    for_each = var.set_values
-    content {
-      name  = set.key
-      value = set.value
-    }
-  }
+  # Helm provider v3 takes set values as a list attribute rather than nested
+  # set blocks.
+  set = [for k, v in var.set_values : { name = k, value = v }]
 }
