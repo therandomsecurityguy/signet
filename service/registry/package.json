@@ -10,6 +10,6 @@
     "@sigstore/bundle": "^5.0.1",
     "@sigstore/core": "^4.0.1",
     "rdf-canonize": "^5.0.0",
-    "re2js": "^2.9.1"
+    "re2js": "^2.10.0"
   }
 }
