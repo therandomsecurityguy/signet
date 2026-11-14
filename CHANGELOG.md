@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.45](https://github.com/therandomsecurityguy/signet/compare/v0.1.44...v0.1.45) (2026-11-14)
+
+
+### Bug Fixes
+
+* **ci:** run release-please with the default GITHUB_TOKEN ([67d23d3](https://github.com/therandomsecurityguy/signet/commit/67d23d3dae0c811e840106b84ca796ec6254f736))
+* update url-encoded urn expectations to sg ([b08e013](https://github.com/therandomsecurityguy/signet/commit/b08e01316cf29ec86b870d098cfa7d70141a79a7))
+
+## Changelog
+
 All notable changes to Signet are documented in this file.
 
 This file starts fresh at the signet rename; prior release history was
