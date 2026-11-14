@@ -11,6 +11,10 @@ export type OperatorSession = {
   principalEmail?: string;
   principalDisplayName?: string;
   groups: string[];
+  scopes: string[];
+  // Per-session CSRF token, rendered as a hidden form field and verified on
+  // every state-changing request.
+  csrfToken: string;
   authMethod: 'api_key' | 'okta_access_token';
   createdAt: string;
   expiresAt: string;
@@ -24,6 +28,7 @@ export interface OperatorSessionStore {
     principalEmail?: string;
     principalDisplayName?: string;
     groups: string[];
+    scopes?: string[];
     authMethod: 'api_key' | 'okta_access_token';
   }): Promise<OperatorSession>;
   get(sessionId: string): Promise<OperatorSession | null>;
@@ -42,6 +47,7 @@ export class InMemoryOperatorSessionStore implements OperatorSessionStore {
     principalEmail?: string;
     principalDisplayName?: string;
     groups: string[];
+    scopes?: string[];
     authMethod: 'api_key' | 'okta_access_token';
   }): Promise<OperatorSession> {
     this.pruneExpired();
@@ -56,6 +62,8 @@ export class InMemoryOperatorSessionStore implements OperatorSessionStore {
       ...(input.principalEmail ? { principalEmail: input.principalEmail } : {}),
       ...(input.principalDisplayName ? { principalDisplayName: input.principalDisplayName } : {}),
       groups: input.groups,
+      scopes: input.scopes ?? [],
+      csrfToken: randomUUID(),
       authMethod: input.authMethod,
       createdAt: now.toISOString(),
       expiresAt: expiresAt.toISOString(),
@@ -114,12 +122,23 @@ CREATE TABLE IF NOT EXISTS webapp_sessions (
   principal_email TEXT,
   principal_display_name TEXT,
   groups TEXT NOT NULL DEFAULT '[]',
+  scopes TEXT NOT NULL DEFAULT '[]',
+  csrf_token TEXT NOT NULL DEFAULT '',
   auth_method TEXT NOT NULL,
   created_at TEXT NOT NULL,
   expires_at TEXT NOT NULL
 );
 `.trim(),
     );
+    // Sessions created before the CSRF/scope columns existed are upgraded in
+    // place; duplicate-column errors mean the schema is already current.
+    for (const column of ['scopes', 'csrf_token']) {
+      try {
+        await db.exec(`ALTER TABLE webapp_sessions ADD COLUMN ${column} TEXT NOT NULL DEFAULT ''`);
+      } catch {
+        // Column already exists.
+      }
+    }
     return new SqliteOperatorSessionStore(db, { ttlMinutes: input.ttlMinutes });
   }
 
@@ -130,6 +149,7 @@ CREATE TABLE IF NOT EXISTS webapp_sessions (
     principalEmail?: string;
     principalDisplayName?: string;
     groups: string[];
+    scopes?: string[];
     authMethod: 'api_key' | 'okta_access_token';
   }): Promise<OperatorSession> {
     await this.deleteExpired();
@@ -144,6 +164,8 @@ CREATE TABLE IF NOT EXISTS webapp_sessions (
       ...(input.principalEmail ? { principalEmail: input.principalEmail } : {}),
       ...(input.principalDisplayName ? { principalDisplayName: input.principalDisplayName } : {}),
       groups: input.groups,
+      scopes: input.scopes ?? [],
+      csrfToken: randomUUID(),
       authMethod: input.authMethod,
       createdAt: now.toISOString(),
       expiresAt: expiresAt.toISOString(),
@@ -152,8 +174,8 @@ CREATE TABLE IF NOT EXISTS webapp_sessions (
     await this.db.run(
       `
 INSERT INTO webapp_sessions (
-  id, api_token, principal_type, principal_id, principal_email, principal_display_name, groups, auth_method, created_at, expires_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  id, api_token, principal_type, principal_id, principal_email, principal_display_name, groups, scopes, csrf_token, auth_method, created_at, expires_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `.trim(),
       session.id,
       session.apiToken,
@@ -162,6 +184,8 @@ INSERT INTO webapp_sessions (
       session.principalEmail ?? null,
       session.principalDisplayName ?? null,
       JSON.stringify(session.groups),
+      JSON.stringify(session.scopes),
+      session.csrfToken,
       session.authMethod,
       session.createdAt,
       session.expiresAt,
@@ -179,6 +203,8 @@ INSERT INTO webapp_sessions (
       principal_email: string | null;
       principal_display_name: string | null;
       groups: string | null;
+      scopes: string | null;
+      csrf_token: string | null;
       auth_method: 'api_key' | 'okta_access_token';
       created_at: string;
       expires_at: string;
@@ -192,6 +218,8 @@ SELECT
   principal_email,
   principal_display_name,
   groups,
+  scopes,
+  csrf_token,
   auth_method,
   created_at,
   expires_at
@@ -218,6 +246,8 @@ WHERE id = ?
       ...(row.principal_email ? { principalEmail: row.principal_email } : {}),
       ...(row.principal_display_name ? { principalDisplayName: row.principal_display_name } : {}),
       groups: parseGroups(row.groups),
+      scopes: parseGroups(row.scopes),
+      csrfToken: row.csrf_token ?? '',
       authMethod: row.auth_method,
       createdAt: row.created_at,
       expiresAt: row.expires_at,

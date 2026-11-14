@@ -22,8 +22,14 @@ export type PageChromeInput = {
     error?: string;
     principalLabel?: string;
     authMethod?: 'api_key' | 'okta_access_token';
+    csrfToken?: string;
   };
 };
+
+function csrfHiddenField(page?: PageChromeInput): string {
+  const token = page?.session?.csrfToken;
+  return token ? `<input type="hidden" name="_csrf" value="${escapeHtml(token)}" />` : '';
+}
 
 export function renderHome(input: {
   apiOrigin: string;
@@ -165,6 +171,7 @@ export function renderNewAgentForm(input?: {
       <p><a href="/">Back</a></p>
       ${renderError(input?.error)}
       <form method="post" action="/agents/new">
+        ${csrfHiddenField(input?.page)}
         ${renderTextInput('agent_key', 'Agent key', values.agent_key ?? '', 'text', true)}
         ${renderTextInput('harness_name', 'Harness name', values.harness_name ?? '')}
         ${renderTextInput('display_name', 'Display name', values.display_name ?? '')}
@@ -258,6 +265,7 @@ export function renderSkillDetails(input: {
           author: values.author ?? '',
           note: values.note ?? '',
         },
+        ...(input.page ? { page: input.page } : {}),
       })}
       ${
         input.lifecycleResult
@@ -271,6 +279,7 @@ export function renderSkillDetails(input: {
       <h2>Create Draft</h2>
       <p>This uses the lifecycle API and writes a new skill version task plus version metadata.</p>
       <form method="post" action="/skills/${encodeURIComponent(skillKey)}/drafts">
+        ${csrfHiddenField(input.page)}
         ${renderTextInput('author', 'Author', values.author ?? '', 'text', true)}
         ${renderTextInput('display_name', 'Display name', values.display_name ?? '')}
         ${renderTextArea('description', 'Description', values.description ?? '')}
@@ -301,6 +310,7 @@ export function renderNewSkillForm(input?: {
       <p><a href="/">Back</a></p>
       ${renderError(input?.error)}
       <form method="post" action="/skills/new">
+        ${csrfHiddenField(input?.page)}
         ${renderTextInput('skill_key', 'Skill key', values.skill_key ?? '', 'text', true)}
         ${renderTextInput('display_name', 'Display name', values.display_name ?? '')}
         ${renderTextArea('description', 'Description', values.description ?? '')}
@@ -359,6 +369,7 @@ export function renderOntologyProjects(input: {
           const reviewCell =
             input.canReview && term.status === 'candidate'
               ? `<form method="post" action="/ontology-projects/terms/${escapeHtml(encodeURIComponent(term.term))}/review">
+                   ${csrfHiddenField(input.page)}
                    <button name="action" value="promote">Promote</button>
                    <button name="action" value="reject" class="secondary">Reject</button>
                  </form>`
@@ -779,7 +790,7 @@ function renderPage(title: string, body: string, page?: PageChromeInput) {
           ${page?.session?.principalLabel ? `<p title="${escapeHtml(page.session.principalLabel)}">${escapeHtml(page.session.principalLabel)}</p>` : ''}
           ${
             page?.session?.authenticated
-              ? `<form method="post" action="/session/logout"><input type="hidden" name="return_to" value="${escapeHtml(page.session.returnTo)}" /><button type="submit" class="secondary">Sign out</button></form>`
+              ? `<form method="post" action="/session/logout">${csrfHiddenField(page)}<input type="hidden" name="return_to" value="${escapeHtml(page.session.returnTo)}" /><button type="submit" class="secondary">Sign out</button></form>`
               : '<a role="button" class="secondary" href="/login">Sign in</a>'
           }
         </div>
@@ -889,6 +900,7 @@ function renderSkillVersionsList(input: {
   skillKey: string;
   versions: SkillVersionDetails[];
   defaults: SkillVersionOperationInput;
+  page?: PageChromeInput;
 }) {
   if (input.versions.length === 0) {
     return '<p>No versions found.</p>';
@@ -912,6 +924,7 @@ function renderSkillVersionsList(input: {
                   versionNumber,
                   defaults: input.defaults,
                   actions: availableActions,
+                  ...(input.page ? { page: input.page } : {}),
                 })
               : '<p>No lifecycle actions available for this version.</p>'
           }
@@ -957,9 +970,11 @@ function renderLifecycleActionForm(input: {
   versionNumber: number;
   defaults: SkillVersionOperationInput;
   actions: Array<'validate' | 'publish' | 'promote' | 'deprecate' | 'certify'>;
+  page?: PageChromeInput;
 }) {
   return `
     <form method="post" action="/skills/${encodeURIComponent(input.skillKey)}/versions/${input.versionNumber}/${input.actions[0]}">
+      ${csrfHiddenField(input.page)}
       ${renderTextInput('author', 'Author', input.defaults.author ?? '', 'text', true)}
       ${renderTextArea('note', 'Note', input.defaults.note ?? '')}
       <div class="button-row">

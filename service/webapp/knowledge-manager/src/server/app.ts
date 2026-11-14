@@ -77,8 +77,36 @@ export function buildApp(deps: KnowledgeManagerDeps) {
     return c.body(APP_CSS);
   });
 
+  // CSRF protection for all state-changing requests: same-origin check when
+  // the Origin header is present, plus a session-bound token (`_csrf` hidden
+  // form field). Login itself has no session yet, so it relies on the origin
+  // check alone.
+  app.use('*', async (c, next) => {
+    if (c.req.method !== 'POST') {
+      return await next();
+    }
+
+    const originError = verifySameOrigin(c);
+    if (originError) {
+      return c.text(originError, 403);
+    }
+
+    if (c.req.path !== '/session/login') {
+      const session = await readOperatorSession(c, deps);
+      if (session) {
+        const body = await c.req.parseBody();
+        const token = typeof body['_csrf'] === 'string' ? body['_csrf'] : '';
+        if (token === '' || token !== session.csrfToken) {
+          return c.text('CSRF validation failed.', 403);
+        }
+      }
+    }
+
+    return await next();
+  });
+
   app.post('/session/login', async (c) => {
-    const values = await readFormValues(c.req.raw);
+    const values = await readFormValues(c);
     const returnTo = normalizeReturnTo(values.return_to);
     if (deps.env.AUTH_MODE === 'api_key') {
       const apiToken = (values.api_token ?? '').trim();
@@ -219,7 +247,7 @@ codeVerifier,
   });
 
   app.post('/session/logout', async (c) => {
-    const values = await readFormValues(c.req.raw);
+    const values = await readFormValues(c);
     const returnTo = normalizeReturnTo(values.return_to);
     const sessionId = getCookie(c, deps.env.SESSION_COOKIE_NAME);
     if (sessionId) {
@@ -330,7 +358,7 @@ codeVerifier,
   );
 
   app.post('/agents/new', async (c) => {
-    const values = await readFormValues(c.req.raw);
+    const values = await readFormValues(c);
 const session = await readOperatorSession(c, deps);
     const apiToken = session?.apiToken;
     if (!apiToken) {
@@ -416,7 +444,7 @@ const session = await readOperatorSession(c, deps);
   );
 
   app.post('/skills/new', async (c) => {
-    const values = await readFormValues(c.req.raw);
+    const values = await readFormValues(c);
     const session = await readOperatorSession(c, deps);
     const apiToken = session?.apiToken;
     if (!apiToken) {
@@ -566,8 +594,14 @@ const session = await readOperatorSession(c, deps);
     if (!session) {
       return c.redirect(withSessionMessage('/ontology-projects', { sessionError: 'Sign in to review ontology terms.' }), 303);
     }
+    if (!isAdminSession(session, deps.env)) {
+      return c.redirect(
+        withSessionMessage('/ontology-projects', { sessionError: 'Admin access is required to review ontology terms.' }),
+        303,
+      );
+    }
     const term = c.req.param('term');
-    const values = await readFormValues(c.req.raw);
+    const values = await readFormValues(c);
     const action = values.action === 'promote' || values.action === 'reject' ? values.action : null;
     if (!action) {
       return c.redirect(withSessionMessage('/ontology-projects', { sessionError: 'Invalid review action.' }), 303);
@@ -623,7 +657,7 @@ async function loadSkillPageData(registryApi: RegistryApiClient, skillKey: strin
 
 async function handleSkillDraftWrite(c: Context, deps: KnowledgeManagerDeps) {
   const skillKey = c.req.param('skillKey') ?? '';
-  const values = await readFormValues(c.req.raw);
+  const values = await readFormValues(c);
   const session = await readOperatorSession(c, deps);
   if (!session) {
     return await renderSkillPage(c, deps, skillKey, {
@@ -676,7 +710,7 @@ async function handleSkillVersionWrite(
   const skillKey = c.req.param('skillKey') ?? '';
   const rawVersion = c.req.param('version');
   const version = rawVersion ? parseVersion(rawVersion) : null;
-  const values = await readFormValues(c.req.raw);
+  const values = await readFormValues(c);
   const session = await readOperatorSession(c, deps);
 
   if (!version) {
@@ -766,6 +800,7 @@ async function createOperatorSession(deps: KnowledgeManagerDeps, apiToken: strin
     ...(sessionInfo.principal.email ? { principalEmail: sessionInfo.principal.email } : {}),
     ...(sessionInfo.principal.display_name ? { principalDisplayName: sessionInfo.principal.display_name } : {}),
     groups: sessionInfo.principal.groups,
+    scopes: sessionInfo.principal.scopes ?? [],
     authMethod: sessionInfo.principal.auth_method,
   });
 }
@@ -775,10 +810,17 @@ function isAdminSession(session: OperatorSession | null, env: Env): boolean {
     return false;
   }
   if (session.principalType === 'api_key') {
-    return true;
+    // API-key sessions are admin only when the key actually carries a write
+    // capability; the registry API still enforces the precise per-area scope
+    // on every write, so this is the UI-side least-privilege gate.
+    return sessionHasWriteScope(session.scopes);
   }
   const adminGroups = env.OKTA_ADMIN_GROUPS.split(/\s*,\s*/).filter(Boolean);
   return adminGroups.some((group) => session.groups.includes(group));
+}
+
+function sessionHasWriteScope(scopes: string[]): boolean {
+  return scopes.some((scope) => scope === 'lifecycle' || scope.endsWith('write'));
 }
 
 function setOperatorSessionCookie(c: Context, env: Env, session: OperatorSession) {
@@ -791,13 +833,32 @@ function setOperatorSessionCookie(c: Context, env: Env, session: OperatorSession
   });
 }
 
-async function readFormValues(request: Request) {
-  const formData = await request.formData();
+async function readFormValues(c: Context) {
+  // parseBody is cached by Hono, so the CSRF middleware and the handlers can
+  // both read the same parsed form.
+  const body = await c.req.parseBody();
   const values: Record<string, string> = {};
-  formData.forEach((value, key) => {
+  for (const [key, value] of Object.entries(body)) {
     values[key] = typeof value === 'string' ? value : '';
-  });
+  }
   return values;
+}
+
+// Same-origin enforcement for state-changing requests. Proxies terminate TLS,
+// so the expected origin is reconstructed from X-Forwarded-Proto/Host when
+// present. Requests without an Origin header (curl, tests) are not blocked;
+// the session-bound CSRF token remains the primary control.
+function verifySameOrigin(c: Context): string | null {
+  const origin = c.req.header('origin');
+  if (!origin) {
+    return null;
+  }
+  const requestUrl = new URL(c.req.url);
+  const proto =
+    c.req.header('x-forwarded-proto')?.split(',')[0]?.trim() || requestUrl.protocol.replace(':', '');
+  const host = c.req.header('x-forwarded-host')?.split(',')[0]?.trim() || c.req.header('host') || requestUrl.host;
+  const expected = `${proto}://${host}`;
+  return origin === expected ? null : 'Cross-origin form submission rejected.';
 }
 
 function buildCreateAgentInput(values: Record<string, string>): CreateAgentInput {
@@ -995,6 +1056,7 @@ function buildPageChrome(
             ? { principalLabel: session.principalId }
             : {}),
       ...(session ? { authMethod: session.authMethod } : {}),
+      ...(session ? { csrfToken: session.csrfToken } : {}),
       ...(sessionFlash ? { flash: sessionFlash } : {}),
       ...(sessionError ? { error: sessionError } : {}),
     },
