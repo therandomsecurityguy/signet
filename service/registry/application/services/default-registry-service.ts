@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { createPublicKey, randomUUID, verify as verifySignature } from 'node:crypto';
 
-import { CasIntegrityError, type ArtifactStore } from '../../domain/together/db/graph/freeform/registry/artifact-store.js';
-import type { GraphStore } from '../../domain/together/db/graph/freeform/registry/graph-store.js';
+import { CasIntegrityError, type ArtifactStore } from '../../domain/signet/db/graph/freeform/registry/artifact-store.js';
+import type { GraphStore } from '../../domain/signet/db/graph/freeform/registry/graph-store.js';
 import {
   agentUrn,
   agentVersionUrn,
@@ -17,7 +17,7 @@ import {
   transparencyGossipEventUrn,
   transparencyLogUrn,
   transparencyWitnessUrn,
-} from '../../domain/together/db/graph/freeform/registry/urn.js';
+} from '../../domain/signet/db/graph/freeform/registry/urn.js';
 import { RegistryCoreError } from '../errors/registry-core-error.js';
 import {
   JCS_CANONICALIZATION_ALGORITHM,

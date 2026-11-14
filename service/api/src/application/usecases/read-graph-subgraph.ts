@@ -1,4 +1,4 @@
-import type { GraphStore } from '../../../../registry/domain/together/db/graph/freeform/registry/graph-store.js';
+import type { GraphStore } from '../../../../registry/domain/signet/db/graph/freeform/registry/graph-store.js';
 import type { GraphSubgraphInput, GraphSubgraphOutput } from '../../contracts/graph/subgraph.js';
 
 export class ReadGraphSubgraphUseCase {

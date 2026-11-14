@@ -2,11 +2,11 @@ import {
   FsCasArtifactStore,
   S3CasArtifactStore,
   type ArtifactStore,
-} from '../domain/together/db/graph/freeform/registry/artifact-store.js';
-import type { GraphStore } from '../domain/together/db/graph/freeform/registry/graph-store.js';
-import { InMemoryGraphStore } from '../domain/together/db/graph/freeform/registry/graph-store.js';
-import { JsonFileGraphStore } from '../domain/together/db/graph/freeform/registry/json-file-graph-store.js';
-import { SparqlGraphStore } from '../domain/together/db/graph/freeform/registry/sparql-graph-store.js';
+} from '../domain/signet/db/graph/freeform/registry/artifact-store.js';
+import type { GraphStore } from '../domain/signet/db/graph/freeform/registry/graph-store.js';
+import { InMemoryGraphStore } from '../domain/signet/db/graph/freeform/registry/graph-store.js';
+import { JsonFileGraphStore } from '../domain/signet/db/graph/freeform/registry/json-file-graph-store.js';
+import { SparqlGraphStore } from '../domain/signet/db/graph/freeform/registry/sparql-graph-store.js';
 import { DefaultRegistryService } from './services/default-registry-service.js';
 import { fetchWithRetry } from './services/fetch-with-retry.js';
 import { HeuristicLlmValidator, HttpLlmValidator } from './services/llm-validator.js';

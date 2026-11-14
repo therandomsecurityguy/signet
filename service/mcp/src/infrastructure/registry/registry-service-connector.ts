@@ -42,7 +42,7 @@ import type {
 } from '../../contracts/tools/registry-get-attestations.js';
 import { toVerifyPublicationOutput } from './publication-verification-output.js';
 import type { RegistryReadGate } from './read-gate.js';
-import { artifactUrn } from '../../../../registry/domain/together/db/graph/freeform/registry/urn.js';
+import { artifactUrn } from '../../../../registry/domain/signet/db/graph/freeform/registry/urn.js';
 
 export class RegistryServiceConnector implements RegistryConnector {
   constructor(

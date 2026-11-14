@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { buildAppDependencies } from '../../src/app/dependencies.js';
 import { buildApp } from '../../src/app/server.js';
 import { loadEnv } from '../../src/infrastructure/config/env.js';
-import { iri } from '../../../registry/domain/together/db/graph/freeform/registry/sparql-graph-store.js';
-import { deFactoTermUrn } from '../../../registry/domain/together/db/graph/freeform/registry/urn.js';
+import { iri } from '../../../registry/domain/signet/db/graph/freeform/registry/sparql-graph-store.js';
+import { deFactoTermUrn } from '../../../registry/domain/signet/db/graph/freeform/registry/urn.js';
 
 async function buildTestApp() {
   const env = loadEnv({

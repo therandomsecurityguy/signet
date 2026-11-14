@@ -3,11 +3,11 @@ import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { FsCasArtifactStore } from '../../../registry/domain/together/db/graph/freeform/registry/artifact-store.js';
-import { InMemoryGraphStore } from '../../../registry/domain/together/db/graph/freeform/registry/graph-store.js';
-import { ingestRegistry } from '../../../registry/domain/together/db/graph/freeform/registry/ingest.js';
-import { JsonFileGraphStore } from '../../../registry/domain/together/db/graph/freeform/registry/json-file-graph-store.js';
-import { agentUrn, skillUrn } from '../../../registry/domain/together/db/graph/freeform/registry/urn.js';
+import { FsCasArtifactStore } from '../../../registry/domain/signet/db/graph/freeform/registry/artifact-store.js';
+import { InMemoryGraphStore } from '../../../registry/domain/signet/db/graph/freeform/registry/graph-store.js';
+import { ingestRegistry } from '../../../registry/domain/signet/db/graph/freeform/registry/ingest.js';
+import { JsonFileGraphStore } from '../../../registry/domain/signet/db/graph/freeform/registry/json-file-graph-store.js';
+import { agentUrn, skillUrn } from '../../../registry/domain/signet/db/graph/freeform/registry/urn.js';
 
 describe('registry ingestion', () => {
   it('ingests agent and skill files into CAS + graph', async () => {

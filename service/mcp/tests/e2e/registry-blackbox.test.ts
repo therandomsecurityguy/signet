@@ -16,7 +16,7 @@ import {
   harnessUrn,
   skillUrn,
   skillVersionUrn,
-} from '../../../registry/domain/together/db/graph/freeform/registry/urn.js';
+} from '../../../registry/domain/signet/db/graph/freeform/registry/urn.js';
 
 const servers: ServerType[] = [];
 

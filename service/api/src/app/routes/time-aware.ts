@@ -12,7 +12,7 @@ import {
   retentionRootUrn,
   tagUrn,
   workspaceUrn,
-} from '../../../../registry/domain/together/db/graph/freeform/registry/urn.js';
+} from '../../../../registry/domain/signet/db/graph/freeform/registry/urn.js';
 import { TimeAwareRegistryError } from '../../../../registry/application/time-aware/errors/time-aware-registry-error.js';
 import {
   TimeAwareBaseCommitFilterSchema,

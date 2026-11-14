@@ -4,8 +4,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { buildTimeAwareCore } from '../../../../service/registry/application/time-aware/build-time-aware-core.js';
-import { FsCasArtifactStore } from '../../../../service/registry/domain/together/db/graph/freeform/registry/artifact-store.js';
-import { InMemoryGraphStore } from '../../../../service/registry/domain/together/db/graph/freeform/registry/graph-store.js';
+import { FsCasArtifactStore } from '../../../../service/registry/domain/signet/db/graph/freeform/registry/artifact-store.js';
+import { InMemoryGraphStore } from '../../../../service/registry/domain/signet/db/graph/freeform/registry/graph-store.js';
 
 describe('time-aware registry core', () => {
   it('creates commit lineage and resolves navigation details', async () => {

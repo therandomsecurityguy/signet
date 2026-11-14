@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import {
   FsCasArtifactStore,
   S3CasArtifactStore,
-} from '../../../registry/domain/together/db/graph/freeform/registry/artifact-store.js';
+} from '../../../registry/domain/signet/db/graph/freeform/registry/artifact-store.js';
 
 describe('FsCasArtifactStore', () => {
   it('stores and retrieves bytes by sha256', async () => {

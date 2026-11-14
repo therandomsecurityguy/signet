@@ -1,9 +1,9 @@
 import * as path from 'node:path';
 
-import { InMemoryGraphStore } from '../../../../registry/domain/together/db/graph/freeform/registry/graph-store.js';
-import type { GraphStore } from '../../../../registry/domain/together/db/graph/freeform/registry/graph-store.js';
-import { JsonFileGraphStore } from '../../../../registry/domain/together/db/graph/freeform/registry/json-file-graph-store.js';
-import { SparqlGraphStore } from '../../../../registry/domain/together/db/graph/freeform/registry/sparql-graph-store.js';
+import { InMemoryGraphStore } from '../../../../registry/domain/signet/db/graph/freeform/registry/graph-store.js';
+import type { GraphStore } from '../../../../registry/domain/signet/db/graph/freeform/registry/graph-store.js';
+import { JsonFileGraphStore } from '../../../../registry/domain/signet/db/graph/freeform/registry/json-file-graph-store.js';
+import { SparqlGraphStore } from '../../../../registry/domain/signet/db/graph/freeform/registry/sparql-graph-store.js';
 
 export function buildGraphStore(input: {
   backend: 'json_file' | 'memory' | 'sparql';

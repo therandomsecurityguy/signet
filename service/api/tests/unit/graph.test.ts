@@ -9,7 +9,7 @@ import {
   harnessUrn,
   skillUrn,
   skillVersionUrn,
-} from '../../../../service/registry/domain/together/db/graph/freeform/registry/urn.js';
+} from '../../../../service/registry/domain/signet/db/graph/freeform/registry/urn.js';
 
 async function buildTestApp() {
   const env = loadEnv({

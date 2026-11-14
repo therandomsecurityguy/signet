@@ -8,7 +8,7 @@ import { SqliteApiKeyStore } from '../infrastructure/auth/sqlite-api-key-store.j
 import { buildLogger } from '../infrastructure/logging/pino.js';
 import { buildRegistryCore } from '../../../registry/application/build-registry-core.js';
 import { buildTimeAwareCore } from '../../../registry/application/time-aware/build-time-aware-core.js';
-import { FsCasArtifactStore } from '../../../registry/domain/together/db/graph/freeform/registry/artifact-store.js';
+import { FsCasArtifactStore } from '../../../registry/domain/signet/db/graph/freeform/registry/artifact-store.js';
 import type { Env } from '../infrastructure/config/env.js';
 import { createDbProvider } from '../infrastructure/persistence/db-provider.js';
 import { buildGraphStore } from '../infrastructure/registry/graph-backend-factory.js';

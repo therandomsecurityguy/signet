@@ -30,6 +30,6 @@ Rules:
   as de facto vocabulary candidates in the validation report
 - de facto mining and promotion workflows remain future work
 
-Use `service/registry/domain/together/entity` and
-`service/registry/domain/together/relation` for the code-level graph
+Use `service/registry/domain/signet/entity` and
+`service/registry/domain/signet/relation` for the code-level graph
 vocabulary.

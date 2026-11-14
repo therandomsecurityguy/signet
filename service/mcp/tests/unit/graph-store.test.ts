@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { InMemoryGraphStore } from '../../../registry/domain/together/db/graph/freeform/registry/graph-store.js';
-import { agentUrn, skillUrn } from '../../../registry/domain/together/db/graph/freeform/registry/urn.js';
+import { InMemoryGraphStore } from '../../../registry/domain/signet/db/graph/freeform/registry/graph-store.js';
+import { agentUrn, skillUrn } from '../../../registry/domain/signet/db/graph/freeform/registry/urn.js';
 
 describe('InMemoryGraphStore', () => {
   it('upserts and fetches nodes', async () => {

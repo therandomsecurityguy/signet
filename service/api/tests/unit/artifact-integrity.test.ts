@@ -7,7 +7,7 @@ import { buildRegistryCore } from '../../../registry/application/build-registry-
 import {
   CasIntegrityError,
   FsCasArtifactStore,
-} from '../../../registry/domain/together/db/graph/freeform/registry/artifact-store.js';
+} from '../../../registry/domain/signet/db/graph/freeform/registry/artifact-store.js';
 
 const tempDirs: string[] = [];
 

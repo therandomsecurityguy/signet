@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 
 import { buildRegistryCore } from '../../registry/application/build-registry-core.js';
-import { ingestRegistry } from '../../registry/domain/together/db/graph/freeform/registry/ingest.js';
+import { ingestRegistry } from '../../registry/domain/signet/db/graph/freeform/registry/ingest.js';
 import { loadEnv } from '../src/infrastructure/config/env.js';
 
 function parseArgs(argv: string[]) {

@@ -21,7 +21,7 @@
     "scripts/**/*.ts",
     "vitest.config.ts",
     "../registry/application/**/*.ts",
-    "../registry/domain/together/db/graph/freeform/**/*.ts"
+    "../registry/domain/signet/db/graph/freeform/**/*.ts"
   ],
   "exclude": ["dist", "node_modules"]
 }

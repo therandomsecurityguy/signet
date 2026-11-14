@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { SparqlGraphStore } from '../../../registry/domain/together/db/graph/freeform/registry/sparql-graph-store.js';
+import { SparqlGraphStore } from '../../../registry/domain/signet/db/graph/freeform/registry/sparql-graph-store.js';
 
 describe('SparqlGraphStore', () => {
   afterEach(() => {

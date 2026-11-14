@@ -126,7 +126,7 @@ Current relationships include:
 - gc job analyzes retention root
   - predicate: `sg:analyzesRetentionRoot`
 
-The `.ent` and `.rel` files under `service/registry/domain/together/` are **spec files** describing the model. They are not the runtime database.
+The `.ent` and `.rel` files under `service/registry/domain/signet/` are **spec files** describing the model. They are not the runtime database.
 
 ### Graph store today
 Current runtime graph backends:

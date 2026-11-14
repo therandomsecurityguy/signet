@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
-import type { ArtifactStore } from '../../../domain/together/db/graph/freeform/registry/artifact-store.js';
-import type { GraphNode, GraphStore } from '../../../domain/together/db/graph/freeform/registry/graph-store.js';
+import type { ArtifactStore } from '../../../domain/signet/db/graph/freeform/registry/artifact-store.js';
+import type { GraphNode, GraphStore } from '../../../domain/signet/db/graph/freeform/registry/graph-store.js';
 import {
   artifactBlobUrn,
   artifactManifestUrn,
@@ -11,7 +11,7 @@ import {
   retentionRootUrn,
   tagUrn,
   workspaceUrn,
-} from '../../../domain/together/db/graph/freeform/registry/urn.js';
+} from '../../../domain/signet/db/graph/freeform/registry/urn.js';
 import { TimeAwareRegistryError } from '../errors/time-aware-registry-error.js';
 import type {
   CreateResult,

@@ -57,10 +57,10 @@ Related runtime surfaces:
 - optional local Fuseki on `http://localhost:3030`
 
 ### Where to start
-- domain + storage model: `domain/together/`
+- domain + storage model: `domain/signet/`
 - shared internal registry core: `application/`
 - time-aware internal module: `application/time-aware/`
-- graph adapters: `domain/together/db/graph/freeform/registry/`
+- graph adapters: `domain/signet/db/graph/freeform/registry/`
 - topology doc: `docs/service-map.md`
 - registry model doc: `docs/registry-model.md`
 

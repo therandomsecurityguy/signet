@@ -1,6 +1,6 @@
-import type { ArtifactStore } from '../../../../registry/domain/together/db/graph/freeform/registry/artifact-store.js';
-import { CasIntegrityError } from '../../../../registry/domain/together/db/graph/freeform/registry/artifact-store.js';
-import type { GraphStore } from '../../../../registry/domain/together/db/graph/freeform/registry/graph-store.js';
+import type { ArtifactStore } from '../../../../registry/domain/signet/db/graph/freeform/registry/artifact-store.js';
+import { CasIntegrityError } from '../../../../registry/domain/signet/db/graph/freeform/registry/artifact-store.js';
+import type { GraphStore } from '../../../../registry/domain/signet/db/graph/freeform/registry/graph-store.js';
 import { DefaultRegistryService } from '../../../../registry/application/services/default-registry-service.js';
 import { DomainError } from '../../domain/errors/domain-error.js';
 import { ErrorCode } from '../../domain/errors/error-codes.js';
@@ -16,7 +16,7 @@ import type {
 } from '../../contracts/tools/registry-get-attestations.js';
 import { toVerifyPublicationOutput } from './publication-verification-output.js';
 import type { RegistryReadGate } from './read-gate.js';
-import { artifactUrn } from '../../../../registry/domain/together/db/graph/freeform/registry/urn.js';
+import { artifactUrn } from '../../../../registry/domain/signet/db/graph/freeform/registry/urn.js';
 import type {
   RegistryGetAgentInput,
   RegistryGetAgentOutput,
