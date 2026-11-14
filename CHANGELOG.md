@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.51](https://github.com/therandomsecurityguy/signet/compare/v0.1.50...v0.1.51) (2026-11-14)
+
+
+### Bug Fixes
+
+* **security:** port auth-failure budget to the MCP rate limiter ([61e9a00](https://github.com/therandomsecurityguy/signet/commit/61e9a007586b1a35c1c51dc27ce793fdc24865f2))
+* **security:** port auth-failure budget to the MCP rate limiter ([2e271d3](https://github.com/therandomsecurityguy/signet/commit/2e271d307c8b819b9541cff9f45c053a26996073))
+
 ## [0.1.50](https://github.com/therandomsecurityguy/signet/compare/v0.1.49...v0.1.50) (2026-11-14)
 
 
