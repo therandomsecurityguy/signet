@@ -48,7 +48,7 @@ Set in `service/api/infra/.env`:
 AUTH_MODE=okta
 OKTA_MODE=real
 OKTA_ISSUER=https://your-org.okta.com/oauth2/default
-OKTA_AUDIENCE=api://agent-registry
+OKTA_AUDIENCE=api://signet
 OKTA_REQUIRED_SCOPES=registry.write
 OKTA_GROUPS_CLAIM=groups
 ```

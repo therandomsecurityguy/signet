@@ -1,6 +1,6 @@
 // Daily Fuseki backup: exports every graph of the registry dataset as a
 // single N-Quads document into the versioned artifacts bucket, and publishes
-// Cachet/Watchdog/FusekiBackupSuccess so a missed or failed day alarms
+// Signet/Watchdog/FusekiBackupSuccess so a missed or failed day alarms
 // (missing data is breaching on the Terraform alarm).
 //
 // Runs as a CronJob in the tessera-sidecar image (AWS SDK deps + the

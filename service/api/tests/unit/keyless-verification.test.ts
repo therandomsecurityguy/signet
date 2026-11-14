@@ -56,7 +56,7 @@ function bundleFor(input: {
 const policy = {
   trusted_root_pems: [fixturePem('intermediate'), fixturePem('root')],
   allowed_issuers: ['https://token.actions.githubusercontent.com'],
-  allowed_subject_patterns: ['^https://github\\.com/togethercomputer/cachet/'],
+  allowed_subject_patterns: ['^https://github\\.com/togethercomputer/signet/'],
 };
 
 function rekorFixtures() {
@@ -328,7 +328,7 @@ describe('verifyKeylessBundle', () => {
     const v03 = verifyKeylessBundle({ bundle: bundleFor({ leafName: 'leaf', signedBytes }), signed_bytes: signedBytes, policy });
     expect(v03).toMatchObject({
       verified: true,
-      identity: 'https://github.com/togethercomputer/cachet/.github/workflows/release.yaml@refs/tags/v0.1.28',
+      identity: 'https://github.com/togethercomputer/signet/.github/workflows/release.yaml@refs/tags/v0.1.28',
       issuer: 'https://token.actions.githubusercontent.com',
       algorithm: 'ecdsa-p256-sha256',
     });

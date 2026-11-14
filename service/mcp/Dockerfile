@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Production image for the Cachet AI-facing MCP gateway (service/mcp).
+# Production image for the Signet AI-facing MCP gateway (service/mcp).
 # Build context is the repo root (per the platform release pipeline).
 
 FROM node:26-bookworm-slim AS build
@@ -38,8 +38,8 @@ COPY --from=build /workspace/service/mcp/package*.json service/mcp/
 # node_modules must ship beside them at a resolvable ancestor.
 COPY --from=build /workspace/service/registry/node_modules service/node_modules
 
-RUN groupadd -r cachet && useradd -r -g cachet cachet && chown -R cachet:cachet /workspace
-USER cachet
+RUN groupadd -r signet && useradd -r -g signet signet && chown -R signet:signet /workspace
+USER signet
 
 WORKDIR /workspace/service/mcp
 EXPOSE 3000

@@ -88,7 +88,7 @@ npm run dev
 ```
 
 Important local env defaults:
-- `DATABASE_URL=file:./var/agent-data-access.db`
+- `DATABASE_URL=file:./var/signet-mcp.db`
 - `AUTH_MODE=api_key`
 - `OKTA_MODE=mock`
 - `REGISTRY_GRAPH_BACKEND=json_file`

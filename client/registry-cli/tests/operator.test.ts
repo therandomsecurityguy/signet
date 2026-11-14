@@ -69,7 +69,7 @@ describe('registry operator parsing and planning', () => {
           'AUTH_MODE=dual',
           'OKTA_MODE=real',
           'OKTA_ISSUER=https://example.okta.com/oauth2/default',
-          'OKTA_AUDIENCE=api://agent-registry',
+          'OKTA_AUDIENCE=api://signet',
           'OKTA_REQUIRED_SCOPES=registry.write',
           'OKTA_GROUPS_CLAIM=groups',
         ].join('\n'),

@@ -126,8 +126,8 @@ const client = new RegistryClient({
   baseUrl: 'https://cachet-api.tunnel.together.ai',
   apiToken: process.env.CACHET_KEY,
   headers: {
-    'CF-Access-Client-Id': process.env.CACHET_CF_ACCESS_CLIENT_ID!,
-    'CF-Access-Client-Secret': process.env.CACHET_CF_ACCESS_CLIENT_SECRET!,
+    'CF-Access-Client-Id': process.env.SIGNET_CF_ACCESS_CLIENT_ID!,
+    'CF-Access-Client-Secret': process.env.SIGNET_CF_ACCESS_CLIENT_SECRET!,
   },
 });
 
@@ -142,8 +142,8 @@ Set the Cloudflare Access service-token headers as env vars (applied to both the
 API and MCP clients):
 
 ```bash
-export CACHET_CF_ACCESS_CLIENT_ID=...
-export CACHET_CF_ACCESS_CLIENT_SECRET=...
+export SIGNET_CF_ACCESS_CLIENT_ID=...
+export SIGNET_CF_ACCESS_CLIENT_SECRET=...
 export API_ORIGIN=https://cachet-api.tunnel.together.ai
 export MCP_ORIGIN=https://cachet-mcp.tunnel.together.ai
 

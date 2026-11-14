@@ -54,7 +54,7 @@ Important values:
 - `TESSERA_SIDECAR_TILES_PREFIX`
 - `TESSERA_SIDECAR_REQUESTS_PREFIX`
 - `TESSERA_LOG_PRIVATE_KEY` (PEM; enables the native companion log and signed checkpoints)
-- `TESSERA_LOG_ORIGIN` (checkpoint note origin, default `cachet-tessera.local`)
+- `TESSERA_LOG_ORIGIN` (checkpoint note origin, default `signet-tessera.local`)
 - `TESSERA_SIDECAR_AUTH_TOKEN` (shared bearer token; `/v1/*` calls must present it — the registry sends it from its own `TESSERA_SIDECAR_AUTH_TOKEN`)
 - `TESSERA_SIDECAR_ALLOW_UNAUTHENTICATED=true` (explicit local-development opt-out; without it a missing token fails closed)
 

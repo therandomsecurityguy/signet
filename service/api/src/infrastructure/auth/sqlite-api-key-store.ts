@@ -195,7 +195,7 @@ function hashSecret(secret: string, pepper: string | undefined): string {
   // Strong KDF (scrypt) so the stored value is not a fast SHA-based digest.
   // The pepper (required in production) is the salt; the constant is a
   // dev-only fallback.
-  const salt = pepper ?? 'cachet-dev-pepper';
+  const salt = pepper ?? 'signet-dev-pepper';
   return scryptSync(secret, salt, 32).toString('hex');
 }
 

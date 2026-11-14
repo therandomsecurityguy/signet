@@ -30,8 +30,8 @@ const client = new RegistryClient({
   baseUrl: 'https://cachet-api.tunnel.together.ai',
   apiToken: process.env.CACHET_KEY,
   headers: {
-    'CF-Access-Client-Id': process.env.CACHET_CF_ACCESS_CLIENT_ID!,
-    'CF-Access-Client-Secret': process.env.CACHET_CF_ACCESS_CLIENT_SECRET!,
+    'CF-Access-Client-Id': process.env.SIGNET_CF_ACCESS_CLIENT_ID!,
+    'CF-Access-Client-Secret': process.env.SIGNET_CF_ACCESS_CLIENT_SECRET!,
   },
 });
 ```

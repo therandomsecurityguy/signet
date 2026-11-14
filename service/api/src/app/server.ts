@@ -108,10 +108,10 @@ const app = new OpenAPIHono<AppEnv>({
   app.doc('/v1/openapi.json', {
     openapi: '3.1.0',
     info: {
-      title: 'Cachet Registry API',
+      title: 'Signet Registry API',
       version: '1.0.0',
       description:
-        'Programmatic management plane for the Cachet agent/skill registry: lifecycle, certification, transparency, provenance, and time-aware operations.',
+        'Programmatic management plane for the Signet agent/skill registry: lifecycle, certification, transparency, provenance, and time-aware operations.',
     },
     servers: [{ url: '/' }],
   });
@@ -232,7 +232,7 @@ const app = new OpenAPIHono<AppEnv>({
 
   app.get('/v1', (c) =>
     c.json({
-      service: 'agent-registry-api',
+      service: 'signet-api',
       status: 'agents-and-skills-metadata-slice',
       purpose: 'Programmatic CRUD and operational API for registry entities.',
       auth: {

@@ -6,7 +6,7 @@ import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { collectFusekiBackup, fusekiBackupKey } from './fuseki-backup.js';
 
 // CronJob entry point: dump the registry dataset to the artifact bucket and
-// report success/failure as Cachet/Watchdog/FusekiBackupSuccess (the alarm
+// report success/failure as Signet/Watchdog/FusekiBackupSuccess (the alarm
 // treats missing data as breaching, so a missed run is itself an incident).
 
 const queryUrl = process.env['REGISTRY_SPARQL_QUERY_URL'] ?? '';
@@ -16,7 +16,7 @@ const password = process.env['REGISTRY_SPARQL_PASSWORD'];
 const bucket = process.env['REGISTRY_S3_BUCKET'] ?? '';
 const prefix = process.env['REGISTRY_S3_PREFIX'] ?? '';
 const region = process.env['REGISTRY_S3_REGION'] ?? process.env['AWS_REGION'] ?? 'us-west-2';
-const metricNamespace = process.env['FUSEKI_BACKUP_METRIC_NAMESPACE'] ?? 'Cachet/Watchdog';
+const metricNamespace = process.env['FUSEKI_BACKUP_METRIC_NAMESPACE'] ?? 'Signet/Watchdog';
 
 async function publishMetric(value: number): Promise<void> {
   try {

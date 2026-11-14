@@ -13,7 +13,7 @@ const EnvSchema = z.object({
   // (PEM), append intents are also appended to the native log and signed
   // checkpoints are published; the registry reconciles against them.
   TESSERA_LOG_PRIVATE_KEY: z.string().optional(),
-  TESSERA_LOG_ORIGIN: z.string().default('cachet-tessera.local'),
+  TESSERA_LOG_ORIGIN: z.string().default('signet-tessera.local'),
   // Shared bearer token for /v1/* calls (health/readiness/config stay open).
   // Auth is fail-closed: without the token, /v1/* responds 401 unless
   // TESSERA_SIDECAR_ALLOW_UNAUTHENTICATED explicitly opts out (local

@@ -30,8 +30,8 @@ const EnvSchema = z.object({
   MCP_ENV_FILE: z.string().default(defaultMcpEnvFile()),
   // Cloudflare Access service-token headers for the deployed tunnels
   // (non-WARP machine clients). Both must be set to take effect.
-  CACHET_CF_ACCESS_CLIENT_ID: z.string().optional(),
-  CACHET_CF_ACCESS_CLIENT_SECRET: z.string().optional(),
+  SIGNET_CF_ACCESS_CLIENT_ID: z.string().optional(),
+  SIGNET_CF_ACCESS_CLIENT_SECRET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -42,10 +42,10 @@ export function loadEnv(input: NodeJS.ProcessEnv = process.env): Env {
 
 /** Cloudflare Access headers for machine clients, when configured. */
 export function cfAccessHeaders(env: Env): Record<string, string> {
-  if (env.CACHET_CF_ACCESS_CLIENT_ID && env.CACHET_CF_ACCESS_CLIENT_SECRET) {
+  if (env.SIGNET_CF_ACCESS_CLIENT_ID && env.SIGNET_CF_ACCESS_CLIENT_SECRET) {
     return {
-      'CF-Access-Client-Id': env.CACHET_CF_ACCESS_CLIENT_ID,
-      'CF-Access-Client-Secret': env.CACHET_CF_ACCESS_CLIENT_SECRET,
+      'CF-Access-Client-Id': env.SIGNET_CF_ACCESS_CLIENT_ID,
+      'CF-Access-Client-Secret': env.SIGNET_CF_ACCESS_CLIENT_SECRET,
     };
   }
   return {};

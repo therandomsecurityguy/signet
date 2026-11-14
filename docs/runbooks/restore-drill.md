@@ -111,8 +111,8 @@ Cleanup: `docker rm -f drill-fuseki` (or delete the scratch namespace).
 ```bash
 # Artifact bytes are verified on read: a 200 here proves digest integrity.
 curl -s -o /dev/null -w "%{http_code}\n" \
-  -H "CF-Access-Client-Id: $CACHET_CF_ACCESS_CLIENT_ID" \
-  -H "CF-Access-Client-Secret: $CACHET_CF_ACCESS_CLIENT_SECRET" \
+  -H "CF-Access-Client-Id: $SIGNET_CF_ACCESS_CLIENT_ID" \
+  -H "CF-Access-Client-Secret: $SIGNET_CF_ACCESS_CLIENT_SECRET" \
   https://cachet-api.tunnel.together.ai/v1/artifacts/<known-sha256>
 
 # Transparency state present:

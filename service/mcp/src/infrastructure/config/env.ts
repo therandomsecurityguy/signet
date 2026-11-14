@@ -7,8 +7,8 @@ const EnvSchema = z.object({
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
     .default('info'),
-  SERVICE_NAME: z.string().default('agent-data-access-gateway'),
-  DATABASE_URL: z.string().default('file:./var/agent-data-access.db'),
+  SERVICE_NAME: z.string().default('signet-mcp'),
+  DATABASE_URL: z.string().default('file:./var/signet-mcp.db'),
   // Path to a PEM bundle of CAs for Postgres TLS (RDS regional CA). When set,
   // connections force sslmode=verify-full against that bundle.
   DATABASE_SSL_ROOT_CERT: z.string().optional(),

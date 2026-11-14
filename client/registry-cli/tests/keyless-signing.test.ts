@@ -54,7 +54,7 @@ async function getFreePort(): Promise<number> {
 
 const OIDC_ISSUER = 'https://token.actions.githubusercontent.com';
 const OIDC_SUBJECT =
-  'https://github.com/togethercomputer/cachet/.github/workflows/release.yaml@refs/tags/v9.9.9';
+  'https://github.com/togethercomputer/signet/.github/workflows/release.yaml@refs/tags/v9.9.9';
 
 // sigstore validates the identity token client-side (JWT subject claim), so
 // the fake OIDC token has the real three-segment shape with a test payload.
@@ -202,7 +202,7 @@ describe('registry-operator sign keyless', () => {
         TIME_AWARE_OBJECTS_DIR: path.join(tmp, 'time-aware-objects'),
         KEYLESS_TRUSTED_ROOTS: `${FIXTURES}/intermediate.pem,${FIXTURES}/root.pem`,
         KEYLESS_ALLOWED_ISSUERS: OIDC_ISSUER,
-        KEYLESS_ALLOWED_SUBJECTS: '^https://github\\.com/togethercomputer/cachet/',
+        KEYLESS_ALLOWED_SUBJECTS: '^https://github\\.com/togethercomputer/signet/',
       });
       const apiDeps = buildApiDependencies(apiEnv);
       await apiDeps.ready();
@@ -299,7 +299,7 @@ describe('registry-operator sign keyless', () => {
         TIME_AWARE_OBJECTS_DIR: path.join(tmp, 'time-aware-objects'),
         KEYLESS_TRUSTED_ROOTS: `${FIXTURES}/intermediate.pem,${FIXTURES}/root.pem`,
         KEYLESS_ALLOWED_ISSUERS: OIDC_ISSUER,
-        KEYLESS_ALLOWED_SUBJECTS: '^https://github\\.com/togethercomputer/cachet/',
+        KEYLESS_ALLOWED_SUBJECTS: '^https://github\\.com/togethercomputer/signet/',
       });
       const apiDeps = buildApiDependencies(apiEnv);
       await apiDeps.ready();

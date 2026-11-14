@@ -1002,7 +1002,7 @@ async function seedResolvedBootstrapManifest(env: Env, manifest: ResolvedBootstr
   void env;
 }
 
-const DEMO_SIGNING_KEY_REF = 'demo://cachet/demo-signing-key';
+const DEMO_SIGNING_KEY_REF = 'demo://signet/demo-signing-key';
 
 type DemoSigner = { keyRef: string; owner: string; privateKey: KeyObject };
 
@@ -1376,8 +1376,8 @@ function asString(value: string | boolean | string[] | undefined) {
 function applyCfAccessArgs(env: Env, args: Record<string, string | boolean | string[] | undefined>) {
   const id = asString(args['cf-access-client-id']);
   const secret = asString(args['cf-access-client-secret']);
-  if (id) env.CACHET_CF_ACCESS_CLIENT_ID = id;
-  if (secret) env.CACHET_CF_ACCESS_CLIENT_SECRET = secret;
+  if (id) env.SIGNET_CF_ACCESS_CLIENT_ID = id;
+  if (secret) env.SIGNET_CF_ACCESS_CLIENT_SECRET = secret;
 }
 
 function toStringArray(value: string | boolean | string[] | undefined) {

@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Production image for the Cachet management-plane API (service/api).
+# Production image for the Signet management-plane API (service/api).
 # Build context is the repo root (per the platform release pipeline).
 
 FROM node:26-bookworm-slim AS build
@@ -37,8 +37,8 @@ COPY --from=build /workspace/service/api/package*.json service/api/
 # node_modules must ship beside them at a resolvable ancestor.
 COPY --from=build /workspace/service/registry/node_modules service/node_modules
 
-RUN groupadd -r cachet && useradd -r -g cachet cachet && chown -R cachet:cachet /workspace
-USER cachet
+RUN groupadd -r signet && useradd -r -g signet signet && chown -R signet:signet /workspace
+USER signet
 
 WORKDIR /workspace/service/api
 EXPOSE 3100

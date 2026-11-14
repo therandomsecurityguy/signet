@@ -91,7 +91,7 @@ Important values:
 - `HOST=0.0.0.0`
 - `PORT=3100`
 - `LOG_LEVEL`
-- `DATABASE_URL=file:/workspace/data/api/agent-registry-api.db`
+- `DATABASE_URL=file:/workspace/data/api/signet-api.db`
   - `file:`/`sqlite://` URLs use SQLite; `postgres://`/`postgresql://` URLs
     use Postgres (the production RDS URL arrives this way). When service/api
     and service/mcp share one Postgres database, both run the same migrations
@@ -198,9 +198,9 @@ The local stack bind-mounts `data/` into containers as `/workspace/data`.
 
 Current important paths:
 - MCP SQLite DB:
-  - `data/mcp/agent-data-access.db`
+  - `data/mcp/signet-mcp.db`
 - API SQLite DB:
-  - `data/api/agent-registry-api.db`
+  - `data/api/signet-api.db`
 - Webapp SQLite DB:
   - `data/webapp/knowledge-manager.db`
 - shared persistent local graph state for API + MCP:

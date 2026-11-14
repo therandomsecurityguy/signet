@@ -459,7 +459,7 @@ npm run dev
 ```
 
 Important env defaults:
-- `DATABASE_URL=file:./var/agent-registry-api.db`
+- `DATABASE_URL=file:./var/signet-api.db`
 - `AUTH_MODE=api_key`
 - `OKTA_MODE=mock`
 - `REGISTRY_GRAPH_BACKEND=json_file`

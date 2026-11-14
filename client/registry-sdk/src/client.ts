@@ -16,7 +16,7 @@ function contentDigestMatches(header: string, sha256HexValue: string): boolean {
 }
 
 export type RegistryClientOptions = {
-  /** Base URL of the Cachet registry API, e.g. `http://localhost:3100`. */
+  /** Base URL of the Signet registry API, e.g. `http://localhost:3100`. */
   baseUrl: string;
   /** Bearer token for authenticated reads/writes. */
   apiToken?: string;
@@ -44,7 +44,7 @@ export class RegistryClientError extends Error {
 type GetResult<T> = { data?: T; error?: unknown; response: Response };
 
 /**
- * Typed, read-first client for the Cachet registry API.
+ * Typed, read-first client for the Signet registry API.
  *
  * The read methods mirror the canonical `service/api` contract and are safe
  * for agents to call for discovery, inspection, and trust verification.

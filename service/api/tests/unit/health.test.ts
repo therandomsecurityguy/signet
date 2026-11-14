@@ -34,7 +34,7 @@ describe('health endpoints', () => {
     const res = await app.request('/v1');
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toMatchObject({
-      service: 'agent-registry-api',
+      service: 'signet-api',
       status: 'agents-and-skills-metadata-slice',
       depends_on: ['service/registry'],
       auth: {

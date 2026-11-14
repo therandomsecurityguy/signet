@@ -29,7 +29,7 @@ describe('OpenAPI contract', () => {
       paths: Record<string, unknown>;
     };
     expect(spec.openapi).toBe('3.1.0');
-    expect(spec.info.title).toBe('Cachet Registry API');
+    expect(spec.info.title).toBe('Signet Registry API');
     expect(spec.info.version).toBe('1.0.0');
     expect(Object.keys(spec.paths).length).toBeGreaterThan(0);
   });

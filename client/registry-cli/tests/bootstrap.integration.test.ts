@@ -260,7 +260,7 @@ describe('registry-operator bootstrap test command', () => {
       };
       expect(envelope.detached_signatures).toHaveLength(1);
       expect(envelope.detached_signatures[0]).toMatchObject({
-        key_ref: 'demo://cachet/demo-signing-key',
+        key_ref: 'demo://signet/demo-signing-key',
         signer: 'registry-operator',
       });
 
@@ -366,7 +366,7 @@ describe('registry-operator bootstrap test command', () => {
           'AUTH_MODE=dual',
           'OKTA_MODE=real',
           'OKTA_ISSUER=https://example.okta.com/oauth2/default',
-          'OKTA_AUDIENCE=api://agent-registry',
+          'OKTA_AUDIENCE=api://signet',
           'OKTA_REQUIRED_SCOPES=registry.write',
           'OKTA_GROUPS_CLAIM=groups',
         ].join('\n'),

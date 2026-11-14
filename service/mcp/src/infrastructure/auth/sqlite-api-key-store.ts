@@ -115,7 +115,7 @@ function parseApiKeyToken(token: string): { keyId: string; secret: string } | nu
 function hashSecret(secret: string, pepper: string | undefined): string {
   // Strong KDF (scrypt); the pepper (required in production) is the salt, with
   // a dev-only fallback.
-  const salt = pepper ?? 'cachet-dev-pepper';
+  const salt = pepper ?? 'signet-dev-pepper';
   return scryptSync(secret, salt, 32).toString('hex');
 }
 

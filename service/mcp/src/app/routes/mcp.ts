@@ -48,7 +48,7 @@ function buildMcpServer(input: {
   client_name: string;
 }) {
   const server = new McpServer({
-    name: 'agent-data-access-gateway',
+    name: 'signet-mcp',
     version: '0.1.0',
   });
 

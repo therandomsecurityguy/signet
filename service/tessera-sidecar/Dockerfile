@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Production image for the Cachet transparency sidecar (service/tessera-sidecar).
+# Production image for the Signet transparency sidecar (service/tessera-sidecar).
 # Build context is the repo root (per the platform release pipeline).
 
 FROM node:26-bookworm-slim AS build
@@ -26,8 +26,8 @@ COPY --from=build /workspace/service/tessera-sidecar/dist service/tessera-sideca
 COPY --from=build /workspace/service/tessera-sidecar/node_modules service/tessera-sidecar/node_modules
 COPY --from=build /workspace/service/tessera-sidecar/package*.json service/tessera-sidecar/
 
-RUN groupadd -r cachet && useradd -r -g cachet cachet && chown -R cachet:cachet /workspace
-USER cachet
+RUN groupadd -r signet && useradd -r -g signet signet && chown -R signet:signet /workspace
+USER signet
 
 WORKDIR /workspace/service/tessera-sidecar
 EXPOSE 3400

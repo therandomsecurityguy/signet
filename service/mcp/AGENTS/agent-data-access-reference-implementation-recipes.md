@@ -89,7 +89,7 @@ export const logger = pino({
     censor: '[REDACTED]'
   },
   base: {
-    service: 'agent-data-access-gateway'
+    service: 'signet-mcp'
   }
 });
 ```
@@ -667,7 +667,7 @@ import { toolRegistry } from '../../domain/tools/tool-registry.js';
 
 export function buildMcpServer(execute: (name: string, input: unknown) => Promise<unknown>) {
   const server = new McpServer({
-    name: 'agent-data-access-gateway',
+    name: 'signet-mcp',
     version: '1.0.0',
   });
 
