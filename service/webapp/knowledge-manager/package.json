@@ -1,5 +1,5 @@
 {
-  "name": "@together/agent-registry-knowledge-manager",
+  "name": "signet-knowledge-manager",
   "private": true,
   "type": "module",
   "engines": {

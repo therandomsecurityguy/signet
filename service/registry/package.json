@@ -1,5 +1,5 @@
 {
-  "name": "@together/agent-registry-core",
+  "name": "signet-registry-core",
   "private": true,
   "type": "module",
   "engines": {

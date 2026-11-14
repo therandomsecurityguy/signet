@@ -1,5 +1,5 @@
 {
-  "name": "@together/agent-registry-api",
+  "name": "signet-api",
   "private": true,
   "type": "module",
   "engines": {

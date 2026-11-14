@@ -1,5 +1,5 @@
 {
-  "name": "@together/agent-data-access-gateway",
+  "name": "signet-mcp",
   "private": true,
   "type": "module",
   "engines": {

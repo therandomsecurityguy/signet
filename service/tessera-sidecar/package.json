@@ -1,5 +1,5 @@
 {
-  "name": "@together/agent-registry-tessera-sidecar",
+  "name": "signet-tessera-sidecar",
   "private": true,
   "type": "module",
   "engines": {
