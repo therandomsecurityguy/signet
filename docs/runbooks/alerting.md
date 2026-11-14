@@ -1,7 +1,7 @@
 # Alerting
 
-Cachet alerts fan out through the `cachet-<env>-alerts` SNS topic (created by
-the `cachet-data` Terraform module). Email subscribers must confirm the SNS
+Signet alerts fan out through the `signet-<env>-alerts` SNS topic (created by
+the `signet-data` Terraform module). Email subscribers must confirm the SNS
 confirmation email once — **an unconfirmed subscription silently receives
 nothing** (`aws sns list-subscriptions-by-topic` shows `PendingConfirmation`).
 
@@ -15,7 +15,7 @@ nothing** (`aws sns list-subscriptions-by-topic` shows `PendingConfirmation`).
 | `*-db-connections-high` | RDS connections > 80 (2×5m) | Look for leaked pools (api/mcp) or a runaway client. |
 | `*-redis-cpu-high-*` / `*-redis-free-memory-low-*` / `*-redis-connections-high-*` | Per ElastiCache member (failover-safe) | Check query cache pressure from api/mcp; scale node class. |
 | `*-redis-evictions-*` | Any evictions in 5m | Cache is undersized or keys lack TTLs; treat as a defect. |
-| `*-health-api` / `*-health-openapi` | Route53 HTTPS checks against `https://cachet.tunnel.together.ai/healthz` and `/v1/openapi.json`, 3 failures @30s | User path is down: check tunnel, ingress, api pods. |
+| `*-health-api` / `*-health-openapi` | Route53 HTTPS checks against `https://signet.example.com/healthz` and `/v1/openapi.json`, 3 failures @30s | User path is down: check tunnel, ingress, api pods. |
 | `*-sidecar-unhealthy` | `Signet/Watchdog/SidecarHealthy` minimum < 1 (2×120s) or **missing data** | Publishes hard-depend on the sidecar — see `sidecar-degraded-mode.md`. |
 | `*-fuseki-backup-missing` | `Signet/Watchdog/FusekiBackupSuccess` minimum < 1 daily, or **missing data** | The daily Fuseki graph dump did not run or failed — check the `fuseki-backup` CronJob logs. See "Restore" notes in this runbook. |
 
@@ -25,7 +25,7 @@ visible too.
 ## Verify the pipeline after an apply
 
 ```bash
-aws cloudwatch describe-alarms --alarm-name-prefix cachet-<env> \
+aws cloudwatch describe-alarms --alarm-name-prefix signet-<env> \
   --query 'MetricAlarms[].[AlarmName,StateValue]' --output text
 aws sns list-subscriptions-by-topic --topic-arn <topic-arn> \
   --query 'Subscriptions[].[Endpoint,SubscriptionArn]' --output text   # ARN, not PendingConfirmation
@@ -42,15 +42,15 @@ do not "fix" a false alarm by relaxing `treat_missing_data`.
 Quick manual check of the same probe:
 
 ```bash
-kubectl -n cachet get jobs | grep sidecar-watchdog
-kubectl -n cachet logs job/<watchdog-job> | tail -1   # {"healthy":true,...}
+kubectl -n signet get jobs | grep sidecar-watchdog
+kubectl -n signet logs job/<watchdog-job> | tail -1   # {"healthy":true,...}
 ```
 
 ## Known pitfalls
 
 - SNS **does not retry** subscription confirmation emails. If the address
   never receives one (quarantine/plus-addressing/groups), swap the endpoint
-  in `cachet-data`'s `alert_email_subscriptions` and apply — that recreates
+  in `signet-data`'s `alert_email_subscriptions` and apply — that recreates
   the subscription and re-sends confirmation.
 - Route53 health-check alarms use `treat_missing_data = missing` to avoid
   false alarms while first datapoints land; the health check's own console

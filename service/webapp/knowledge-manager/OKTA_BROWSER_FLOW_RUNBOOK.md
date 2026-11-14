@@ -26,7 +26,7 @@ Use it to:
 Helpful commands:
 
 ```bash
-cd agents-registry/client/registry-cli
+cd signet/client/registry-cli
 npm install
 npm run dev -- verify okta-config
 npm run dev -- verify browser-session --manifest examples/bootstrap/bootstrap.manifest.json
@@ -87,7 +87,7 @@ to mirror the API dual-mode runtime.
 ### Start the stack
 
 ```bash
-cd agents-registry/infra
+cd signet/infra
 make up
 ```
 
@@ -113,7 +113,7 @@ curl -s http://localhost:3200/healthz
 2. Restart only the webapp service
 
 ```bash
-cd agents-registry/infra
+cd signet/infra
 docker compose restart webapp
 ```
 

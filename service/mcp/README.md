@@ -12,7 +12,7 @@ Registry note:
 ### Get value fast
 
 ```bash
-cd cachet/service/mcp
+cd signet/service/mcp
 npm install
 npm run dev
 ```
@@ -27,7 +27,7 @@ curl -s http://localhost:3000/v1/tools -H "Authorization: Bearer <token>"
 Create a Stage 1 API key:
 
 ```bash
-cd cachet/service/mcp
+cd signet/service/mcp
 npm run create-api-key -- --owner-label "Jane Doe"
 ```
 
@@ -51,8 +51,8 @@ Authorization: Bearer <token>
 To stay unblocked while wiring end-to-end seams, warehouse connections and Okta validation may run in **MOCK** mode by default.
 
 See:
-- `../../../_devagents/cachet/projects/worksesseion-02/`
-- `../../../_devagents/cachet/projects/worksession-03.md` (reserved for real credentials & exact setup)
+- `../../../_devagents/signet/projects/worksesseion-02/`
+- `../../../_devagents/signet/projects/worksession-03.md` (reserved for real credentials & exact setup)
 
 ### Endpoints (today)
 - `GET /healthz`
@@ -82,7 +82,7 @@ Current registry behavior:
 ### Run locally
 
 ```bash
-cd cachet/service/mcp
+cd signet/service/mcp
 npm install
 npm run dev
 ```
@@ -98,7 +98,7 @@ Important local env defaults:
 ### Run with Docker Compose (system infra)
 
 ```bash
-cd cachet/infra
+cd signet/infra
 make up
 ```
 
@@ -168,7 +168,7 @@ npm test
 Ingest the checked-in `agent/` and `skills/` roots into the configured registry graph backend plus CAS:
 
 ```bash
-cd cachet/service/mcp
+cd signet/service/mcp
 npm run registry-ingest
 ```
 
@@ -204,8 +204,8 @@ Optional S3 artifact path:
 
 ```bash
 REGISTRY_ARTIFACT_BACKEND=s3 \
-REGISTRY_S3_BUCKET=agents-registry-artifacts \
-REGISTRY_S3_PREFIX=cachet/dev \
+REGISTRY_S3_BUCKET=signet-artifacts \
+REGISTRY_S3_PREFIX=signet/dev \
 REGISTRY_S3_REGION=us-west-2 \
 npm run registry-ingest
 ```

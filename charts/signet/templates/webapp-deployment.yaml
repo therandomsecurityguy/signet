@@ -42,9 +42,9 @@ spec:
             - name: FUSEKI_URL
               value: http://{{ include "signet.fullname" . }}-fuseki:3030
             - name: API_DOCS_URL
-              value: {{ .Values.webapp.apiDocsUrl | default (printf "https://signet-api.tunnel.together.ai/v1/docs") | quote }}
+              value: {{ .Values.webapp.apiDocsUrl | default (printf "https://signet-api.example.com/v1/docs") | quote }}
             - name: MCP_URL
-              value: {{ .Values.webapp.mcpUrl | default (printf "https://signet-mcp.tunnel.together.ai/mcp") | quote }}
+              value: {{ .Values.webapp.mcpUrl | default (printf "https://signet-mcp.example.com/mcp") | quote }}
             {{- if .Values.webapp.vocbenchUiUrl }}
             - name: VOCBENCH_UI_URL
               value: {{ .Values.webapp.vocbenchUiUrl | quote }}

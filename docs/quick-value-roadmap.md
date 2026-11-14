@@ -9,7 +9,7 @@ This document answers four human questions:
 
 ## Project promise
 
-**Cachet** (formerly `agents-registry`) should become the trusted internal open-source layer that helps humans and AI agents:
+**Signet** should become the trusted internal open-source layer that helps humans and AI agents:
 - discover useful skills
 - load the actual implementation artifacts
 - understand provenance and trust

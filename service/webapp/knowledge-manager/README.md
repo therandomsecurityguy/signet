@@ -24,7 +24,7 @@ It is **not** yet a full ontology/model/data authoring product.
 ### Get value fast
 
 ```bash
-cd cachet/service/webapp/knowledge-manager
+cd signet/service/webapp/knowledge-manager
 npm install
 npm run dev
 ```
@@ -38,7 +38,7 @@ http://localhost:3200
 For local `api_key` mode, first mint an API key:
 
 ```bash
-cd cachet/service/api
+cd signet/service/api
 npm run create-api-key -- --owner-label "Jane Doe"
 ```
 

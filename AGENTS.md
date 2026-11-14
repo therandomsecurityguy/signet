@@ -1,6 +1,6 @@
 # Agents Registry
 
-You are working in `agents-registry`.
+You are working in `signet`.
 
 ## Start here
 
@@ -12,7 +12,7 @@ Read these first:
 - `docs/registry-model.md`
 
 For implementation history and rationale:
-- `../_devagents/agents-registry/projects/README.md`
+- `../_devagents/signet/projects/README.md`
 
 ## Canonical boundaries
 
@@ -28,20 +28,20 @@ For implementation history and rationale:
 ## Deployment boundaries
 
 - This repo publishes release-tagged artifacts only (immutable, digest-pinned
-  images + `charts/cachet`), to cachet-owned ECR via GitHub OIDC. Releases are
+  images + `charts/signet`), to signet-owned ECR via GitHub OIDC. Releases are
   signed keyless (cosign) with GitHub build-provenance attestations and SPDX
   SBOMs attached; verify with `scripts/verify-release-signatures.sh <tag>`
   before pinning or applying a release.
-- The environment repo (`tf-io-sec`) owns Terraform state/apply; the cachet
+- The environment repo (`tf-io-sec`) owns Terraform state/apply; the signet
   release runs as an Argo CD Application (adopted 2026-11-10,
-  `gitops/security-prod/apps/cachet`, Synced/Healthy with automated
+  `gitops/security-prod/apps/signet`, Synced/Healthy with automated
   selfHeal). Version bumps update the Application `targetRevision` and the
-  image digests in `gitops/security-prod/apps/cachet/values.yaml` in one PR —
-  merging is the deploy. Reusable data/registry modules (`cachet-data`,
-  `cachet-registry`) still live in this repo.
+  image digests in `gitops/security-prod/apps/signet/values.yaml` in one PR —
+  merging is the deploy. Reusable data/registry modules (`signet-data`,
+  `signet-registry`) still live in this repo.
 - Never deploy directly from this repo against prod; never commit secrets or seed
   secret values through Helm values/Terraform state. See
-  `docs/runbooks/deploy.md` and `charts/cachet/SECRETS.md`.
+  `docs/runbooks/deploy.md` and `charts/signet/SECRETS.md`.
 
 ## Agent integration surfaces
 
@@ -50,7 +50,7 @@ For implementation history and rationale:
 - MCP gateway `service/mcp` with read-only `registry.*` tools (including `registry.search` and `registry.verify_publication`); see `docs/mcp-onboarding.md`.
 - Opt-in cognitive layer in `service/mcp` (token-context estimation + summarization).
 - Operator CLI `@signet/registry-operator` under `client/registry-cli`, including `verify publication|artifact` (verify before load) and MCP artifact re-hashing.
-- Distributable `cachet-registry` onboarding skill under `skills/` and `.cursor/skills/cachet-registry/`.
+- Distributable `signet-registry` onboarding skill under `skills/` and `.cursor/skills/signet-registry/`.
 
 ## Governance rules
 

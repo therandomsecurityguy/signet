@@ -1,6 +1,6 @@
 ## `service/tessera-sidecar` - Tessera S3 Companion
 
-This service is a narrow companion for **Cachet** (formerly `agents-registry`) transparency work.
+This service is a narrow companion for **Signet** transparency work.
 
 It is **not** a full Tessera deployment.
 
@@ -38,7 +38,7 @@ This sidecar gives the repo a practical bridge:
 ### Run locally
 
 ```bash
-cd cachet/service/tessera-sidecar
+cd signet/service/tessera-sidecar
 npm install
 npm run dev
 ```
@@ -61,7 +61,7 @@ Important values:
 If you used the Terraform AWS backend example, the fastest operator path is:
 
 ```bash
-cd cachet/infra
+cd signet/infra
 make wire-tessera-aws
 ```
 

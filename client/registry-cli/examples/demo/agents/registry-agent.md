@@ -1,6 +1,6 @@
 # Registry Demo Agent
 
-This agent is the first-user demo entrypoint for `agents-registry`.
+This agent is the first-user demo entrypoint for `signet`.
 
 ## Use this agent when
 

@@ -1,6 +1,6 @@
 ## Blessed Demo Path
 
-This document is the source of truth for the first-user demo of Cachet.
+This document is the source of truth for the first-user demo of Signet.
 
 It is optimized for one coherent local story:
 - bring the stack up with Docker Compose
@@ -29,7 +29,7 @@ The agent references both skills so a human can discover the agent first, then l
 ### Step 1. Start the stack
 
 ```bash
-cd cachet/infra
+cd signet/infra
 make up
 ```
 
@@ -57,7 +57,7 @@ Current default artifact backend:
 ### Step 2. Run the blessed bootstrap
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 npm install
 npm run dev -- bootstrap test --reset --force --up
 ```
@@ -154,7 +154,7 @@ REGISTRY_SPARQL_PASSWORD=admin
 If switching between the two lanes, restart the stack:
 
 ```bash
-cd cachet/infra
+cd signet/infra
 make down
 make up
 ```
@@ -162,7 +162,7 @@ make up
 Then re-run the same blessed bootstrap command:
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 npm run dev -- bootstrap test --reset --force --up
 ```
 
@@ -175,7 +175,7 @@ The blessed demo path keeps MCP usage and browser admin proof separate.
 After the bootstrap succeeds, you can prove the thin admin UI path:
 
 ```bash
-cd cachet/service/webapp/knowledge-manager
+cd signet/service/webapp/knowledge-manager
 npx playwright install chromium
 npm run demo:mock-okta
 ```
@@ -190,7 +190,7 @@ Real Okta remains env-gated and is still documented separately in:
 To clear local bind-mounted state and rerun from zero:
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 npm run dev -- local reset --force
 npm run dev -- bootstrap test --reset --force --up
 ```

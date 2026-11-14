@@ -31,7 +31,7 @@ After a move or rename, make the repository consistent again across:
    - service `README.md`
    - `AGENTS.md`
    - `infra/*`
-   - `../../../../_devagents/agents-registry/projects/**/*`
+   - `../../../../_devagents/signet/projects/**/*`
 5. Re-run verification from the moved service/package.
 6. Do a final search for the old path and explain any remaining generated matches.
 
@@ -44,7 +44,7 @@ After a move or rename, make the repository consistent again across:
 - `service/*/scripts/**/*`
 - `service/*/AGENTS.md`
 - `infra/**/*`
-- `../../../../_devagents/agents-registry/projects/**/*`
+- `../../../../_devagents/signet/projects/**/*`
 
 ## Repository-specific checks
 
@@ -59,7 +59,7 @@ When `service/mcp` or another TS service moves:
 When a path changes, update all three layers:
 - human docs: `README.md`, `service/*/README.md`, `infra/README.md`
 - agent docs: `AGENTS.md`, `infra/AGENTS.md`
-- devagent history: `../../../../_devagents/agents-registry/projects/README.md` and affected `worksession-*`
+- devagent history: `../../../../_devagents/signet/projects/README.md` and affected `worksession-*`
 
 ### Common miss cases
 - examples in code fences
@@ -93,5 +93,5 @@ If `service/mcp` moves again:
 - update `service/mcp/tsconfig.json`
 - update `service/mcp/package.json`
 - update root/service/infra READMEs
-- update `../../../../_devagents/agents-registry/projects/worksession-*`
+- update `../../../../_devagents/signet/projects/worksession-*`
 - run MCP validation from the new location

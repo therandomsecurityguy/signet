@@ -47,7 +47,7 @@ This area is usually exercised through the public planes, not run directly.
 For local work:
 
 ```bash
-cd cachet/infra
+cd signet/infra
 make up
 ```
 

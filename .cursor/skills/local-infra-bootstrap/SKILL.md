@@ -1,6 +1,6 @@
 ---
 name: local-infra-bootstrap
-description: Creates or extends local development infrastructure for this repository. Use when adding a new service, Dockerfile, service env files, root compose wiring, compose overrides, shared volumes, Makefile shortcuts, or local-development docs for `projects/agents-registry`.
+description: Creates or extends local development infrastructure for this repository. Use when adding a new service, Dockerfile, service env files, root compose wiring, compose overrides, shared volumes, Makefile shortcuts, or local-development docs for `projects/signet`.
 ---
 # Local Infra Bootstrap
 

@@ -1,6 +1,6 @@
 ## `service/tessera-runtime` - Tessera Runtime Companion
 
-This service is the first real Tessera-backed runtime companion for **Cachet** (formerly `agents-registry`).
+This service is the first real Tessera-backed runtime companion for **Signet**.
 
 Implemented now:
 - Tessera appender initialization using the AWS storage shape
@@ -34,7 +34,7 @@ The intended flow is:
 Use the optional compose profile:
 
 ```bash
-cd cachet/infra
+cd signet/infra
 make up-tessera
 ```
 
@@ -62,7 +62,7 @@ That example emits three useful outputs:
 The current in-repo deployment path is compose-backed service env files, so after `terraform apply` the fastest operator path is:
 
 ```bash
-cd cachet/infra
+cd signet/infra
 make wire-tessera-aws
 ```
 

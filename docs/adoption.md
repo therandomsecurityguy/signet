@@ -1,6 +1,6 @@
-# Adopting Cachet (deployed)
+# Adopting Signet (deployed)
 
-How to connect to the **Cachet registry** in `security-prod` and adopt it:
+How to connect to the **Signet registry** in `security-prod` and adopt it:
 register agents/skills, discover them, and verify trust.
 
 For local development see `local-development.md`; for the full API surface see
@@ -10,12 +10,12 @@ For local development see `local-development.md`; for the full API surface see
 
 | Surface | URL | Auth | Audience |
 |---|---|---|---|
-| Webapp (human UI) | `https://cachet.tunnel.together.ai` | Okta (browser) | Humans |
-| Registry API (`/v1`) | `https://cachet-api.tunnel.together.ai` | Okta bearer **or** `agk_` API key | SDK / CLI / operators |
-| MCP gateway | `https://cachet-mcp.tunnel.together.ai/mcp` | `agk_` API key | Agents / MCP clients |
+| Webapp (human UI) | `https://signet.example.com` | Okta (browser) | Humans |
+| Registry API (`/v1`) | `https://signet-api.example.com` | Okta bearer **or** `agk_` API key | SDK / CLI / operators |
+| MCP gateway | `https://signet-mcp.example.com/mcp` | `agk_` API key | Agents / MCP clients |
 
-- OpenAPI 3.1: `GET https://cachet-api.tunnel.together.ai/v1/openapi.json`
-- Swagger UI: `https://cachet-api.tunnel.together.ai/v1/docs` (open in a WARP browser)
+- OpenAPI 3.1: `GET https://signet-api.example.com/v1/openapi.json`
+- Swagger UI: `https://signet-api.example.com/v1/docs` (open in a WARP browser)
 
 All three are behind **Cloudflare Access** (internal-only, WARP-gated).
 
@@ -26,7 +26,7 @@ All three are behind **Cloudflare Access** (internal-only, WARP-gated).
    - **Machines:** a Cloudflare Access **service token** — send
      `CF-Access-Client-Id` and `CF-Access-Client-Secret` headers on every request.
 2. **Application auth** (`AUTH_MODE=dual`):
-   - **Humans / webapp:** Okta OIDC (group RBAC: `app_cachet_admin`, `app_cachet_viewer`).
+   - **Humans / webapp:** Okta OIDC (group RBAC: `app_signet_admin`, `app_signet_viewer`).
    - **Machines:** an API key beginning with `agk_`, sent as
      `Authorization: Bearer agk_…`.
 
@@ -37,19 +37,19 @@ the API-key bearer.
 
 ### 1. Cloudflare Access service token (machines)
 
-Issued by the tf-io-sec zero-trust unit as the **`cachet-machines`** token.
+Issued by the tf-io-sec zero-trust unit as the **`signet-machines`** token.
 Retrieve it from the environment repo:
 
 ```bash
 cd <tf-io-sec>/cloudflare/together-ai/account/zero-trust
-terragrunt output -raw cachet_machines_service_token_client_id
-terragrunt output -raw cachet_machines_service_token_client_secret   # sensitive
+terragrunt output -raw signet_machines_service_token_client_id
+terragrunt output -raw signet_machines_service_token_client_secret   # sensitive
 ```
 
 The same values live in that unit's Terraform state (S3 bucket
 `together-terraform-state-cloudflare`, key
 `together-ai/account/zero-trust/terraform.tfstate`, outputs
-`cachet_machines_service_token_client_id` / `cachet_machines_service_token_client_secret`).
+`signet_machines_service_token_client_id` / `signet_machines_service_token_client_secret`).
 
 Store the secret in 1Password / your secret manager (never in shell history),
 then send it on **every** request to a tunnel:
@@ -59,16 +59,16 @@ CF-Access-Client-Id: <client_id>
 CF-Access-Client-Secret: <client_secret>
 ```
 
-Rotate by tainting `cloudflare_zero_trust_access_service_token.cachet_machines`
+Rotate by tainting `cloudflare_zero_trust_access_service_token.signet_machines`
 and updating the clients.
 
 ### 2. API key (`agk_`)
 
-**Self-serve (preferred).** Any principal in `app_cachet_admin` mints keys via
+**Self-serve (preferred).** Any principal in `app_signet_admin` mints keys via
 the API (Cloudflare Access service-token headers required from a non-WARP host):
 
 ```bash
-curl -s -X POST https://cachet-api.tunnel.together.ai/v1/api-keys \
+curl -s -X POST https://signet-api.example.com/v1/api-keys \
   -H "CF-Access-Client-Id: $CF_ID" \
   -H "CF-Access-Client-Secret: $CF_SECRET" \
   -H "Authorization: Bearer <okta-access-token>" \
@@ -98,18 +98,18 @@ scope for write methods; keys expire after `API_KEY_DEFAULT_TTL_DAYS` unless a
 ### API (curl, machine)
 
 ```bash
-export CF_ID=<cachet-machines client id>
-export CF_SECRET=<cachet-machines client secret>
+export CF_ID=<signet-machines client id>
+export CF_SECRET=<signet-machines client secret>
 export CACHET_KEY=agk_…
 
 # Verified: returns 200 with a valid service token + key; 302 without the
 # service token; 401 with a bad key.
-curl -s https://cachet-api.tunnel.together.ai/v1/session \
+curl -s https://signet-api.example.com/v1/session \
   -H "CF-Access-Client-Id: $CF_ID" \
   -H "CF-Access-Client-Secret: $CF_SECRET" \
   -H "Authorization: Bearer $CACHET_KEY"
 
-curl -s https://cachet-api.tunnel.together.ai/v1/skills \
+curl -s https://signet-api.example.com/v1/skills \
   -H "CF-Access-Client-Id: $CF_ID" \
   -H "CF-Access-Client-Secret: $CF_SECRET" \
   -H "Authorization: Bearer $CACHET_KEY"
@@ -123,7 +123,7 @@ Pass the CF-Access headers via the `headers` option:
 import { RegistryClient } from '@signet/registry-sdk';
 
 const client = new RegistryClient({
-  baseUrl: 'https://cachet-api.tunnel.together.ai',
+  baseUrl: 'https://signet-api.example.com',
   apiToken: process.env.CACHET_KEY,
   headers: {
     'CF-Access-Client-Id': process.env.SIGNET_CF_ACCESS_CLIENT_ID!,
@@ -144,8 +144,8 @@ API and MCP clients):
 ```bash
 export SIGNET_CF_ACCESS_CLIENT_ID=...
 export SIGNET_CF_ACCESS_CLIENT_SECRET=...
-export API_ORIGIN=https://cachet-api.tunnel.together.ai
-export MCP_ORIGIN=https://cachet-mcp.tunnel.together.ai
+export API_ORIGIN=https://signet-api.example.com
+export MCP_ORIGIN=https://signet-mcp.example.com
 
 registry-operator verify api --manifest ./bootstrap.json --api-token agk_...
 ```
@@ -156,8 +156,8 @@ Or pass them per invocation with `--cf-access-client-id` / `--cf-access-client-s
 
 ```bash
 # Claude Code
-claude mcp add --transport http cachet-registry \
-  https://cachet-mcp.tunnel.together.ai/mcp \
+claude mcp add --transport http signet-registry \
+  https://signet-mcp.example.com/mcp \
   --header "Authorization: Bearer $CACHET_KEY" \
   --header "CF-Access-Client-Id: $CF_ID" \
   --header "CF-Access-Client-Secret: $CF_SECRET" \
@@ -169,9 +169,9 @@ Generic MCP config (opencode / Cursor) uses the same URL and headers:
 ```json
 {
   "mcp": {
-    "cachet-registry": {
+    "signet-registry": {
       "type": "remote",
-      "url": "https://cachet-mcp.tunnel.together.ai/mcp",
+      "url": "https://signet-mcp.example.com/mcp",
       "headers": {
         "Authorization": "Bearer agk_…",
         "CF-Access-Client-Id": "…",
@@ -236,7 +236,7 @@ security model.
 
 ## Known gaps / follow-ups
 
-- **Service-token rotation**: rotate the `cachet-machines` token by tainting the
+- **Service-token rotation**: rotate the `signet-machines` token by tainting the
   tf-io-sec resource and updating client configs.
 
 ## Related

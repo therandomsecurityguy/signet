@@ -1,6 +1,6 @@
 ## Service Map
 
-This document explains the intended roles of the services under `service/` in **Cachet** (formerly `agents-registry`).
+This document explains the intended roles of the services under `service/` in **Signet**.
 
 ### Current service layout
 - `service/mcp`

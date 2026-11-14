@@ -1,10 +1,10 @@
-# Cachet
+# Signet
 
 **The seal of approval for agents and skills.**
 
-Cachet is a graph-first **semantic governance system** for autonomous
+Signet is a graph-first **semantic governance system** for autonomous
 agents and computational skills. Most registries are catalogs: metadata
-in, search out. Cachet governs *meaning, release state, and evidence* —
+in, search out. Signet governs *meaning, release state, and evidence* —
 and stamps every trusted publication with the proof to back it up.
 
 What makes it different:
@@ -38,7 +38,7 @@ What makes it different:
   the activities, agents, policies, and ontologies that produced it —
   with traversal and audit-replay endpoints.
 
-Cachet is valuable when humans and AI agents can:
+Signet is valuable when humans and AI agents can:
 - discover useful capabilities quickly
 - load the real implementation artifacts
 - understand provenance and trust
@@ -53,7 +53,7 @@ That creates three problems:
 - agents cannot tell which artifacts are current and trustworthy
 - operational knowledge becomes stale or duplicated
 
-Cachet is the answer we are building:
+Signet is the answer we are building:
 - metadata that is discoverable
 - artifacts that are linked and loadable
 - lifecycle and certification signals that make trust visible
@@ -195,7 +195,7 @@ Proposed next (not implemented yet):
 If you want the quickest local path:
 
 ```bash
-cd cachet/infra
+cd signet/infra
 make up
 ```
 
@@ -242,7 +242,7 @@ The current team-facing proof story has four lanes:
 Run from:
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 ```
 
 Print the committed transparency sample without requiring the stack or an API token:
@@ -259,14 +259,14 @@ This uses the checked-in sample under:
 Create a write API key first if you do not already have one:
 
 ```bash
-cd cachet/service/api
+cd signet/service/api
 npm run create-api-key -- --owner-label "Teammate Sample Run"
 ```
 
 Then seed the committed sample through the real operator path:
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 npm run dev -- seed transparency-sample --api-token "<api-token>" --spec examples/transparency/sample-graph.spec.json
 ```
 
@@ -279,7 +279,7 @@ That prints:
 For a smaller human-facing report instead of the full JSON payloads:
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 npm run dev -- seed transparency-sample --api-token "<api-token>" --spec examples/transparency/sample-graph.spec.json --human-proof-report
 ```
 
@@ -296,7 +296,7 @@ What the seeded real sample models:
 Run these from:
 
 ```bash
-cd cachet/service/api
+cd signet/service/api
 ```
 
 Happy path for a markdown-backed skill publication:
@@ -353,7 +353,7 @@ What these prove today:
 If you want the current blessed demo:
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 npm install
 npm run dev -- bootstrap test --reset --force --up
 ```
@@ -369,7 +369,7 @@ The operator CLI now also supports:
 
 ### Fresh bootstrap path
 For a fresh local registry bootstrap, the intended operator sequence is:
-1. start the stack with `cd cachet/infra && make up`
+1. start the stack with `cd signet/infra && make up`
 2. mint write credentials for `service/api`
 3. seed lifecycle-aware skills first
 4. seed agents that reference those skills
@@ -441,16 +441,16 @@ Current implementation status (incremental):
 - `service/mcp` now includes an opt-in cognitive layer that estimates tool-result token cost and summarizes payloads that exceed a configured LLM context budget, with ephemeral summary caching.
 - the repo now includes Terraform for a locked-down shared S3 bucket seam, Aurora/Secrets Manager wiring for the Tessera AWS backend state, and optional `tessera-sidecar` / `tessera-runtime` companions for future transparency-backend experiments.
 - publish/certify flows can now stage real publication/governance append intents through the sidecar and preserve the returned S3 references in the trust model when the sidecar is configured.
-- Note: external warehouse connections and Okta validation may run in **MOCK** mode in early worksessions to stay unblocked (documented under `../_devagents/cachet/projects/` and `service/mcp/README.md`).
+- Note: external warehouse connections and Okta validation may run in **MOCK** mode in early worksessions to stay unblocked (documented under `../_devagents/signet/projects/` and `service/mcp/README.md`).
 
 ### Agent integration surfaces
-Cachet is designed to be available to every agent workflow. The current surfaces:
+Signet is designed to be available to every agent workflow. The current surfaces:
 - **OpenAPI 3.1 spec + Swagger UI** — `GET /v1/openapi.json` and `GET /v1/docs` on `service/api`. See `docs/api-reference.md`.
 - **Typed read-first SDK** — `@signet/registry-sdk` under `client/registry-sdk`, generated from the spec. See `client/registry-sdk/README.md`.
 - **MCP gateway** — `service/mcp` exposes read-only `registry.*` tools (including `registry.search`, `registry.verify_publication`, and `registry.get_attestations`) over Streamable HTTP at `/mcp`. See `docs/mcp-onboarding.md` for per-harness config (Claude Code, Cursor, opencode, generic MCP clients).
 - **Cognitive layer** — opt-in token-context estimation + summarization in `service/mcp` (see `service/mcp/README.md`).
 - **Operator CLI** — `@signet/registry-operator` under `client/registry-cli`, packaged for CLI-first agents (see `client/registry-cli/README.md`).
-- **Onboarding skill** — a distributable `cachet-registry` skill teaching the discover → inspect → load → trust → use flow (see `skills/` and `.cursor/skills/cachet-registry/`).
+- **Onboarding skill** — a distributable `signet-registry` skill teaching the discover → inspect → load → trust → use flow (see `skills/` and `.cursor/skills/signet-registry/`).
 
 ### Infrastructure
 - System-level infra (compose, shared networking, shared volumes, env wiring): `infra/`
@@ -464,15 +464,15 @@ Cachet is designed to be available to every agent workflow. The current surfaces
 
 ### Production deployment (two-repo rule)
 - This repo ships release-tagged artifacts only: immutable, digest-pinned images
-  and the Helm chart (`charts/cachet`), published to cachet-owned ECR by
+  and the Helm chart (`charts/signet`), published to signet-owned ECR by
   `.github/workflows/release.yaml` using GitHub OIDC (no static AWS keys).
 - The environment repo (`tf-io-sec`) owns Terraform state and applies the pinned
-  chart via the `cachet-eks` module.
+  chart via the `signet-eks` module.
 - Reusable Terraform modules live under `infra/terraform/modules/`:
-  - `cachet-registry` — immutable ECR repos + GitHub OIDC publish role
-  - `cachet-data` — KMS, Secrets Manager, S3 artifacts, RDS Postgres, ElastiCache Redis, IRSA
-  - `cachet-eks` — version-pinned Helm release wrapper
-- Deploy runbook: `docs/runbooks/deploy.md`; secrets: `charts/cachet/SECRETS.md`.
+  - `signet-registry` — immutable ECR repos + GitHub OIDC publish role
+  - `signet-data` — KMS, Secrets Manager, S3 artifacts, RDS Postgres, ElastiCache Redis, IRSA
+  - `signet-eks` — version-pinned Helm release wrapper
+- Deploy runbook: `docs/runbooks/deploy.md`; secrets: `charts/signet/SECRETS.md`.
 
 ### Human docs
 - local operator guide: `docs/local-development.md`
@@ -486,7 +486,7 @@ Cachet is designed to be available to every agent workflow. The current surfaces
 - MCP onboarding: `docs/mcp-onboarding.md`
 - beta-v1 readiness and scope: `docs/beta-v1-readiness.md`
 - docs index: `docs/README.md`
-- Session 18 architecture package: `../_devagents/cachet/projects/worksession-18/`
+- Session 18 architecture package: `../_devagents/signet/projects/worksession-18/`
 
 ### Service entrypoints
 - `service/mcp/README.md`

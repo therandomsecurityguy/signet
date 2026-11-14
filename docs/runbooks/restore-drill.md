@@ -1,6 +1,6 @@
-# Cachet — data restore drills (RPO/RTO)
+# Signet — data restore drills (RPO/RTO)
 
-How to prove, on a schedule, that Cachet's data can actually be restored:
+How to prove, on a schedule, that Signet's data can actually be restored:
 transactional state (RDS Postgres), registry metadata (Fuseki), artifact
 bytes (S3 CAS), and transparency-log state (S3). Non-destructive drills are
 the default; the last section is the real restore procedure.
@@ -14,9 +14,9 @@ mechanics).
 | Data | Store | Backup mechanism | Restore source |
 |---|---|---|---|
 | API keys, audit events, sessions | RDS Postgres | Automated backups, **35-day retention**, point-in-time recovery (PITR) | Snapshot / PITR → new instance |
-| Registry graph metadata (nodes, edges, evidence links) | Fuseki StatefulSet + PVC | **Daily dump** CronJob → S3 bucket `security-prod-cachet-artifacts`, prefix `cachet/prod/backups/fuseki/<date>.nq.gz` (90-day lifecycle) | Dump file → import |
-| Artifact/envelope bytes (CAS) | S3 `security-prod-cachet-artifacts` | S3 durability; versioning per bucket setting | In-place (no restore expected) |
-| Transparency log (Tessera tree state, leaves, staged requests) | S3 under `cachet/prod/tessera/**` | S3 durability | In-place |
+| Registry graph metadata (nodes, edges, evidence links) | Fuseki StatefulSet + PVC | **Daily dump** CronJob → S3 bucket `security-prod-signet-artifacts`, prefix `signet/prod/backups/fuseki/<date>.nq.gz` (90-day lifecycle) | Dump file → import |
+| Artifact/envelope bytes (CAS) | S3 `security-prod-signet-artifacts` | S3 durability; versioning per bucket setting | In-place (no restore expected) |
+| Transparency log (Tessera tree state, leaves, staged requests) | S3 under `signet/prod/tessera/**` | S3 durability | In-place |
 | Redis | ElastiCache | Node replacement | **Treated as cache**: rebuilt empty; never a source of truth |
 
 Proposed targets (revisit if the product bar changes):
@@ -29,12 +29,12 @@ Proposed targets (revisit if the product bar changes):
 
 ```bash
 # Contexts and names (discover, don't guess):
-BUCKET=security-prod-cachet-artifacts
-AWS_PROFILE=cachet-admin kubectl --context cachet-prod -n cachet get cronjob   # cachet-fuseki-backup schedule
-AWS_PROFILE=cachet-admin kubectl --context cachet-prod -n cachet get sts cachet-fuseki
+BUCKET=security-prod-signet-artifacts
+AWS_PROFILE=signet-admin kubectl --context signet-prod -n signet get cronjob   # signet-fuseki-backup schedule
+AWS_PROFILE=signet-admin kubectl --context signet-prod -n signet get sts signet-fuseki
 aws rds describe-db-instances --region us-west-2 \
   --query 'DBInstances[].{id:DBInstanceIdentifier,class:DBInstanceClass,az:MultiAZ,retention:BackupRetentionPeriod}'
-aws s3 ls "s3://$BUCKET/cachet/prod/backups/fuseki/" | tail -3
+aws s3 ls "s3://$BUCKET/signet/prod/backups/fuseki/" | tail -3
 aws s3api get-bucket-versioning --bucket "$BUCKET"
 ```
 
@@ -50,7 +50,7 @@ RESTORE_TIME=$(date -u -v-30M +"%Y-%m-%dT%H:%M:%SZ")   # 30 minutes ago
 
 aws rds restore-db-instance-to-point-in-time \
   --source-db-instance-identifier "$SOURCE_ID" \
-  --target-db-instance-identifier "cachet-drill-$(date -u +%m%d%H%M)" \
+  --target-db-instance-identifier "signet-drill-$(date -u +%m%d%H%M)" \
   --restore-time "$RESTORE_TIME" \
   --db-instance-class db.t4g.medium \        # cheapest class that can mount the data
   --no-publicly-accessible --region us-west-2
@@ -60,7 +60,7 @@ Wait for `available`, then validate **from inside the cluster** (RDS is
 VPC-private):
 
 ```bash
-AWS_PROFILE=cachet-admin kubectl --context cachet-prod -n cachet run drill-pg --rm -it \
+AWS_PROFILE=signet-admin kubectl --context signet-prod -n signet run drill-pg --rm -it \
   --image=postgres:16-alpine --restart=Never -- \
   psql "<scratch-endpoint-conn-string>" -c "\dt" \
   -c "select count(*) from api_keys;" -c "select count(*) from audit_events;"
@@ -71,7 +71,7 @@ same queries against the prod secret's `database-url`). Then delete the
 scratch instance (no final snapshot — it is a drill):
 
 ```bash
-aws rds delete-db-instance --db-instance-identifier <cachet-drill-…> \
+aws rds delete-db-instance --db-instance-identifier <signet-drill-…> \
   --skip-final-snapshot --region us-west-2
 ```
 
@@ -81,8 +81,8 @@ Import the newest dump into a **scratch Fuseki** (docker locally or a throwaway
 namespace), not prod:
 
 ```bash
-DUMP=$(aws s3 ls "s3://$BUCKET/cachet/prod/backups/fuseki/" | tail -1 | awk '{print $4}')
-aws s3 cp "s3://$BUCKET/cachet/prod/backups/fuseki/$DUMP" /tmp/fuseki-dump.nq.gz
+DUMP=$(aws s3 ls "s3://$BUCKET/signet/prod/backups/fuseki/" | tail -1 | awk '{print $4}')
+aws s3 cp "s3://$BUCKET/signet/prod/backups/fuseki/$DUMP" /tmp/fuseki-dump.nq.gz
 gunzip -k /tmp/fuseki-dump.nq.gz
 
 docker run -d --name drill-fuseki -p 3031:3030 stain/jena-fuseki   # or a scratch pod
@@ -100,7 +100,7 @@ curl -u admin:admin "http://127.0.0.1:3031/registry/sparql" \
 ```
 
 Cross-check the triple count against the live graph
-(`kubectl … port-forward svc/cachet-fuseki 3030:3030` + the same query).
+(`kubectl … port-forward svc/signet-fuseki 3030:3030` + the same query).
 Also verify the dump contains the latest known nodes (e.g. the newest
 `deploy:security-prod/*` agent URN from the registry API).
 
@@ -113,11 +113,11 @@ Cleanup: `docker rm -f drill-fuseki` (or delete the scratch namespace).
 curl -s -o /dev/null -w "%{http_code}\n" \
   -H "CF-Access-Client-Id: $SIGNET_CF_ACCESS_CLIENT_ID" \
   -H "CF-Access-Client-Secret: $SIGNET_CF_ACCESS_CLIENT_SECRET" \
-  https://cachet-api.tunnel.together.ai/v1/artifacts/<known-sha256>
+  https://signet-api.example.com/v1/artifacts/<known-sha256>
 
 # Transparency state present:
-aws s3 ls "s3://$BUCKET/cachet/prod/tessera/tiles/prod/" | head -3
-aws s3 ls "s3://$BUCKET/cachet/prod/tessera/requests/prod/" | tail -3
+aws s3 ls "s3://$BUCKET/signet/prod/tessera/tiles/prod/" | head -3
+aws s3 ls "s3://$BUCKET/signet/prod/tessera/requests/prod/" | tail -3
 
 # The registry can reconcile its staged intents against the live log:
 curl -s -X POST ... /v1/transparency-logs/reconcile   # see docs/runbooks/alerting.md for auth details
@@ -125,15 +125,15 @@ curl -s -X POST ... /v1/transparency-logs/reconcile   # see docs/runbooks/alerti
 
 ## Real restore procedure (incident, in order)
 
-1. **Freeze writers** — scale `cachet-api` and `cachet-mcp` to 0
-   (`kubectl -n cachet scale deploy/cachet-api --replicas=0`). Registry goes
+1. **Freeze writers** — scale `signet-api` and `signet-mcp` to 0
+   (`kubectl -n signet scale deploy/signet-api --replicas=0`). Registry goes
    read-only-offline; that is intentional.
 2. **RDS**: restore via PITR to the *target* time into a **new** instance
    (same drill commands, without `--skip-final-snapshot` thinking — for the
    real restore you may want a final snapshot of the broken instance first).
-   Update the `database-url` secret in ASM (`cachet-prod/runtime`) to the new
-   endpoint; ESO refresh interval is 1h — force it (`kubectl -n cachet
-   annotate externalsecret cachet force-sync=$(date +%s) --overwrite`) or
+   Update the `database-url` secret in ASM (`signet-prod/runtime`) to the new
+   endpoint; ESO refresh interval is 1h — force it (`kubectl -n signet
+   annotate externalsecret signet force-sync=$(date +%s) --overwrite`) or
    restart the deployments.
 3. **Fuseki**: scale the StatefulSet to 0, mount a fresh PVC (or clear the
    dataset), start Fuseki, then import the chosen dump exactly as in Drill 2

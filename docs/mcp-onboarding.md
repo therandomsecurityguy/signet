@@ -1,13 +1,13 @@
 # MCP Onboarding
 
-How to connect any MCP-capable agent harness to the Cachet registry via
+How to connect any MCP-capable agent harness to the Signet registry via
 `service/mcp` (the AI-facing read plane).
 
 - **Endpoint:** `http://localhost:3000/mcp` (Streamable HTTP transport)
 - **Auth:** `Authorization: Bearer <token>` (Stage 1 API key)
 - **Health:** `GET http://localhost:3000/healthz`
 
-> **Deployed (security-prod):** `https://cachet-mcp.tunnel.together.ai/mcp`
+> **Deployed (security-prod):** `https://signet-mcp.example.com/mcp`
 > behind Cloudflare Access. See `adoption.md` for the CF-Access service-token
 > headers required for non-WARP machine clients.
 
@@ -69,7 +69,7 @@ revoked or unverified.
 ```bash
 claude mcp add \
   --transport http \
-  cachet-registry \
+  signet-registry \
   http://localhost:3000/mcp \
   --header "Authorization: Bearer <token>" \
   --header "X-Agent-Client: claude-code"
@@ -82,7 +82,7 @@ Add to your MCP config (e.g. `~/.cursor/mcp.json`):
 ```json
 {
   "mcpServers": {
-    "cachet-registry": {
+    "signet-registry": {
       "url": "http://localhost:3000/mcp",
       "headers": {
         "Authorization": "Bearer <token>",
@@ -100,7 +100,7 @@ Add to your opencode config (e.g. `opencode.json`):
 ```json
 {
   "mcp": {
-    "cachet-registry": {
+    "signet-registry": {
       "type": "remote",
       "url": "http://localhost:3000/mcp",
       "headers": {

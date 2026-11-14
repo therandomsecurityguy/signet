@@ -1,4 +1,4 @@
-# Cachet — Demo data reseed
+# Signet — Demo data reseed
 
 Reset the demo registry and reseed the demo pack (2 agents / 10 skills). This
 clears the registry graph and re-seeds from
@@ -10,8 +10,8 @@ clears the registry graph and re-seeds from
 
 ## Preconditions
 
-- `kubectl` access to the `cachet` namespace (port-forward).
-- The Fuseki admin password (`cachet` Secret, key `fuseki-admin-password`).
+- `kubectl` access to the `signet` namespace (port-forward).
+- The Fuseki admin password (`signet` Secret, key `fuseki-admin-password`).
 - A write/lifecycle-scoped `agk_` API key (mint one for the operator; see below).
 
 ## 1. Mint an operator key (in-cluster)
@@ -20,7 +20,7 @@ Use the API's own store so the key matches the deployed hashing. This runs a tin
 script inside the api pod:
 
 ```bash
-kubectl -n cachet exec deploy/cachet-api -- node --input-type=module -e '
+kubectl -n signet exec deploy/signet-api -- node --input-type=module -e '
 import { createDbProvider } from "/workspace/service/api/dist/service/api/src/infrastructure/persistence/db-provider.js";
 import { SqliteApiKeyStore } from "/workspace/service/api/dist/service/api/src/infrastructure/auth/sqlite-api-key-store.js";
 const db = createDbProvider(process.env.DATABASE_URL, { sslRootCertPath: process.env.DATABASE_SSL_ROOT_CERT }); await db.ready();
@@ -39,8 +39,8 @@ Store the token in your secret manager; revoke it when done (step 4).
 ## 2. Clear the registry graph
 
 ```bash
-PW="$(kubectl -n cachet get secret cachet -o jsonpath='{.data.fuseki-admin-password}' | base64 -d)"
-kubectl -n cachet port-forward svc/cachet-fuseki 3030:3030 & sleep 5
+PW="$(kubectl -n signet get secret signet -o jsonpath='{.data.fuseki-admin-password}' | base64 -d)"
+kubectl -n signet port-forward svc/signet-fuseki 3030:3030 & sleep 5
 curl -s -o /dev/null -u "admin:$PW" -X POST \
   -H 'content-type: application/sparql-update' --data 'CLEAR ALL' \
   http://127.0.0.1:3030/registry/update    # -> 204
@@ -50,7 +50,7 @@ kill %1
 ## 3. Reseed the pack
 
 ```bash
-kubectl -n cachet port-forward svc/cachet-api 3100:3100 & sleep 5
+kubectl -n signet port-forward svc/signet-api 3100:3100 & sleep 5
 API_ORIGIN=http://127.0.0.1:3100 \
 node client/registry-cli/dist/main.js seed bootstrap \
   --manifest client/registry-cli/examples/signet-demo/signet-demo.manifest.json \
@@ -71,7 +71,7 @@ twice.
 ## 4. Verify and clean up
 
 ```bash
-kubectl -n cachet port-forward svc/cachet-api 3100:3100 & sleep 5
+kubectl -n signet port-forward svc/signet-api 3100:3100 & sleep 5
 curl -s http://127.0.0.1:3100/v1/skills | jq '.skills | length'   # -> 10
 curl -s http://127.0.0.1:3100/v1/agents | jq '.agents | length'   # -> 2
 API_ORIGIN=http://127.0.0.1:3100 \
@@ -86,7 +86,7 @@ kill %1
 Then revoke the operator key:
 
 ```bash
-kubectl -n cachet exec deploy/cachet-api -- node --input-type=module -e '
+kubectl -n signet exec deploy/signet-api -- node --input-type=module -e '
 import { createDbProvider } from "/workspace/service/api/dist/service/api/src/infrastructure/persistence/db-provider.js";
 import { SqliteApiKeyStore } from "/workspace/service/api/dist/service/api/src/infrastructure/auth/sqlite-api-key-store.js";
 const db = createDbProvider(process.env.DATABASE_URL, { sslRootCertPath: process.env.DATABASE_SSL_ROOT_CERT }); await db.ready();

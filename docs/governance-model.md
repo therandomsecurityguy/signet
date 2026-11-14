@@ -1,6 +1,6 @@
 ## Governance Model
 
-This document defines the trust, publication, provenance, and certification model for **Cachet** (formerly `agents-registry`).
+This document defines the trust, publication, provenance, and certification model for **Signet**.
 
 It is intentionally both:
 - a description of what is implemented now

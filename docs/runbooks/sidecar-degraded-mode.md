@@ -8,7 +8,7 @@ backed by it. Know the failure modes before responding.
 
 ## Symptoms
 
-- `cachet-<env>-sidecar-unhealthy` alarm (watchdog metric missing or 0).
+- `signet-<env>-sidecar-unhealthy` alarm (watchdog metric missing or 0).
 - `validate` / `publish` returning 500 with
   `Transparency append sidecar request failed (...)`.
 - `POST /v1/transparency-logs/reconcile` failures or `fetch_failed` outcomes.
@@ -17,16 +17,16 @@ backed by it. Know the failure modes before responding.
 ## Triage
 
 ```bash
-kubectl -n cachet get pods | grep tessera-sidecar
-kubectl -n cachet logs deploy/cachet-tessera-sidecar --tail=100
-kubectl -n cachet exec deploy/cachet-api -- \
-  node -e "fetch('http://cachet-tessera-sidecar:3400/healthz').then(r=>console.log(r.status))"
+kubectl -n signet get pods | grep tessera-sidecar
+kubectl -n signet logs deploy/signet-tessera-sidecar --tail=100
+kubectl -n signet exec deploy/signet-api -- \
+  node -e "fetch('http://signet-tessera-sidecar:3400/healthz').then(r=>console.log(r.status))"
 ```
 
 - `/healthz` failing: inspect pod events, S3 access (IRSA), and the log key
   env. A **missing/invalid `TESSERA_LOG_PRIVATE_KEY`** makes append fail at
   checkpoint signing — confirm the secret is a real PEM
-  (`kubectl -n cachet get secret cachet -o jsonpath='{.data.tessera-log-private-key}' | base64 -d | head -1`
+  (`kubectl -n signet get secret signet -o jsonpath='{.data.tessera-log-private-key}' | base64 -d | head -1`
   should print `-----BEGIN PRIVATE KEY-----`).
 - `401 SIDECAR_AUTH_NOT_CONFIGURED` / `401 UNAUTHORIZED`: the shared token is
   missing or mismatched. Both sides read
@@ -41,11 +41,11 @@ The release secret is synced by External Secrets (default refresh 1h), and
 pods only read env at start. After seeding/rotating the token or the log key:
 
 ```bash
-kubectl -n cachet annotate externalsecret cachet force-sync=$(date +%s) --overwrite
+kubectl -n signet annotate externalsecret signet force-sync=$(date +%s) --overwrite
 # wait until the key is present
-kubectl -n cachet get secret cachet -o jsonpath='{.data.tessera-sidecar-auth-token}' | base64 -d | wc -c
+kubectl -n signet get secret signet -o jsonpath='{.data.tessera-sidecar-auth-token}' | base64 -d | wc -c
 # restart both readers so their env snapshots pick it up
-kubectl -n cachet rollout restart deploy/cachet-tessera-sidecar deploy/cachet-api
+kubectl -n signet rollout restart deploy/signet-tessera-sidecar deploy/signet-api
 ```
 
 Data plane and sidecar roll together; appends during the restart window fail

@@ -1,6 +1,6 @@
 ## `service/webapp` — Human-Facing UI Surfaces
 
-This directory holds browser-facing human interfaces for **Cachet** (formerly `agents-registry`).
+This directory holds browser-facing human interfaces for **Signet**.
 
 Current surface:
 - `knowledge-manager/`
@@ -24,7 +24,7 @@ Current surface:
 ### Get value fast
 
 ```bash
-cd cachet/service/webapp/knowledge-manager
+cd signet/service/webapp/knowledge-manager
 npm install
 npm run dev
 ```
@@ -48,7 +48,7 @@ Current operator value:
 ### Local compose path
 
 ```bash
-cd cachet/infra
+cd signet/infra
 make up
 ```
 
@@ -57,7 +57,7 @@ This brings up the narrow beta stack including the webapp.
 If you also want the optional VocBench / Semantic Turkey companion:
 
 ```bash
-cd cachet/infra
+cd signet/infra
 make up-knowledge
 ```
 

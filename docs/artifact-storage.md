@@ -1,6 +1,6 @@
 ## Artifact Storage
 
-This document explains how artifact bytes are stored in Cachet today and how the artifact layer is prepared for S3-backed persistence.
+This document explains how artifact bytes are stored in Signet today and how the artifact layer is prepared for S3-backed persistence.
 
 ## Current local layout
 
@@ -105,7 +105,7 @@ S3 object key shape:
 Example with prefix:
 
 ```text
-cachet/dev/f5/f5335ed75c09e3ffdbd28f8414bfb8dc8bc3e89d87b9b83753e7c8c3327e1c06
+signet/dev/f5/f5335ed75c09e3ffdbd28f8414bfb8dc8bc3e89d87b9b83753e7c8c3327e1c06
 ```
 
 ## Activation env
@@ -122,7 +122,7 @@ REGISTRY_OBJECTS_DIR=/workspace/data/registry/objects
 ```bash
 REGISTRY_ARTIFACT_BACKEND=s3
 REGISTRY_S3_BUCKET=your-registry-artifacts-bucket
-REGISTRY_S3_PREFIX=cachet/dev
+REGISTRY_S3_PREFIX=signet/dev
 REGISTRY_S3_REGION=us-west-2
 ```
 

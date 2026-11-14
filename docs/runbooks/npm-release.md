@@ -34,14 +34,14 @@ exact artifact inspected first. Per package, from a fresh worktree at the
 commit to publish:
 
 ```bash
-git worktree add /tmp/cachet-publish origin/main
-cd /tmp/cachet-publish/client/registry-sdk     # or client/registry-cli
+git worktree add /tmp/signet-publish origin/main
+cd /tmp/signet-publish/client/registry-sdk     # or client/registry-cli
 npm config get registry    # must be https://registry.npmjs.org/
 npm whoami                 # @together-ai maintainer, 2FA on
 # Auth: `npm login --auth-type=web` (browser 2FA), or a granular access token
 # with bypass-2FA supplied through an environment variable — never committed
 # and never echoed. The bootstrap token used for 0.1.0 came from the 1Password
-# "Cachet" environment and was revoked right after.
+# "Signet" environment and was revoked right after.
 npm ci --ignore-scripts    # lockfile-exact; dependency scripts do not run
 npm run build              # build from the reviewed source
 npm pack --ignore-scripts  # artifact == exactly what you inspected
@@ -49,7 +49,7 @@ tar -tzf together-ai-registry-sdk-0.1.0.tgz | sort
 npm publish ./together-ai-registry-sdk-0.1.0.tgz --access public --ignore-scripts
 npm view @signet/registry-sdk@0.1.0 dist.integrity   # must equal the local
 npm pack --json --ignore-scripts                        # integrity of the tarball
-git worktree remove /tmp/cachet-publish
+git worktree remove /tmp/signet-publish
 ```
 
 Then configure the trusted publishers (run once, after 0.1.0 exists):
@@ -62,7 +62,7 @@ or manually on npmjs.com (package -> Settings -> Trusted publishing ->
 GitHub Actions):
 
 - Organization or user: `togethercomputer`
-- Repository: `cachet`
+- Repository: `signet`
 - Workflow filename: `publish-registry-sdk.yml` / `publish-registry-cli.yml`
 - Environment name: *(blank — the workflows do not use a GitHub environment)*
 - Allowed actions: **check "Allow npm publish"** (new configurations default

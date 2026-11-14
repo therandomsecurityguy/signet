@@ -25,7 +25,7 @@ It is intended for:
 Run all of the following from:
 
 ```bash
-cd cachet/service/api
+cd signet/service/api
 ```
 
 Persistent local transparency sample graph:
@@ -39,7 +39,7 @@ This lane seeds a realistic transparency sample graph over the real HTTP API, re
 First-class operator path for the same sample graph:
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 npm run dev -- seed transparency-sample --api-token "<api-token>"
 ```
 
@@ -48,7 +48,7 @@ This uses the operator CLI to seed the same trust-story shape through `service/a
 Optional smaller proof-oriented report:
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 npm run dev -- seed transparency-sample --api-token "<api-token>" --human-proof-report
 ```
 
@@ -91,7 +91,7 @@ This env-gated lane reuses the realistic transparency sample graph against a rea
 ### Get value fast
 
 ```bash
-cd cachet/service/api
+cd signet/service/api
 npm install
 npm run dev
 ```
@@ -105,7 +105,7 @@ curl -s http://localhost:3100/healthz
 Create a write API key:
 
 ```bash
-cd cachet/service/api
+cd signet/service/api
 npm run create-api-key -- --owner-label "Jane Doe"
 ```
 
@@ -453,7 +453,7 @@ Current skill create payload:
 ### Local operator path
 
 ```bash
-cd cachet/service/api
+cd signet/service/api
 npm install
 npm run dev
 ```
@@ -479,8 +479,8 @@ Optional advisory LLM validator seam:
 
 Optional S3 artifact seam:
 - `REGISTRY_ARTIFACT_BACKEND=s3`
-- `REGISTRY_S3_BUCKET=agents-registry-artifacts`
-- `REGISTRY_S3_PREFIX=cachet/dev`
+- `REGISTRY_S3_BUCKET=signet-artifacts`
+- `REGISTRY_S3_PREFIX=signet/dev`
 - `REGISTRY_S3_REGION=us-west-2`
 - optional `REGISTRY_S3_ENDPOINT`, `REGISTRY_S3_FORCE_PATH_STYLE`, `REGISTRY_S3_ACCESS_KEY_ID`, `REGISTRY_S3_SECRET_ACCESS_KEY`
 - the Terraform module/example under `infra/terraform/` now outputs a copy/paste `registry_artifact_env` block for this
@@ -509,7 +509,7 @@ This lets a human see not only that a publication was sent to the sidecar/runtim
 ### Create a write API key locally
 
 ```bash
-cd cachet/service/api
+cd signet/service/api
 npm run create-api-key -- --owner-label "Jane Doe"
 ```
 
@@ -522,7 +522,7 @@ Authorization: Bearer <token>
 ### Run with Docker Compose
 
 ```bash
-cd cachet/infra
+cd signet/infra
 make up
 ```
 
@@ -532,7 +532,7 @@ API will be available at:
 If port `3100` is already in use:
 
 ```bash
-cd cachet/infra
+cd signet/infra
 API_PORT=3200 make up
 ```
 

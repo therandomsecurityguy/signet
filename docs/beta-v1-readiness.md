@@ -1,6 +1,6 @@
 ## Beta V1 Readiness
 
-This document defines the most credible **beta v1** for **Cachet** (formerly `agents-registry`).
+This document defines the most credible **beta v1** for **Signet**.
 
 ### Recommended beta promise
 Beta v1 should be scoped narrowly to the parts of the system that are already structurally real:

@@ -1,6 +1,6 @@
-# Cachet Demo
+# Signet Demo
 
-This is the human-facing demo guide for **Cachet** — the seal of approval for agents and skills (formerly `agents-registry`).
+This is the human-facing demo guide for **Signet** — the seal of approval for agents and skills.
 
 For the broader value proposition and future killer-app directions, see:
 - `docs/quick-value-roadmap.md`
@@ -35,7 +35,7 @@ The intended story is:
 ## 1. Start the stack
 
 ```bash
-cd cachet/infra
+cd signet/infra
 make up
 ```
 
@@ -96,7 +96,7 @@ Important local note:
 ## 2. Run the blessed bootstrap
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 npm install
 npm run dev -- bootstrap test --reset --force --up
 ```
@@ -125,7 +125,7 @@ Shape:
 ```json
 {
   "mcpServers": {
-    "cachet": {
+    "signet": {
       "url": "http://localhost:3000/mcp",
       "headers": {
         "Authorization": "Bearer <mcp-token>"
@@ -394,7 +394,7 @@ If we want friendlier human inspection later, the better next step is:
 To reset local bind-mounted state and run again:
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 npm run dev -- local reset --force
 npm run dev -- bootstrap test --reset --force --up
 ```

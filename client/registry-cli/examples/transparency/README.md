@@ -1,6 +1,6 @@
 ## Transparency Sample Graph
 
-This directory is the committed, teammate-facing transparency sample for `agents-registry`.
+This directory is the committed, teammate-facing transparency sample for `signet`.
 
 Files:
 - `sample-graph.spec.json`
@@ -18,21 +18,21 @@ What it models:
 Inspect the sample without running the stack:
 
 ```bash
-cd agents-registry/client/registry-cli
+cd signet/client/registry-cli
 npm run dev -- seed transparency-sample --spec examples/transparency/sample-graph.spec.json --dry-run
 ```
 
 Seed it through the real operator path:
 
 ```bash
-cd agents-registry/client/registry-cli
+cd signet/client/registry-cli
 npm run dev -- seed transparency-sample --api-token "<api-token>" --spec examples/transparency/sample-graph.spec.json
 ```
 
 Print the smaller human-facing proof report:
 
 ```bash
-cd agents-registry/client/registry-cli
+cd signet/client/registry-cli
 npm run dev -- seed transparency-sample --api-token "<api-token>" --spec examples/transparency/sample-graph.spec.json --human-proof-report
 ```
 

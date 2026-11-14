@@ -1,6 +1,6 @@
 # `@signet/registry-sdk`
 
-Typed, **read-first** client SDK for the Cachet registry API.
+Typed, **read-first** client SDK for the Signet registry API.
 
 It is generated from the OpenAPI 3.1 spec served by `service/api` at
 `GET /v1/openapi.json`, so the types never drift from the API contract.
@@ -27,7 +27,7 @@ headers as well:
 
 ```ts
 const client = new RegistryClient({
-  baseUrl: 'https://cachet-api.tunnel.together.ai',
+  baseUrl: 'https://signet-api.example.com',
   apiToken: process.env.CACHET_KEY,
   headers: {
     'CF-Access-Client-Id': process.env.SIGNET_CF_ACCESS_CLIENT_ID!,

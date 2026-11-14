@@ -1,4 +1,4 @@
-## Tessera In Cachet
+## Tessera In Signet
 
 ### What Tessera is
 
@@ -17,7 +17,7 @@ Useful primary references:
 
 ### Why it matters to this project
 
-Cachet already has a real transparency model:
+Signet already has a real transparency model:
 - trusted public keys
 - transparency log identities
 - transparency witness identities
@@ -100,7 +100,7 @@ Why this matters here:
 - this is the best low-friction local development option for this repo
 - it avoids forcing cloud drivers into local laptop/dev-container workflows
 
-### Current status in Cachet
+### Current status in Signet
 
 Implemented now:
 - minimal signed-note checkpoint ingestion seam
@@ -150,7 +150,7 @@ That example gives humans two indirection choices:
 
 Inside this repo, the next real deployment step is now wired to the compose-backed operator path:
 - run `terraform apply` in `infra/terraform/examples/dev/registry-tessera-aws-backend`
-- then run `cd cachet/infra && make wire-tessera-aws`
+- then run `cd signet/infra && make wire-tessera-aws`
 
 That command writes managed Terraform-backed env overrides into:
 - `service/api/infra/.env`

@@ -526,4 +526,4 @@ Current limitation:
 ### Related docs
 - `docs/service-map.md`
 - `docs/local-development.md`
-- `../../_devagents/cachet/projects/worksession-03/`
+- `../../_devagents/signet/projects/worksession-03/`

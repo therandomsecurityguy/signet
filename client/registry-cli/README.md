@@ -1,6 +1,6 @@
 ## `client/registry-cli` — Registry Operator CLI
 
-This package is the operator/assistant CLI for **Cachet** (formerly `agents-registry`).
+This package is the operator/assistant CLI for **Signet**.
 
 Its first job is local-first bootstrap:
 - bring the stack up or down
@@ -65,7 +65,7 @@ A pre-built release tarball is also packaged under `release/` (via `npm pack`):
 ```bash
 npm run build
 npm pack --pack-destination release/
-npm install -g release/together-registry-operator-<version>.tgz
+npm install -g release/signet-registry-operator-<version>.tgz
 ```
 
 ### Deployed tunnels (Cloudflare Access)
@@ -76,8 +76,8 @@ service token; the CLI applies it to both the API and MCP clients:
 ```bash
 export SIGNET_CF_ACCESS_CLIENT_ID=...
 export SIGNET_CF_ACCESS_CLIENT_SECRET=...
-export API_ORIGIN=https://cachet-api.tunnel.together.ai
-export MCP_ORIGIN=https://cachet-mcp.tunnel.together.ai
+export API_ORIGIN=https://signet-api.example.com
+export MCP_ORIGIN=https://signet-mcp.example.com
 ```
 
 Or per-invocation flags: `--cf-access-client-id`, `--cf-access-client-secret`.
@@ -86,7 +86,7 @@ See `docs/adoption.md`.
 ### Run locally
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 npm install
 npm run dev -- bootstrap test --reset --force --up
 ```

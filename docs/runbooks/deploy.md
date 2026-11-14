@@ -1,6 +1,6 @@
-# Cachet — Deploy runbook
+# Signet — Deploy runbook
 
-How Cachet is deployed and what to check when it isn't. Cachet follows the
+How Signet is deployed and what to check when it isn't. Signet follows the
 **two-repo rule**: this repo ships release-tagged artifacts; the environment repo
 (`tf-io-sec`) owns Terraform state and applies.
 
@@ -10,18 +10,18 @@ How Cachet is deployed and what to check when it isn't. Cachet follows the
 ## Topology
 
 - This repo publishes on release: immutable, digest-pinned component images and
-  the Helm chart to **cachet-owned ECR** (`.github/workflows/release.yaml`, via
+  the Helm chart to **signet-owned ECR** (`.github/workflows/release.yaml`, via
   GitHub OIDC — no static AWS keys, no shared reusable workflow).
-- `tf-io-sec` pins the released chart version and applies the `cachet-eks`
-  Terraform module (which calls `helm_release`) into the `cachet` namespace.
+- `tf-io-sec` pins the released chart version and applies the `signet-eks`
+  Terraform module (which calls `helm_release`) into the `signet` namespace.
 - Workloads: `api`, `mcp`, `webapp`, `tessera-sidecar` (Deployments) + `fuseki`
   (StatefulSet). Backing stores: RDS Postgres, ElastiCache Redis, S3 artifacts,
-  Secrets Manager — all provisioned by the `cachet-data` module.
-- Chart source: `charts/cachet`. Terraform modules: `infra/terraform/modules/cachet-{registry,data,eks}`.
+  Secrets Manager — all provisioned by the `signet-data` module.
+- Chart source: `charts/signet`. Terraform modules: `infra/terraform/modules/signet-{registry,data,eks}`.
 
 ## Configuration
 
-- Non-secret per-env values: `charts/cachet/values-<env>.yaml`
+- Non-secret per-env values: `charts/signet/values-<env>.yaml`
   (`image.registry`, `auth.okta*`, `artifacts.s3.bucket`, `serviceAccount.roleArn`,
   `secrets.external.prefix`, `networkPolicies.egressCidrs`).
 - CAS read integrity: `artifacts.integrityMode` (`warn` default, `enforce` to
@@ -40,16 +40,16 @@ How Cachet is deployed and what to check when it isn't. Cachet follows the
   `database.sslRootCert.enabled: true` (bundles `us-west-2-bundle.pem`, mounts
   it into api/mcp, pins `sslmode=verify-full`). Without it, verified
   connections fail (never runs with an unverified fallback).
-- Secrets: cachet-owned AWS Secrets Manager at `cachet-<env>/runtime/*`, injected
-  into the `cachet` Secret by ESO. See `charts/cachet/SECRETS.md`.
+- Secrets: signet-owned AWS Secrets Manager at `signet-<env>/runtime/*`, injected
+  into the `signet` Secret by ESO. See `charts/signet/SECRETS.md`.
 - Exposure: internal ALB ingress with TLS at
-  `cachet{,.dev,.staging}.security.internal.together.ai` (`ingress.className: alb`,
+  `signet{,.dev,.staging}.internal.example.com` (`ingress.className: alb`,
   `alb.ingress.kubernetes.io/scheme: internal`).
 - Ontology authoring (optional, off by default): set `webapp.vocbenchUiUrl` and
   `webapp.semanticTurkey.baseUrl`/`email` to enable the VocBench link and
   Semantic Turkey project list. Enabling the project list also requires
   `SEMANTIC_TURKEY_PASSWORD`, which is a secret: add it as a secret key in the
-  `cachet` Secret (ESO `cachet-<env>/runtime/semantic-turkey-password`) and wire
+  `signet` Secret (ESO `signet-<env>/runtime/semantic-turkey-password`) and wire
   it into the webapp env. Until configured, the webapp shows ontology authoring
   as "not enabled" rather than a broken link.
 
@@ -83,11 +83,11 @@ every component image, and the chart, all against the release workflow's OIDC
 identity. Provenance and SBOMs are verifiable with:
 
 ```bash
-gh attestation verify oci://940482418479.dkr.ecr.us-west-2.amazonaws.com/cachet/api@sha256:...
+gh attestation verify oci://940482418479.dkr.ecr.us-west-2.amazonaws.com/signet/api@sha256:...
 cosign verify-attestation --type spdxjson \
-  --certificate-identity-regexp '^https://github.com/togethercomputer/cachet/\.github/workflows/release\.yaml@' \
+  --certificate-identity-regexp '^https://github.com/togethercomputer/signet/\.github/workflows/release\.yaml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  940482418479.dkr.ecr.us-west-2.amazonaws.com/cachet/api@sha256:...
+  940482418479.dkr.ecr.us-west-2.amazonaws.com/signet/api@sha256:...
 ```
 
 A signature failure is a stop: do not apply the pin. Re-run the release
@@ -95,9 +95,9 @@ A signature failure is a stop: do not apply the pin. Re-run the release
 
 ## Pre-deploy checklist
 
-1. The Okta app exists (tf-io-sec `okta/.../apps/cachet`) and you have the issuer,
+1. The Okta app exists (tf-io-sec `okta/.../apps/signet`) and you have the issuer,
    client ID, and client secret.
-2. Operator secrets are seeded (`charts/cachet/SECRETS.md`) — especially
+2. Operator secrets are seeded (`charts/signet/SECRETS.md`) — especially
    `tessera-log-private-key`, which must match the signer you are migrating from.
    To enable registry-side transparency reconciliation, set
    `tesseraSidecar.logPublicKeyPem` to the matching public key PEM (public, not
@@ -110,16 +110,16 @@ A signature failure is a stop: do not apply the pin. Re-run the release
    token is seeded. Local-development clusters may instead set
    `tesseraSidecar.allowUnauthenticated: true`.
 3. `values-<env>.yaml` placeholders are filled.
-4. The `cachet-registry` and `cachet-data` modules have been applied.
+4. The `signet-registry` and `signet-data` modules have been applied.
 
 ## Verify a deploy
 
 ```bash
-kubectl -n cachet get deploy,statefulset,pods
-kubectl -n cachet get externalsecret cachet
-kubectl -n cachet get secretstore cachet-secretsmanager
-kubectl -n cachet get secret cachet -o jsonpath='{.data}' | jq 'keys'
-curl -s https://cachet.<env>.security.internal.together.ai/healthz
+kubectl -n signet get deploy,statefulset,pods
+kubectl -n signet get externalsecret signet
+kubectl -n signet get secretstore signet-secretsmanager
+kubectl -n signet get secret signet -o jsonpath='{.data}' | jq 'keys'
+curl -s https://signet.<env>.internal.example.com/healthz
 ```
 
 ## Verify alerting
@@ -130,7 +130,7 @@ curl -s https://cachet.<env>.security.internal.together.ai/healthz
   restart sequence from `docs/runbooks/sidecar-degraded-mode.md`.
 - Rotation recipes live in `docs/runbooks/secret-rotation.md`.
 
-- The ExternalSecret should be `Ready`; the `cachet` Secret should contain the keys.
+- The ExternalSecret should be `Ready`; the `signet` Secret should contain the keys.
 - If the ExternalSecret is not Ready, check the SecretStore exists and that the
   release ServiceAccount carries the IRSA (`eks.amazonaws.com/role-arn`) annotation.
 

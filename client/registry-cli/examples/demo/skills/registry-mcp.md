@@ -28,7 +28,7 @@ Example Cursor MCP config shape:
 ```json
 {
   "mcpServers": {
-    "agents-registry": {
+    "signet": {
       "url": "http://localhost:3000/mcp",
       "headers": {
         "Authorization": "Bearer <mcp-token>"

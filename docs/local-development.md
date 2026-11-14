@@ -1,12 +1,12 @@
 ## Local Development
 
-This document is the main human operator guide for running **Cachet** (formerly `agents-registry`) locally.
+This document is the main human operator guide for running **Signet** locally.
 
 ### Default entrypoint
 Use the system infra wrapper from `infra/`:
 
 ```bash
-cd cachet/infra
+cd signet/infra
 make up
 ```
 
@@ -18,7 +18,7 @@ This uses:
 If port `3000` is already busy:
 
 ```bash
-cd cachet/infra
+cd signet/infra
 MCP_PORT=3300 make up
 ```
 
@@ -149,7 +149,7 @@ Primary values:
 Provisioning note:
 - the Terraform module/example under `infra/terraform/` now creates a shared bucket for registry artifacts plus Tessera companion data
 - use the Terraform outputs `registry_artifact_env` and `tessera_sidecar_env` as the simplest copy/paste source for these env values
-- or, after `terraform apply`, run `cd cachet/infra && make wire-tessera-aws` to write managed Terraform-backed env blocks into:
+- or, after `terraform apply`, run `cd signet/infra && make wire-tessera-aws` to write managed Terraform-backed env blocks into:
   - `service/api/infra/.env`
   - `service/tessera-sidecar/infra/.env`
   - `service/tessera-runtime/infra/.env`
@@ -164,7 +164,7 @@ Operator note:
 - override the defaults when needed, for example:
 
 ```bash
-cd cachet/infra
+cd signet/infra
 TRANSPARENCY_APPEND_LOG_ID=registry-governance-prod \
 TESSERA_SIDECAR_URL=https://tessera-sidecar.internal \
 make wire-tessera-aws
@@ -240,7 +240,7 @@ make shell-tessera
 If you want to run the MCP service outside Docker:
 
 ```bash
-cd cachet/service/mcp
+cd signet/service/mcp
 npm install
 npm run dev
 ```
@@ -248,7 +248,7 @@ npm run dev
 If you want to run the API service outside Docker:
 
 ```bash
-cd cachet/service/api
+cd signet/service/api
 npm install
 npm run dev
 ```
@@ -256,7 +256,7 @@ npm run dev
 If you want to run the webapp outside Docker:
 
 ```bash
-cd cachet/service/webapp/knowledge-manager
+cd signet/service/webapp/knowledge-manager
 npm install
 npm run dev
 ```
@@ -264,7 +264,7 @@ npm run dev
 To mint a write API key for `service/api`:
 
 ```bash
-cd cachet/service/api
+cd signet/service/api
 npm run create-api-key -- --owner-label "Jane Doe"
 ```
 
@@ -294,7 +294,7 @@ For the blessed first-user walkthrough, use:
 - `docs/blessed-demo-path.md`
 
 For a clean local bootstrap focused on registry discovery/load:
-1. `cd cachet/infra && make up`
+1. `cd signet/infra && make up`
 2. create an API write token from `service/api`
 3. seed skills first through the lifecycle endpoints:
    - draft
@@ -323,7 +323,7 @@ Planned operator surface:
 Current blessed bootstrap command:
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 npm install
 npm run dev -- bootstrap test --reset --force --up
 ```
@@ -354,7 +354,7 @@ Current roadmap note:
 Operator CLI support for the real-Okta lane:
 
 ```bash
-cd cachet/client/registry-cli
+cd signet/client/registry-cli
 npm run dev -- verify okta-config
 npm run dev -- verify browser-session
 npm run dev -- bootstrap test --lane okta-browser --api-token "<api-token>" --mcp-token "<mcp-token>"
@@ -406,7 +406,7 @@ The default local metadata backend is `json_file`; Fuseki-backed `sparql` is the
 When local Fuseki is running, you can exercise the real SPARQL backend via:
 
 ```bash
-cd cachet/service/api
+cd signet/service/api
 REGISTRY_SPARQL_QUERY_URL=http://localhost:3030/registry/sparql \
 REGISTRY_SPARQL_UPDATE_URL=http://localhost:3030/registry/update \
 REGISTRY_SPARQL_USERNAME=admin \
@@ -452,7 +452,7 @@ There is still no compose one-shot ingest job yet, but the ingest CLI is now a r
 Current workflow:
 
 ```bash
-cd cachet/service/mcp
+cd signet/service/mcp
 npm run registry-ingest
 ```
 
@@ -471,7 +471,7 @@ npm run registry-ingest -- --objects-dir ../../data/registry/objects
 Optional SPARQL bootstrap path:
 
 ```bash
-cd cachet/service/mcp
+cd signet/service/mcp
 REGISTRY_GRAPH_BACKEND=sparql \
 REGISTRY_SPARQL_QUERY_URL=http://localhost:3030/registry/sparql \
 REGISTRY_SPARQL_UPDATE_URL=http://localhost:3030/registry/update \

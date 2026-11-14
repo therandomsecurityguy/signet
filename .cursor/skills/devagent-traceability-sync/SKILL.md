@@ -1,11 +1,11 @@
 ---
 name: devagent-traceability-sync
-description: Keeps `../../../../_devagents/agents-registry/projects/` synchronized with real implementation work in this repository. Use when finishing a meaningful worksession, shipping a vertical slice, adding docs or infra, or moving code so future agents and humans can reconstruct what changed, where, how it was validated, and what was deferred.
+description: Keeps `../../../../_devagents/signet/projects/` synchronized with real implementation work in this repository. Use when finishing a meaningful worksession, shipping a vertical slice, adding docs or infra, or moving code so future agents and humans can reconstruct what changed, where, how it was validated, and what was deferred.
 ---
 # Devagent Traceability Sync
 
 ## Goal
-Leave a reliable implementation trail in `../../../../_devagents/agents-registry/projects/` whenever a meaningful unit of work lands.
+Leave a reliable implementation trail in `../../../../_devagents/signet/projects/` whenever a meaningful unit of work lands.
 
 ## Use this skill when
 - finishing a worksession
@@ -17,12 +17,12 @@ Leave a reliable implementation trail in `../../../../_devagents/agents-registry
 
 ### Worksession folder
 Create or update:
-- `../../../../_devagents/agents-registry/projects/worksession-XX/README.md`
-- `../../../../_devagents/agents-registry/projects/worksession-XX/summary.md`
+- `../../../../_devagents/signet/projects/worksession-XX/README.md`
+- `../../../../_devagents/signet/projects/worksession-XX/summary.md`
 
 ### Index
 Update:
-- `../../../../_devagents/agents-registry/projects/README.md`
+- `../../../../_devagents/signet/projects/README.md`
 
 ## What the summary must capture
 - goal of the worksession
@@ -35,7 +35,7 @@ Update:
 1. Decide whether the work belongs to an existing worksession or a new one.
 2. Update the worksession `README.md` with scope and out-of-scope boundaries.
 3. Write `summary.md` with concrete file paths and validation notes.
-4. Update `../../../../_devagents/agents-registry/projects/README.md` so the new worksession is discoverable.
+4. Update `../../../../_devagents/signet/projects/README.md` so the new worksession is discoverable.
 5. If human or agent docs changed, mention them in the summary.
 6. Re-read the `_devagents` files to confirm links and filenames are real.
 
@@ -60,6 +60,6 @@ Update:
 ## Output checklist
 - [ ] worksession README exists
 - [ ] worksession summary exists
-- [ ] `../../../../_devagents/agents-registry/projects/README.md` updated
+- [ ] `../../../../_devagents/signet/projects/README.md` updated
 - [ ] changed docs/infra/code mentioned
 - [ ] validation and deferred items recorded

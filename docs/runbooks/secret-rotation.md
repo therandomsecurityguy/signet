@@ -1,7 +1,7 @@
 # Secret rotation
 
 Rotation recipes for the operator-seeded secrets (see
-`charts/cachet/SECRETS.md` for seeding). All values live in AWS Secrets
+`charts/signet/SECRETS.md` for seeding). All values live in AWS Secrets
 Manager under `<prefix>/` and reach pods via External Secrets; pods only read
 env at start, so **rotations need an ESO force-sync + rollout restart** of the
 affected workloads.
@@ -12,9 +12,9 @@ affected workloads.
 # 1. rotate in Secrets Manager
 aws secretsmanager put-secret-value --secret-id <prefix>/<key> --secret-string <value>
 # 2. force ESO to re-read now (default refresh is 1h)
-kubectl -n cachet annotate externalsecret cachet force-sync=$(date +%s) --overwrite
+kubectl -n signet annotate externalsecret signet force-sync=$(date +%s) --overwrite
 # 3. confirm the k8s secret has the new value, then restart readers
-kubectl -n cachet rollout restart deploy/<affected>
+kubectl -n signet rollout restart deploy/<affected>
 ```
 
 ## Tessera checkpoint key (`tessera-log-private-key`)
@@ -44,7 +44,7 @@ appends fail loudly (401).
 
 1. `aws secretsmanager put-secret-value --secret-id <prefix>/tessera-sidecar-auth-token --secret-string "$(openssl rand -hex 32)"`
 2. ESO force-sync, confirm the key, then restart **both**
-   `deploy/cachet-tessera-sidecar` and `deploy/cachet-api` in the same
+   `deploy/signet-tessera-sidecar` and `deploy/signet-api` in the same
    rollout (they read the same release secret).
 3. Verify: watchdog job logs `{"healthy":true}`; a test publish reconciles
    `verified`.
@@ -52,7 +52,7 @@ appends fail loudly (401).
 ## Okta client secret
 
 Rotate in the Okta app first, then update `<prefix>/okta-client-secret`,
-force-sync, and restart `deploy/cachet-webapp` (and `deploy/cachet-api` if it
+force-sync, and restart `deploy/signet-webapp` (and `deploy/signet-api` if it
 holds a copy). Old credentials keep working until the okta app's rotation
 window closes only if Okta issued a grace period — otherwise webapp logins
 fail until the new value lands.
@@ -66,7 +66,7 @@ rehash path — tracked as future work in the ecosystem review.
 
 ## RDS / Redis / Fuseki credentials
 
-- `database-url` / `redis-url` are Terraform-generated (`cachet-data`
+- `database-url` / `redis-url` are Terraform-generated (`signet-data`
   module). Rotating them means changing the generated password and the
   consumers in the same apply; the module currently regenerates only when
   replaced (`-replace`) — coordinate with a maintenance window.

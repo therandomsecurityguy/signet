@@ -11,12 +11,12 @@ npm run build
 npm pack --pack-destination release/
 ```
 
-This writes `release/together-registry-operator-<version>.tgz`.
+This writes `release/signet-registry-operator-<version>.tgz`.
 
 ## Install from a tarball
 
 ```bash
-npm install -g release/together-registry-operator-<version>.tgz
+npm install -g release/signet-registry-operator-<version>.tgz
 registry-operator --help
 ```
 

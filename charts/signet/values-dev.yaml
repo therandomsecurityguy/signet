@@ -27,12 +27,12 @@ auth:
   mode: okta
   oktaMode: real
   oktaIssuer: <okta-issuer>
-  oktaAudience: https://signet.internal.together.ai
+  oktaAudience: https://signet.internal.example.com
   oktaClientId: <okta-client-id>
-  oktaRedirectUri: https://signet.dev.security.internal.together.ai/session/callback
+  oktaRedirectUri: https://signet.dev.internal.example.com/session/callback
   oktaScopes: "openid profile email groups offline_access"
   oktaAdminGroups: app_signet_admin
-  corsAllowedOrigins: "https://signet.dev.security.internal.together.ai"
+  corsAllowedOrigins: "https://signet.dev.internal.example.com"
 
 artifacts:
   backend: s3
@@ -55,7 +55,7 @@ serviceAccount:
 ingress:
   enabled: true
   className: alb
-  host: signet.dev.security.internal.together.ai
+  host: signet.dev.internal.example.com
   tls: true
   annotations:
     alb.ingress.kubernetes.io/scheme: internal

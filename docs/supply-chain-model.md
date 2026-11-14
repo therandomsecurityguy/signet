@@ -1,12 +1,12 @@
 # Supply chain model
 
-How Cachet protects the agent supply chain: what travels through the registry,
+How Signet protects the agent supply chain: what travels through the registry,
 where trust is established, and which controls exist today versus what is
 proposed next.
 
 The model covers four control points, in the order content moves through them:
 
-| Control point | Question | Cachet controls |
+| Control point | Question | Signet controls |
 | --- | --- | --- |
 | **Publish** | Is this release what it claims to be, and is the publisher authorized? | signed/frozen publication envelopes, DSSE/in-toto attestations, policy trust gates, trusted publishers, human review, transparency log |
 | **Resolve** | Does a consumer get exactly the verified bytes? | verification API, `registry.verify_publication`, MCP read gates for revoked/unverified content, frozen envelope artifacts, pinned versions |
@@ -125,7 +125,7 @@ consumer:
   the release.
 - `scripts/verify-release-signatures.sh <tag>` verifies the manifest bundle,
   every image, and the chart against the release workflow's OIDC identity.
-  The tf-io-sec kube plan runs the same check on every PR touching a cachet
+  The tf-io-sec kube plan runs the same check on every PR touching a signet
   unit, and the runbook makes it a stop before manual applies.
 - **Threat-intel advisories**: `POST /v1/advisories` accepts signed advisory
   documents (signature over the JCS-canonical bytes, verified against trusted
