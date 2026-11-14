@@ -14,8 +14,13 @@
         "",
         "dev",
         "staging",
-        "prod"
+        "prod",
+        "local"
       ]
+    },
+    "runtimeNodeEnv": {
+      "type": "string",
+      "description": "NODE_ENV passed to the workloads. production by default; the local no-AWS overlay uses development so local auth modes are permitted."
     },
     "replicaCount": {
       "type": "integer",

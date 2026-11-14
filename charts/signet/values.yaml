@@ -5,6 +5,11 @@
 # for the ExternalSecret when secrets.external.prefix is empty.
 env: ""
 
+# Node environment passed to the workloads (NODE_ENV). Keep "production" for
+# real deployments; values-local.yaml sets "development" so local auth modes
+# (api_key/mock Okta) are permitted and dev ergonomics apply.
+runtimeNodeEnv: production
+
 replicaCount: 1
 # Per-component replica overrides (fall back to replicaCount). Prod runs
 # api and mcp at 2 replicas; webapp and tessera-sidecar stay single.

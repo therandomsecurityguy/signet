@@ -1247,14 +1247,17 @@ async function runSignKeyless(env: Env, args: Record<string, string | boolean | 
 async function createApiKey(env: Env, plane: 'api' | 'mcp', ownerLabel: string) {
   const serviceDir = plane === 'api' ? path.join(env.REPO_ROOT, 'service', 'api') : path.join(env.REPO_ROOT, 'service', 'mcp');
   const hostDatabaseUrl = await resolveHostDatabaseUrlForPlane(env, plane);
-  const result = await runShell(
-    'npm',
-    ['run', '--silent', 'create-api-key', '--', '--owner-label', ownerLabel],
-    {
-      cwd: serviceDir,
-      ...(hostDatabaseUrl ? { env: { DATABASE_URL: hostDatabaseUrl } } : {}),
-    },
-  );
+  const args = ['run', '--silent', 'create-api-key', '--', '--owner-label', ownerLabel];
+  if (plane === 'api') {
+    // Bootstrap/operator keys need write access: the API defaults
+    // management-created keys to read-only and scope enforcement is on by
+    // default, so seeding would fail with INSUFFICIENT_SCOPE without this.
+    args.push('--scopes', 'read,write');
+  }
+  const result = await runShell('npm', args, {
+    cwd: serviceDir,
+    ...(hostDatabaseUrl ? { env: { DATABASE_URL: hostDatabaseUrl } } : {}),
+  });
   return AuthCreateApiKeyResultSchema.parse(JSON.parse(result.stdout));
 }
 

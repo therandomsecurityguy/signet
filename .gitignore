@@ -40,3 +40,6 @@ client/registry-cli/tests/fixtures/keyless/
 
 # Compiled Go binary from local builds.
 /service/tessera-runtime/tessera-runtime
+
+# Local demo runtime state (scripts/demo-local.sh).
+data/demo/
