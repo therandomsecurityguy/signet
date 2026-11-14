@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.49](https://github.com/therandomsecurityguy/signet/compare/v0.1.48...v0.1.49) (2026-11-14)
+
+
+### Bug Fixes
+
+* **security:** read-gate enumeration filtering, optional metrics auth, nits ([3621bc0](https://github.com/therandomsecurityguy/signet/commit/3621bc00570a8cbaa73e6f2a50191d94371bb4a8))
+* **security:** read-gate enumeration filtering, optional metrics auth, nits ([00c2270](https://github.com/therandomsecurityguy/signet/commit/00c2270b67ad1b59fbb8f3a43aaa078a8a769672))
+
 ## [0.1.48](https://github.com/therandomsecurityguy/signet/compare/v0.1.47...v0.1.48) (2026-11-14)
 
 
