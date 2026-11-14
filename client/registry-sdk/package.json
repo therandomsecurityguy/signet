@@ -31,7 +31,7 @@
     "generate:types": "openapi-typescript openapi.json -o src/generated/api.ts"
   },
   "dependencies": {
-    "openapi-fetch": "^0.13.5"
+    "openapi-fetch": "^0.17.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
