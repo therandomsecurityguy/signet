@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.46](https://github.com/therandomsecurityguy/signet/compare/v0.1.45...v0.1.46) (2026-11-14)
+
+
+### Bug Fixes
+
+* **infra:** migrate signet-eks to Helm provider v3 ([e047b18](https://github.com/therandomsecurityguy/signet/commit/e047b18fc855c0b65aa15582dcf25b03c2b26758))
+
 ## [0.1.45](https://github.com/therandomsecurityguy/signet/compare/v0.1.44...v0.1.45) (2026-11-14)
 
 
