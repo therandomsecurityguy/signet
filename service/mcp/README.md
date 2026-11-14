@@ -47,12 +47,8 @@ Authorization: Bearer <token>
 - real `/mcp` black-box coverage now exists for registry discovery/load behavior.
 - registry bootstrap now supports repeatable ingest into the configured graph backend (`json_file` or `sparql`) instead of an in-memory-only run.
 
-### Mocked connections (worksession 02)
-To stay unblocked while wiring end-to-end seams, warehouse connections and Okta validation may run in **MOCK** mode by default.
-
-See:
-- `../../../_devagents/signet/projects/worksesseion-02/`
-- `../../../_devagents/signet/projects/worksession-03.md` (reserved for real credentials & exact setup)
+### Mocked connections
+To stay unblocked while wiring end-to-end seams, warehouse connections and Okta validation may run in **MOCK** mode by default. Set the corresponding `*_MODE` env vars to switch them to real integrations.
 
 ### Endpoints (today)
 - `GET /healthz`

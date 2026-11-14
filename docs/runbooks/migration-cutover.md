@@ -50,7 +50,7 @@ state). Use the `secret_prefix` output (default `signet-<env>/runtime`).
 ```bash
 aws secretsmanager put-secret-value \
   --secret-id signet-<env>/runtime/oidc-client-secret \
-  --secret-string "$(op read 'op://.../signet-oidc-client-secret')"
+  --secret-string "$(cat /secure/path/signet-oidc-client-secret)"
 
 # CRITICAL: if migrating an existing transparency log, this must be
 # byte-identical to the signer of the deployment being migrated from.
