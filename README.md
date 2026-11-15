@@ -477,12 +477,14 @@ Signet is designed to be available to every agent workflow. The current surfaces
 
 ### Production deployment (two-repo rule)
 - This repo ships release-tagged artifacts only: immutable, digest-pinned images
-  and the Helm chart (`charts/signet`), published to signet-owned ECR by
-  `.github/workflows/release.yaml` using GitHub OIDC (no static AWS keys).
+  and the Helm chart (`charts/signet`), published to GHCR
+  (`ghcr.io/<owner>/signet/…`) by `.github/workflows/release.yaml` with the
+  workflow's `GITHUB_TOKEN` — no cloud account or static credentials.
 - The environment repo that owns Terraform state applies the pinned
   chart via the `signet-eks` module.
-- Reusable Terraform modules live under `infra/terraform/modules/`:
-  - `signet-registry` — immutable ECR repos + GitHub OIDC publish role
+- Reusable Terraform modules live under `infra/terraform/modules/` (needed only
+  for the AWS/EKS deployment path — the release pipeline itself is provider-free):
+  - `signet-registry` — immutable ECR repos + GitHub OIDC publish role (optional ECR mirror)
   - `signet-data` — KMS, Secrets Manager, S3 artifacts, RDS Postgres, ElastiCache Redis, IRSA
   - `signet-eks` — version-pinned Helm release wrapper
 - Deploy runbook: `docs/runbooks/deploy.md`; secrets: `charts/signet/SECRETS.md`.
