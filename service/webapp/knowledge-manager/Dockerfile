@@ -7,6 +7,13 @@ FROM node:26-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c01
 WORKDIR /workspace
 
 # Install dependencies for the webapp.
+# sqlite3 npm prebuilds target newer glibc than bookworm (2.36) and fail
+# to dlopen at runtime; compile it against this image's toolchain instead.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+ENV npm_config_build_from_source=true
+
 COPY service/webapp/knowledge-manager/package*.json service/webapp/knowledge-manager/
 RUN cd service/webapp/knowledge-manager && npm ci
 

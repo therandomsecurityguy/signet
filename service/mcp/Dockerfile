@@ -10,6 +10,13 @@ WORKDIR /workspace
 # core via relative paths (compiled into dist), so the registry's own
 # dependencies must be installed too — they are not resolvable from
 # service/mcp/node_modules.
+# sqlite3 npm prebuilds target newer glibc than bookworm (2.36) and fail
+# to dlopen at runtime; compile it against this image's toolchain instead.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+ENV npm_config_build_from_source=true
+
 COPY service/mcp/package*.json service/mcp/
 COPY service/registry/package*.json service/registry/
 RUN cd service/mcp && npm ci

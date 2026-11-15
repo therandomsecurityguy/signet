@@ -1,0 +1,18 @@
+{{- if .Values.persistence.enabled }}
+# Shared data volume for api + mcp (single-node local clusters): the
+# filesystem CAS must be readable by both planes. See values.yaml.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "signet.fullname" . }}-shared-data
+  labels:
+    {{- include "signet.labels" . | nindent 4 }}
+spec:
+  accessModes: ["ReadWriteOnce"]
+  {{- if .Values.persistence.storageClassName }}
+  storageClassName: {{ .Values.persistence.storageClassName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+{{- end }}

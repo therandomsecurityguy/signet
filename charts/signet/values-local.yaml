@@ -30,6 +30,12 @@
 env: local
 runtimeNodeEnv: development
 
+# api + mcp share one data volume: the filesystem CAS written by the
+# management plane must be readable by the MCP plane (single-node cluster).
+persistence:
+  enabled: true
+  size: 1Gi
+
 image:
   pullPolicy: IfNotPresent
 
@@ -37,11 +43,17 @@ api:
   image:
     repository: signet/api
     tag: dev
+  env:
+    # Separate SQLite files on the shared volume (the chart's default
+    # database-url secret is shared by both planes).
+    DATABASE_URL: file:/workspace/data/registry/signet-api.db
 
 mcp:
   image:
     repository: signet/mcp
     tag: dev
+  env:
+    DATABASE_URL: file:/workspace/data/registry/signet-mcp.db
 
 webapp:
   image:
@@ -55,6 +67,11 @@ auth:
   # Machines use API keys; humans use the mock Okta session flow.
   mode: dual
   oktaMode: mock
+  # The webapp validates these as URLs even in mock mode; any valid URL works.
+  oktaIssuer: http://localhost:3201/oauth2/default
+  oktaAudience: http://localhost:3100
+  oktaClientId: local-demo
+  oktaRedirectUri: http://localhost:3200/session/callback
 
 artifacts:
   # Filesystem CAS on the /workspace/data emptyDir (ephemeral demo state).

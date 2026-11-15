@@ -36,7 +36,12 @@ spec:
         - name: tmp
           emptyDir: {}
         - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "signet.fullname" . }}-shared-data
+          {{- else }}
           emptyDir: {}
+          {{- end }}
         {{- if .Values.database.sslRootCert.enabled }}
         - name: database-ssl
           configMap:
@@ -111,11 +116,13 @@ spec:
                   name: {{ .Values.secrets.name }}
                   key: tessera-sidecar-auth-token
                   optional: true
+            {{- if not (hasKey .Values.api.env "DATABASE_URL") }}
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secrets.name }}
                   key: database-url
+            {{- end }}
             {{- if .Values.database.sslRootCert.enabled }}
             - name: DATABASE_SSL_ROOT_CERT
               value: /etc/signet/database-ssl/us-west-2-bundle.pem

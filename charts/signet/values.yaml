@@ -5,6 +5,16 @@
 # for the ExternalSecret when secrets.external.prefix is empty.
 env: ""
 
+# Optional shared data volume for api + mcp. When enabled, a single PVC is
+# mounted at /workspace/data in both workloads, so a filesystem CAS written
+# by the management plane is readable by the MCP plane (single-node local
+# clusters; values-local.yaml enables it). Deployed environments use S3 +
+# Postgres instead and leave this disabled.
+persistence:
+  enabled: false
+  size: 1Gi
+  storageClassName: ""
+
 # Node environment passed to the workloads (NODE_ENV). Keep "production" for
 # real deployments; values-local.yaml sets "development" so local auth modes
 # (api_key/mock Okta) are permitted and dev ergonomics apply.
