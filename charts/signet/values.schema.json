@@ -22,6 +22,21 @@
       "type": "string",
       "description": "NODE_ENV passed to the workloads. production by default; the local no-AWS overlay uses development so local auth modes are permitted."
     },
+    "persistence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "size": {
+          "type": "string"
+        },
+        "storageClassName": {
+          "type": "string"
+        }
+      }
+    },
     "replicaCount": {
       "type": "integer",
       "minimum": 1

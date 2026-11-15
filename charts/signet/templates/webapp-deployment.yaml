@@ -94,6 +94,14 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.name }}
                   key: okta-client-secret
+            # Webapp sessions are a per-pod SQLite store (single replica by
+            # design); keep the file on the writable /workspace/data emptyDir
+            # because the container root filesystem is read-only. Override by
+            # setting webapp.env.DATABASE_URL (any file: path).
+            {{- if not (hasKey .Values.webapp.env "DATABASE_URL") }}
+            - name: DATABASE_URL
+              value: file:/workspace/data/webapp/knowledge-manager.db
+            {{- end }}
             {{- range $k, $v := .Values.webapp.env }}
             - name: {{ $k }}
               value: {{ $v | quote }}
