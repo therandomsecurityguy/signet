@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.54](https://github.com/therandomsecurityguy/signet/compare/v0.1.53...v0.1.54) (2026-11-15)
+
+
+### Bug Fixes
+
+* local-k8s smoke-test findings - shared CAS, session DB, sqlite3 glibc ([ffc8b08](https://github.com/therandomsecurityguy/signet/commit/ffc8b08620be4d9c517abf60dd565b916300d362))
+* local-k8s smoke-test findings (OrbStack) — shared CAS, session DB, sqlite3 glibc ([6f3850e](https://github.com/therandomsecurityguy/signet/commit/6f3850e768b9bd2c5e2bdd101a69353402b458e9))
+
 ## [0.1.53](https://github.com/therandomsecurityguy/signet/compare/v0.1.52...v0.1.53) (2026-11-15)
 
 
