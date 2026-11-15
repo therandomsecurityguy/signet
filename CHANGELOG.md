@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.53](https://github.com/therandomsecurityguy/signet/compare/v0.1.52...v0.1.53) (2026-11-15)
+
+
+### Features
+
+* no-AWS local demo (host + compose + kind) and bootstrap scope fix ([12f7b0c](https://github.com/therandomsecurityguy/signet/commit/12f7b0c6661ebef2de6f8f2648d2b8c12bcce328))
+* no-AWS local demo (host + compose + kind) and bootstrap scope fix ([703e04d](https://github.com/therandomsecurityguy/signet/commit/703e04d8da02a8a315d35bc23efea82d68826e52))
+
 ## [0.1.52](https://github.com/therandomsecurityguy/signet/compare/v0.1.51...v0.1.52) (2026-11-14)
 
 
