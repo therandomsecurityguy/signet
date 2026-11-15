@@ -10,15 +10,17 @@
  * rdf-canonize, producing deterministic canonical RDF bytes suitable for
  * semantic signatures and digests — the semantic companion to the
  * operational canonical JSON (RFC 8785 JCS) envelope bytes.
+ *
+ * Term encoding is shared with the SHACL validation dataset via
+ * `sg-vocabulary.ts`; changing encodings here changes signed digests.
  */
 
 import * as rdfCanonize from 'rdf-canonize';
-import { canonicalJsonString } from './canonical-json.js';
+import { assertValidIri, literalTerm, predicateIri, propertyIri } from './sg-vocabulary.js';
+
+export { RdfProjectionError } from './sg-vocabulary.js';
 
 const TG_HAS_VERSION = 'urn:sg:predicate:hasVersion';
-const XSD_INTEGER = 'http://www.w3.org/2001/XMLSchema#integer';
-const XSD_DOUBLE = 'http://www.w3.org/2001/XMLSchema#double';
-const XSD_BOOLEAN = 'http://www.w3.org/2001/XMLSchema#boolean';
 
 export type PublicationGraphProjectionInput = {
   publication_urn: string;
@@ -26,70 +28,6 @@ export type PublicationGraphProjectionInput = {
   properties: Record<string, unknown>;
   edges: Array<{ predicate: string; to_urn: string }>;
 };
-
-export class RdfProjectionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'RdfProjectionError';
-  }
-}
-
-/**
- * N-Quads IRIREFs cannot contain escapes, so any character outside the
- * legal set must be rejected outright: U+0000–U+0020 (including space),
- * `<`, `>`, `"`, `{`, `}`, `|`, `^`, backtick, and backslash. URNs in the
- * publication graph are derived from user-controlled input (entity keys,
- * lineage references), so failing closed here prevents N-Quads injection
- * into the canonical RDF and its semantic digest.
- */
-function assertValidIri(iri: string, context: string): void {
-  for (const char of iri) {
-    const code = char.codePointAt(0) as number;
-    if (code <= 0x20 || code === 0x7f || '<>"{}|^`\\'.includes(char)) {
-      throw new RdfProjectionError(
-        `Invalid IRI character U+${code.toString(16).toUpperCase().padStart(4, '0')} in ${context}: ${JSON.stringify(iri)}`,
-      );
-    }
-  }
-}
-
-function predicateIri(predicate: string): string {
-  const iri = `urn:sg:predicate:${predicate.replaceAll(':', '-')}`;
-  assertValidIri(iri, 'predicate');
-  return iri;
-}
-
-function escapeLiteral(value: string): string {
-  let out = '';
-  for (const char of value) {
-    const code = char.codePointAt(0) as number;
-    if (char === '\\') out += '\\\\';
-    else if (char === '"') out += '\\"';
-    else if (char === '\n') out += '\\n';
-    else if (char === '\r') out += '\\r';
-    else if (char === '\t') out += '\\t';
-    // Remaining control characters are not legal in N-Quads string
-    // literals and must be escaped as \uXXXX.
-    else if (code < 0x20 || code === 0x7f) out += `\\u${code.toString(16).toUpperCase().padStart(4, '0')}`;
-    else out += char;
-  }
-  return out;
-}
-
-function literalTerm(value: unknown): string {
-  if (typeof value === 'boolean') {
-    return `"${value}"^^<${XSD_BOOLEAN}>`;
-  }
-  if (typeof value === 'number') {
-    return Number.isInteger(value) ? `"${value}"^^<${XSD_INTEGER}>` : `"${value}"^^<${XSD_DOUBLE}>`;
-  }
-  if (typeof value === 'string') {
-    return `"${escapeLiteral(value)}"`;
-  }
-  // Nested structures (lineage, openlineage, arrays of objects) are
-  // projected as canonical-JSON string literals for determinism.
-  return `"${escapeLiteral(canonicalJsonString(value))}"`;
-}
 
 /**
  * Project the publication subgraph to deterministic N-Quads lines.
@@ -106,9 +44,7 @@ export function projectPublicationGraphToNQuads(input: PublicationGraphProjectio
   for (const key of Object.keys(input.properties).sort()) {
     const value = input.properties[key];
     if (value === undefined || value === null) continue;
-    const propertyIri = `urn:sg:property:${key}`;
-    assertValidIri(propertyIri, 'property');
-    const predicate = `<${propertyIri}>`;
+    const predicate = `<${propertyIri(key)}>`;
     if (Array.isArray(value)) {
       const items = value.filter((item) => item !== undefined && item !== null);
       const sorted = items.map((item) => literalTerm(item)).sort();

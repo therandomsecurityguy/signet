@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+// These tests pin the *frozen legacy reference engine* (ShapeDocument
+// semantics, RE2 pattern safety, built-in graph shape). Production
+// validation executes W3C SHACL — see shacl-publication-validation.test.ts
+// for behavior and shacl-execution-parity.test.ts for the equivalence
+// contract between the two.
+
 import {
   BUILTIN_GRAPH_SHAPE_DOCUMENT,
   ShapeDocumentError,

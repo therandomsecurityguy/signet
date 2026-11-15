@@ -9,7 +9,12 @@
     "@aws-sdk/client-s3": "^3.1166.0",
     "@sigstore/bundle": "^5.0.1",
     "@sigstore/core": "^4.0.1",
+    "n3": "^1.26.0",
     "rdf-canonize": "^5.0.0",
+    "rdf-validate-shacl": "^0.6.5",
     "re2js": "^2.10.0"
+  },
+  "devDependencies": {
+    "@types/n3": "^1.26.6"
   }
 }
