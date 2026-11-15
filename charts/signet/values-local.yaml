@@ -1,6 +1,11 @@
 # Local, no-AWS overlay: run the real chart on a local cluster (kind/k3d)
 # without AWS, ECR, External Secrets, or IRSA.
 #
+# NEVER deploy this overlay to a shared or production cluster: it runs mock
+# Okta (any bearer token acts as an admin) and development Node modes. Real
+# environments use values-<env>.yaml with AUTH_MODE=okta|dual and NODE_ENV
+# production (the apps reject mock auth under production by design).
+#
 # What this changes relative to values.yaml:
 # - workloads run with NODE_ENV=development so the local auth modes
 #   (api_key for machines, mock Okta for humans) are permitted
