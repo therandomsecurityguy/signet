@@ -179,6 +179,31 @@ jobs:
         run: npm run typecheck
         working-directory: service/tessera-sidecar
 
+  tessera-runtime:
+    name: service/tessera-runtime (Go build, vet, govulncheck)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: service/tessera-runtime/go.mod
+          cache-dependency-path: service/tessera-runtime/go.sum
+
+      - name: Build and vet
+        run: go build ./... && go vet ./...
+        working-directory: service/tessera-runtime
+
+      # Vulnerability scan pinned by version; the job fails on findings in
+      # called code paths (remediation: bump the flagged module).
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
+        working-directory: service/tessera-runtime
+
   registry-sdk:
     name: client/registry-sdk (typed read-first SDK)
     runs-on: ubuntu-latest

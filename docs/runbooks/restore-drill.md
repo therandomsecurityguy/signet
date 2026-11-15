@@ -85,16 +85,19 @@ DUMP=$(aws s3 ls "s3://$BUCKET/signet/<env>/backups/fuseki/" | tail -1 | awk '{p
 aws s3 cp "s3://$BUCKET/signet/<env>/backups/fuseki/$DUMP" /tmp/fuseki-dump.nq.gz
 gunzip -k /tmp/fuseki-dump.nq.gz
 
+# Scratch Fuseki for the drill; set FUSEKI_ADMIN_PASSWORD from the
+# deployment's secret (locally it is the compose default, admin).
+FUSEKI_ADMIN_PASSWORD="${FUSEKI_ADMIN_PASSWORD:-admin}"
 docker run -d --name drill-fuseki -p 3031:3030 stain/jena-fuseki   # or a scratch pod
 sleep 5
-curl -u admin:admin -X POST "http://127.0.0.1:3031/$/datasets?dbName=registry&dbType=tdb2"
+curl -u "admin:$FUSEKI_ADMIN_PASSWORD" -X POST "http://127.0.0.1:3031/$/datasets?dbName=registry&dbType=tdb2"
 
 # Graph Store upload (RDF/ N-Quads is the document format of the dump):
-curl -u admin:admin -X POST -H "Content-Type: application/n-quads" \
+curl -u "admin:$FUSEKI_ADMIN_PASSWORD" -X POST -H "Content-Type: application/n-quads" \
   --data-binary @/tmp/fuseki-dump.nq \
   "http://127.0.0.1:3031/registry/data?default"
 
-curl -u admin:admin "http://127.0.0.1:3031/registry/sparql" \
+curl -u "admin:$FUSEKI_ADMIN_PASSWORD" "http://127.0.0.1:3031/registry/sparql" \
   --data-urlencode 'query=SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }' \
   -H "Accept: application/sparql-results+json"
 ```

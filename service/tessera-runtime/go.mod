@@ -2,7 +2,7 @@ module github.com/therandomsecurityguy/signet/service/tessera-runtime
 
 go 1.26.0
 
-toolchain go1.26.10
+toolchain go1.26.11
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.41.5
@@ -12,8 +12,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.39.3
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/transparency-dev/tessera v1.0.2
-	golang.org/x/mod v0.38.0
-	golang.org/x/net v0.58.0
+	golang.org/x/mod v0.42.0
+	golang.org/x/net v0.62.0
 )
 
 require (
@@ -46,9 +46,9 @@ require (
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
-	golang.org/x/crypto v0.55.0 // indirect
+	golang.org/x/crypto v0.59.0 // indirect
 	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
-	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 )
