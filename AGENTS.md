@@ -25,7 +25,10 @@ Read these first:
 ## Deployment boundaries
 
 - This repo publishes release-tagged artifacts only (immutable, digest-pinned
-  images + `charts/signet`), to signet-owned ECR via GitHub OIDC. Releases are
+  images + `charts/signet`), to GHCR under `ghcr.io/<owner>/signet/…` with the
+  release workflow's `GITHUB_TOKEN` — no cloud account required (the
+  `signet-registry` Terraform module remains available for ECR-based
+  deployments). Releases are
   signed keyless (cosign) with GitHub build-provenance attestations and SPDX
   SBOMs attached; verify with `scripts/verify-release-signatures.sh <tag>`
   before pinning or applying a release.

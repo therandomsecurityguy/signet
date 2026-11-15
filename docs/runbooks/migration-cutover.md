@@ -19,16 +19,15 @@ terraform -chdir=<env>/registry output -json   # publish_role_arn, registry_host
 terraform -chdir=<env>/data output -json       # eso_role_arn, secret_prefix, artifact_bucket_name, db/redis endpoints
 ```
 
-## 1. Set the signet repo variables — [gated]
+## 1. Repo variables — none required
 
-From the `signet-registry` outputs (in the
-`therandomsecurityguy/signet` repo):
+Publishing to GHCR needs no repo variables (the workflow uses its
+`GITHUB_TOKEN`). Only set these if you mirror the pipeline to a different
+registry layout:
 
 ```bash
-gh variable set SIGNET_AWS_ROLE_ARN --body "<publish_role_arn>"
-gh variable set SIGNET_AWS_REGION   --body "<region>"
-# ECR repo names default to signet/api, signet/mcp, signet/webapp,
-# signet/tessera-sidecar, and charts; override only if they differ.
+gh variable set SIGNET_IMAGE_NAMESPACE  --body "<owner-or-namespace>"
+gh variable set SIGNET_CHART_REPOSITORY --body "charts"
 ```
 
 ## 2. Publish the release artifacts

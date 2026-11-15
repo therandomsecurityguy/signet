@@ -6,8 +6,9 @@
 #
 # Run before applying a new pin in the environment repo or any
 # other consumer of release-manifest.json. Requires: cosign, jq, gh (or a
-# downloaded manifest), and ECR authentication for image/chart verification
-# (aws ecr get-login-password | docker login ...).
+# downloaded manifest); GHCR images are public for this repository, so no
+# registry login is needed (docker login ghcr.io first if you mirror packages
+# privately).
 #
 # Usage:
 #   scripts/verify-release-signatures.sh v0.1.15
@@ -75,9 +76,10 @@ else
   echo "ok   manifest version matches $tag"
 fi
 
-# Image references in the manifest are repository-relative (for example
-# "signet/api"); the registry comes from the fully-qualified chart OCI URL so
-# cosign resolves against ECR and not Docker Hub.
+# Image references in the manifest are namespace-relative to the registry
+# (for example "owner/signet/api"); the registry comes from the
+# fully-qualified chart OCI URL so cosign resolves against GHCR and not
+# Docker Hub.
 chart_ref="$(jq -r '.chart' "$manifest_path" | sed 's|^oci://||')"
 registry="${SIGNET_RELEASE_REGISTRY:-${chart_ref%%/*}}"
 if [ -z "$registry" ] || [ "$registry" = "$chart_ref" ]; then

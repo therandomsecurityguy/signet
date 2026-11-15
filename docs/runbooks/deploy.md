@@ -10,8 +10,9 @@ that owns Terraform state and applies them.
 ## Topology
 
 - This repo publishes on release: immutable, digest-pinned component images and
-  the Helm chart to **signet-owned ECR** (`.github/workflows/release.yaml`, via
-  GitHub OIDC — no static AWS keys, no shared reusable workflow).
+  the Helm chart to **GHCR** (`.github/workflows/release.yaml`) under
+  `ghcr.io/<owner>/signet/…`, authenticated with the workflow's `GITHUB_TOKEN`
+  — no cloud account, no static credentials, no shared reusable workflow.
 - The environment repo pins the released chart version and applies the `signet-eks`
   Terraform module (which calls `helm_release`) into the `signet` namespace.
 - Workloads: `api`, `mcp`, `webapp`, `tessera-sidecar` (Deployments) + `fuseki`
@@ -57,20 +58,17 @@ that owns Terraform state and applies them.
 
 1. Merge to `main`; release-please opens/updates the release PR.
 2. Merge the release PR — release-please creates the tag and GitHub release.
-3. The `Release` workflow assumes `SIGNET_AWS_ROLE_ARN` via OIDC, pushes
-   digest-pinned images + the OCI chart, attaches `release-manifest.json`, signs
-   the images, chart, and manifest keyless (GitHub OIDC via cosign), creates
-   GitHub build-provenance attestations for the images and chart, and attaches
-   SPDX SBOMs (syft) to the images and to the GitHub release.
-   Until `SIGNET_AWS_ROLE_ARN` is configured, publishing is dormant: the tag
-   and GitHub release are still created and the workflow emits a
-   `Release publish skipped` notice instead of failing; re-run the Release
-   workflow (`workflow_dispatch` with `version=vX.Y.Z`) after setting the
-   variables to publish the existing tag.
+3. The `Release` workflow pushes digest-pinned images + the OCI chart to GHCR
+   as `ghcr.io/<owner>/signet/{api,mcp,webapp,tessera-sidecar}` and
+   `…/charts/signet`, attaches `release-manifest.json`, signs the images,
+   chart, and manifest keyless (GitHub OIDC via cosign), creates GitHub
+   build-provenance attestations for the images and chart, and attaches SPDX
+   SBOMs (syft) to the images and to the GitHub release.
 4. In the environment repo, bump the pinned chart version and apply.
 
-Required repo variables: `SIGNET_AWS_ROLE_ARN` (required), `SIGNET_AWS_REGION`
-(default `us-west-2`), and optional ECR repo-name overrides.
+Required repo variables: none for publishing (the workflow uses its
+`GITHUB_TOKEN`). Optional: `SIGNET_IMAGE_NAMESPACE` / `SIGNET_CHART_REPOSITORY`
+if you mirror the pipeline to a different registry layout.
 
 ## Verify release signatures before applying
 
@@ -78,21 +76,21 @@ Every release is signed and attested; verify a tag before pinning or applying
 its digests (your environment repo's PR gate should run the same check):
 
 ```bash
-aws ecr get-login-password --region us-west-2 \
-  | docker login --username AWS --password-stdin <account-id>.dkr.ecr.<region>.amazonaws.com
-scripts/verify-release-signatures.sh v0.1.15
+scripts/verify-release-signatures.sh v0.1.53
 ```
 
-The script checks the keyless signature on `release-manifest.json` (bundle),
-every component image, and the chart, all against the release workflow's OIDC
-identity. Provenance and SBOMs are verifiable with:
+(The script pulls the signed manifest from the GitHub release and verifies the
+keyless signatures on it, every component image, and the chart against the
+release workflow's OIDC identity. GHCR images are public for this repository;
+`docker login ghcr.io` first if you mirror packages privately.) Provenance and
+SBOMs are verifiable with:
 
 ```bash
-gh attestation verify oci://<account-id>.dkr.ecr.<region>.amazonaws.com/signet/api@sha256:...
+gh attestation verify oci://ghcr.io/therandomsecurityguy/signet/api@sha256:...
 cosign verify-attestation --type spdxjson \
   --certificate-identity-regexp '^https://github.com/therandomsecurityguy/signet/\.github/workflows/release\.yaml@' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  <account-id>.dkr.ecr.<region>.amazonaws.com/signet/api@sha256:...
+  ghcr.io/therandomsecurityguy/signet/api@sha256:...
 ```
 
 A signature failure is a stop: do not apply the pin. Re-run the release

@@ -25,12 +25,13 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  AWS_REGION: ${{ vars.SIGNET_AWS_REGION || 'us-west-2' }}
-  AWS_ROLE_ARN: ${{ vars.SIGNET_AWS_ROLE_ARN }}
-  API_ECR_REPOSITORY: ${{ vars.SIGNET_API_ECR_REPOSITORY || 'signet/api' }}
-  MCP_ECR_REPOSITORY: ${{ vars.SIGNET_MCP_ECR_REPOSITORY || 'signet/mcp' }}
-  WEBAPP_ECR_REPOSITORY: ${{ vars.SIGNET_WEBAPP_ECR_REPOSITORY || 'signet/webapp' }}
-  TESSERA_ECR_REPOSITORY: ${{ vars.SIGNET_TESSERA_ECR_REPOSITORY || 'signet/tessera-sidecar' }}
+  # GHCR: no cloud account required. Images and the OCI chart publish under
+  # ghcr.io/<owner>/signet/… with the workflow's GITHUB_TOKEN, then get
+  # keyless (Sigstore) signatures, build-provenance attestations, and SPDX
+  # SBOMs as usual. Set SIGNET_IMAGE_NAMESPACE / SIGNET_CHART_REPOSITORY repo
+  # variables only if you mirror the pipeline to another registry layout.
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ${{ vars.SIGNET_IMAGE_NAMESPACE || format('{0}/signet', github.repository_owner) }}
   CHART_REPOSITORY: ${{ vars.SIGNET_CHART_REPOSITORY || 'charts' }}
 
 jobs:
@@ -72,47 +73,24 @@ jobs:
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # Explains an intentionally skipped publish while the release pipeline is
-  # not wired to an AWS account yet (SIGNET_AWS_ROLE_ARN unset). Releases are
-  # still tagged; artifacts get published once the variables exist.
-  publish-skipped:
-    needs: [release-please]
-    if: >-
-      always() && !cancelled() &&
-      github.event_name == 'push' &&
-      needs.release-please.outputs.release_created == 'true' &&
-      vars.SIGNET_AWS_ROLE_ARN == ''
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Announce skipped publish
-        env:
-          TAG: ${{ needs.release-please.outputs.tag_name }}
-        run: |
-          echo "::notice title=Release publish skipped::${TAG} was tagged, but images/chart were NOT published: SIGNET_AWS_ROLE_ARN is not configured. See docs/runbooks/deploy.md; after setting the repo variables, re-run the Release workflow (workflow_dispatch) with version=${TAG}."
-
-  # On a release, publish each component image (digest-pinned, immutable ECR) and
-  # the Helm chart to signet-owned ECR using GitHub OIDC. Also runnable manually
-  # to re-publish an existing tag (workflow_dispatch). The environment repo
-  # (or equivalent environment repo) then pins the released chart version and applies. No static AWS
-  # credentials and no shared org reusable workflow.
-  #
-  # Publishing is dormant until SIGNET_AWS_ROLE_ARN is configured: tagged
-  # releases still get created, and the skip is announced with a notice
-  # (publish-skipped below). A manual workflow_dispatch still fails loudly
-  # because dispatching is an explicit intent to publish.
+  # On a release, publish each component image and the Helm chart to GHCR
+  # (ghcr.io/<owner>/signet/…) using the workflow's GITHUB_TOKEN — no cloud
+  # account, no long-lived credentials. Everything is signed keyless via
+  # Sigstore, attested with GitHub build provenance, and shipped with SPDX
+  # SBOMs. Also runnable manually to publish an existing tag
+  # (workflow_dispatch). Deployment repos pin the released chart version and
+  # image digests and apply them.
   publish:
     needs: [release-please]
     if: >-
       always() && !cancelled() &&
       (github.event_name == 'push' && needs.release-please.outputs.release_created == 'true'
-        && vars.SIGNET_AWS_ROLE_ARN != ''
        || github.event_name == 'workflow_dispatch' && inputs.dry_run != true)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: write
+      packages: write
       id-token: write
       attestations: write
     env:
@@ -159,41 +137,14 @@ jobs:
           cosign version
           syft version
 
-      - name: Assume AWS release role (OIDC)
+      - name: Log in to GHCR
         shell: bash
         run: |
           set -euo pipefail
-          if [[ -z "$AWS_ROLE_ARN" ]]; then
-            echo "Missing required repository variable: SIGNET_AWS_ROLE_ARN" >&2
-            exit 1
-          fi
-          token_json="$(curl --silent --show-error --fail -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com")"
-          oidc_token="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])' <<<"$token_json")"
-          credentials="$(aws sts assume-role-with-web-identity --role-arn "$AWS_ROLE_ARN" --role-session-name "signet-release-$GITHUB_RUN_ID" --web-identity-token "$oidc_token" --duration-seconds 3600)"
-          access_key_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["Credentials"]["AccessKeyId"])' <<<"$credentials")"
-          secret_access_key="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["Credentials"]["SecretAccessKey"])' <<<"$credentials")"
-          session_token="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["Credentials"]["SessionToken"])' <<<"$credentials")"
-          echo "::add-mask::$access_key_id"
-          echo "::add-mask::$secret_access_key"
-          echo "::add-mask::$session_token"
-          {
-            echo "AWS_ACCESS_KEY_ID=$access_key_id"
-            echo "AWS_SECRET_ACCESS_KEY=$secret_access_key"
-            echo "AWS_SESSION_TOKEN=$session_token"
-          } >> "$GITHUB_ENV"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login "$REGISTRY" --username "${{ github.actor }}" --password-stdin
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Authenticate to ECR
-        shell: bash
-        run: |
-          set -euo pipefail
-          aws_account_id="$(aws sts get-caller-identity --query Account --output text)"
-          ecr_registry="$aws_account_id.dkr.ecr.$AWS_REGION.amazonaws.com"
-          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ecr_registry"
-          echo "ECR_REGISTRY=$ecr_registry" >> "$GITHUB_ENV"
-          echo "ECR_REGISTRY=$ecr_registry" >> "$GITHUB_OUTPUT"
 
       - name: Publish component images
         id: images
@@ -203,58 +154,44 @@ jobs:
 
           version="${RELEASE_TAG#v}"
           get_digest() {
-            local repository=$1 tag=$2 digest
+            local image=$1 digest
             for _ in $(seq 1 12); do
-              digest="$(aws ecr describe-images --repository-name "$repository" --image-ids "imageTag=$tag" --query 'imageDetails[0].imageDigest' --output text 2>/dev/null || true)"
+              digest="$(docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' 2>/dev/null | jq -r '.digest' 2>/dev/null || true)"
               if [[ "$digest" == sha256:* ]]; then echo "$digest"; return; fi
               sleep 5
             done
-            echo "Unable to resolve ECR digest for $repository:$tag" >&2
+            echo "Unable to resolve registry digest for $image" >&2
             return 1
           }
 
-          require_immutable_repository() {
-            local mutability
-            mutability="$(aws ecr describe-repositories --repository-names "$1" --query 'repositories[0].imageTagMutability' --output text)"
-            if [[ "$mutability" != "IMMUTABLE" ]]; then
-              echo "ECR repository must use immutable tags: $1" >&2
-              return 1
-            fi
-          }
-
+          # GHCR has no immutable-tag enforcement; keep the no-overwrite
+          # guarantee at the workflow level (a tag that already exists fails
+          # the release instead of being silently replaced).
           require_absent_tag() {
-            local repository=$1 tag=$2 output status
-            set +e
-            output="$(aws ecr describe-images --repository-name "$repository" --image-ids "imageTag=$tag" --output json 2>&1)"
-            status=$?
-            set -e
-            if [[ $status -eq 0 ]]; then
-              echo "Refusing to overwrite existing ECR tag: $repository:$tag" >&2
-              return 1
-            fi
-            if [[ "$output" != *"ImageNotFoundException"* ]]; then
-              echo "$output" >&2
+            local image=$1
+            if docker manifest inspect "$image" >/dev/null 2>&1; then
+              echo "Refusing to overwrite existing image tag: $image" >&2
               return 1
             fi
           }
 
           specs=(
-            "api|$API_ECR_REPOSITORY|service/api/Dockerfile"
-            "mcp|$MCP_ECR_REPOSITORY|service/mcp/Dockerfile"
-            "webapp|$WEBAPP_ECR_REPOSITORY|service/webapp/knowledge-manager/Dockerfile"
-            "tessera-sidecar|$TESSERA_ECR_REPOSITORY|service/tessera-sidecar/Dockerfile"
+            "api|service/api/Dockerfile"
+            "mcp|service/mcp/Dockerfile"
+            "webapp|service/webapp/knowledge-manager/Dockerfile"
+            "tessera-sidecar|service/tessera-sidecar/Dockerfile"
           )
 
           images='{}'
           for spec in "${specs[@]}"; do
-            IFS='|' read -r target repository dockerfile <<<"$spec"
-            image="$ECR_REGISTRY/$repository"
-            require_immutable_repository "$repository"
-            require_absent_tag "$repository" "$version"
+            IFS='|' read -r target dockerfile <<<"$spec"
+            repository="$IMAGE_NAMESPACE/$target"
+            image="$REGISTRY/$repository"
+            require_absent_tag "$image:$version"
             docker buildx build --platform linux/amd64 --file "$dockerfile" \
               --tag "$image:$version" \
               --provenance=mode=max --sbom=true --push .
-            digest="$(get_digest "$repository" "$version")"
+            digest="$(get_digest "$image:$version")"
 
             # Boot smoke against the pushed digest: build-time success did
             # not catch the v0.1.30/31 runtime breaks (missing registry deps,
@@ -303,7 +240,7 @@ jobs:
           for target in api mcp webapp tessera-sidecar; do
             repository="$(jq -r --arg t "$target" '.[$t].repository' images.json)"
             digest="$(jq -r --arg t "$target" '.[$t].digest' images.json)"
-            image="$ECR_REGISTRY/$repository"
+            image="$REGISTRY/$repository"
             cosign sign --yes "$image@$digest"
             printf '%s  %s\n' "${digest#sha256:}" "$image" >> dist/attest/images.checksums
             echo "signed $image@$digest"
@@ -319,7 +256,7 @@ jobs:
           for target in api mcp webapp tessera-sidecar; do
             repository="$(jq -r --arg t "$target" '.[$t].repository' images.json)"
             digest="$(jq -r --arg t "$target" '.[$t].digest' images.json)"
-            image="$ECR_REGISTRY/$repository"
+            image="$REGISTRY/$repository"
             syft "$image@$digest" --output spdx-json > "dist/sbom/$target.spdx.json"
             cosign attest --yes --type spdxjson --predicate "dist/sbom/$target.spdx.json" "$image@$digest"
           done
@@ -334,20 +271,20 @@ jobs:
         run: |
           set -euo pipefail
           version="${RELEASE_TAG#v}"
-          aws ecr get-login-password --region "$AWS_REGION" | helm registry login "$ECR_REGISTRY" --username AWS --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login "$REGISTRY" --username "${{ github.actor }}" --password-stdin
           helm package charts/signet --version "$version" --app-version "$version" --destination dist
-          require_immutable_chart() {
-            # helm push to oci://<registry>/<CHART_REPOSITORY> publishes to the
-            # repository <CHART_REPOSITORY>/<chart name>, so verify that repo.
-            local repository="$CHART_REPOSITORY/signet" mutability
-            mutability="$(aws ecr describe-repositories --repository-names "$repository" --query 'repositories[0].imageTagMutability' --output text)"
-            if [[ "$mutability" != "IMMUTABLE" ]]; then
-              echo "ECR chart repository must use immutable tags: $repository" >&2
+          # helm push to oci://<registry>/<CHART_REPOSITORY> publishes to
+          # <CHART_REPOSITORY>/<chart name>; refuse an existing version
+          # (GHCR does not enforce immutable tags itself).
+          require_absent_chart() {
+            local ref="oci://$REGISTRY/$IMAGE_NAMESPACE/$CHART_REPOSITORY/signet"
+            if helm show chart "$ref" --version "$version" >/dev/null 2>&1; then
+              echo "Refusing to overwrite existing chart version: $ref:$version" >&2
               return 1
             fi
           }
-          require_immutable_chart
-          push_output="$(helm push "dist/signet-$version.tgz" "oci://$ECR_REGISTRY/$CHART_REPOSITORY" 2>&1)"
+          require_absent_chart
+          push_output="$(helm push "dist/signet-$version.tgz" "oci://$REGISTRY/$IMAGE_NAMESPACE/$CHART_REPOSITORY" 2>&1)"
           printf '%s\n' "$push_output"
           chart_digest="$(printf '%s\n' "$push_output" | sed -n 's/^Digest: //p' | tr -d '[:space:]')"
           if [[ "$chart_digest" != sha256:* ]]; then
@@ -360,12 +297,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cosign sign --yes "$ECR_REGISTRY/$CHART_REPOSITORY/signet@$CHART_DIGEST"
+          cosign sign --yes "$REGISTRY/$IMAGE_NAMESPACE/$CHART_REPOSITORY/signet@$CHART_DIGEST"
 
       - name: Attest chart provenance (GitHub attestations)
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-name: ${{ env.ECR_REGISTRY }}/${{ env.CHART_REPOSITORY }}/signet
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.CHART_REPOSITORY }}/signet
           subject-digest: ${{ env.CHART_DIGEST }}
 
       - name: Publish release manifest
@@ -380,7 +317,7 @@ jobs:
             --arg version "$version" \
             --arg tag "$tag" \
             --arg sourceSha "$GITHUB_SHA" \
-            --arg chart "oci://$ECR_REGISTRY/$CHART_REPOSITORY/signet:$version" \
+            --arg chart "oci://$REGISTRY/$IMAGE_NAMESPACE/$CHART_REPOSITORY/signet:$version" \
             --slurpfile images images.json \
             '{version: $version, tag: $tag, sourceSha: $sourceSha, chart: $chart, images: $images[0]}' \
             > release-manifest.json
