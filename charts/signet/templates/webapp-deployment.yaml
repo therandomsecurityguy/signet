@@ -54,7 +54,7 @@ spec:
             - name: PORT
               value: {{ .Values.webapp.port | quote }}
             - name: NODE_ENV
-              value: production
+              value: {{ .Values.runtimeNodeEnv }}
             - name: API_ORIGIN
               value: http://{{ include "signet.fullname" . }}-api:{{ .Values.api.port }}
             - name: FUSEKI_URL

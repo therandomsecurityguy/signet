@@ -1,0 +1,89 @@
+# Local, no-AWS overlay: run the real chart on a local cluster (kind/k3d)
+# without AWS, ECR, External Secrets, or IRSA.
+#
+# What this changes relative to values.yaml:
+# - workloads run with NODE_ENV=development so the local auth modes
+#   (api_key for machines, mock Okta for humans) are permitted
+# - SQLite database + filesystem CAS (both on the chart's writable
+#   /workspace/data emptyDir) instead of Postgres/S3
+# - chart-managed Secret with dev values instead of ESO/Secrets Manager
+# - the tessera sidecar and watchdog/backup CronJobs are disabled (they
+#   expect a shared S3-backed transparency log; the registry works
+#   without them, reconciliation simply reports unavailable)
+# - no ingress, no NetworkPolicies: reach the services via port-forward
+#
+# Images must be built locally and loaded into the cluster first:
+#   docker build -f service/api/Dockerfile -t signet/api:dev .
+#   docker build -f service/mcp/Dockerfile -t signet/mcp:dev .
+#   docker build -f service/webapp/knowledge-manager/Dockerfile -t signet/webapp-knowledge-manager:dev .
+#   kind load docker-image signet/api:dev signet/mcp:dev signet/webapp-knowledge-manager:dev
+#
+# Then:
+#   helm install signet charts/signet -f charts/signet/values-local.yaml --namespace signet --create-namespace
+#   kubectl -n signet port-forward svc/signet-api 3100:3100
+#   kubectl -n signet port-forward svc/signet-mcp 3000:3000
+#   kubectl -n signet port-forward svc/signet-webapp 3200:3200
+#
+# See docs/local-demo.md for the full walkthrough (including seeding the
+# demo pack with registry-operator).
+
+env: local
+runtimeNodeEnv: development
+
+image:
+  pullPolicy: IfNotPresent
+
+api:
+  image:
+    repository: signet/api
+    tag: dev
+
+mcp:
+  image:
+    repository: signet/mcp
+    tag: dev
+
+webapp:
+  image:
+    repository: signet/webapp-knowledge-manager
+    tag: dev
+  # Browse the API docs / MCP endpoint through the port-forwards.
+  apiDocsUrl: http://localhost:3100/v1/docs
+  mcpUrl: http://localhost:3000/mcp
+
+auth:
+  # Machines use API keys; humans use the mock Okta session flow.
+  mode: dual
+  oktaMode: mock
+
+artifacts:
+  # Filesystem CAS on the /workspace/data emptyDir (ephemeral demo state).
+  backend: fs
+
+keyless:
+  enabled: false
+
+tesseraSidecar:
+  enabled: false
+
+sidecarWatchdog:
+  enabled: false
+
+fusekiBackup:
+  enabled: false
+
+ingress:
+  enabled: false
+
+networkPolicies:
+  enabled: false
+
+metrics:
+  prometheusScrape: false
+
+secrets:
+  create: true
+  databaseUrl: file:/workspace/data/signet.db
+  fusekiAdminPassword: admin
+  redisUrl: ""
+  apiKeyPepper: local-dev-pepper

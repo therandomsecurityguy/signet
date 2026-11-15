@@ -51,7 +51,7 @@ spec:
             - name: PORT
               value: {{ .Values.tesseraSidecar.port | quote }}
             - name: NODE_ENV
-              value: production
+              value: {{ .Values.runtimeNodeEnv }}
             {{- if .Values.tesseraSidecar.logPrivateKeyFromSecret }}
             - name: TESSERA_LOG_PRIVATE_KEY
               valueFrom:

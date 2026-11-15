@@ -63,7 +63,7 @@ spec:
             - name: PORT
               value: {{ .Values.api.port | quote }}
             - name: NODE_ENV
-              value: production
+              value: {{ .Values.runtimeNodeEnv }}
             - name: AUTH_MODE
               value: {{ .Values.auth.mode | quote }}
             - name: OKTA_MODE

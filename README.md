@@ -197,12 +197,20 @@ Proposed next (not implemented yet):
 
 ### Get it to run
 
-If you want the quickest local path:
+If you want the quickest local path — no Docker, no AWS, no Kubernetes:
 
 ```bash
-cd signet/infra
-make up
+for d in service/api service/mcp service/webapp/knowledge-manager client/registry-cli; do
+  (cd "$d" && npm ci)
+done
+scripts/demo-local.sh demo
 ```
+
+That starts api (:3100), mcp (:3000), and the webapp (:3200) against local
+SQLite/JSON-file/filesystem backends and seeds the blessed demo pack
+(1 agent, 2 published skills) with `registry-operator`. See
+`docs/local-demo.md` for the Docker Compose and local-Kubernetes (kind)
+variants that keep the same no-AWS property.
 
 Then verify:
 

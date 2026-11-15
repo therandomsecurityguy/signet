@@ -2,6 +2,9 @@
 
 This is the human-facing demo guide for **Signet** — the seal of approval for agents and skills.
 
+> **No AWS or Docker?** See `docs/local-demo.md` — `scripts/demo-local.sh demo`
+> runs the same demo entirely on the host (Node only).
+
 For the broader value proposition and future killer-app directions, see:
 - `docs/quick-value-roadmap.md`
 
