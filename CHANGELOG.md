@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.55](https://github.com/therandomsecurityguy/signet/compare/v0.1.54...v0.1.55) (2026-11-15)
+
+
+### Bug Fixes
+
+* **ci:** Go toolchain 1.26.11 (net/http GO-2026-6859) and builder image bump ([77144d2](https://github.com/therandomsecurityguy/signet/commit/77144d25fcc7f9d85b56274f0bcacd72aa54026e))
+
 ## [0.1.54](https://github.com/therandomsecurityguy/signet/compare/v0.1.53...v0.1.54) (2026-11-15)
 
 
