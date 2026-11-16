@@ -26,7 +26,6 @@ import {
   resolveCanonicalizationAlgorithm,
 } from './canonical-json.js';
 import {
-  BUILTIN_GRAPH_SHAPE_DOCUMENT,
   parseShapeDocument,
   type ShapeDocument,
   type ValidationViolation,
@@ -35,8 +34,11 @@ import {
   SHACL_VALIDATOR_ID,
   resolveShaclEngine,
   validatePublicationGraphWithShacl,
+  validatePublicationGraphWithTurtleShapes,
 } from './shacl-publication-validation.js';
 import type { ShaclExecutionPort } from './shacl-execution-port.js';
+import { BUILTIN_GRAPH_SHAPE_SHA256, BUILTIN_GRAPH_SHAPE_TURTLE } from './builtin-graph-shape.js';
+import { parsePolicyPackageEnvelope } from './policy-package-envelope.js';
 import {
   parseOntologyDocument,
   validateCapabilityClaims,
@@ -189,9 +191,35 @@ export class DefaultRegistryService implements RegistryService {
   async createPolicyPackage(
     input: import('../ports/registry-service.js').CreatePolicyPackageInput,
   ): Promise<CreateResult<import('../ports/registry-service.js').RegistryPolicyPackageDetails>> {
-    let document;
+    const gateInputs = {
+      require_human_review: input.require_human_review,
+      require_validation: input.require_validation,
+      require_signature: input.require_signature,
+      require_trusted_publisher: input.require_trusted_publisher,
+      require_build_provenance: input.require_build_provenance,
+      require_sbom: input.require_sbom,
+    };
+    const gateProvided = Object.values(gateInputs).some((value) => value !== undefined);
+    if (gateProvided && input.shapes_format !== 'shacl-turtle') {
+      throw new RegistryCoreError(
+        'POLICY_PACKAGE_INVALID',
+        'Policy gate fields (require_*) belong inside the shapes document for legacy JSON policies; top-level gates are only accepted with shapes_format "shacl-turtle".',
+      );
+    }
+
+    let envelope: Record<string, unknown>;
     try {
-      document = parseShapeDocument(input.shapes);
+      const parsed = parsePolicyPackageEnvelope({
+        ...(input.shapes_format ? { shapes_format: input.shapes_format } : {}),
+        shapes: input.shapes,
+        ...(input.shapes_format === 'shacl-turtle'
+          ? Object.fromEntries(Object.entries(gateInputs).filter(([, value]) => value !== undefined))
+          : {}),
+      });
+      envelope =
+        parsed.shapes_format === 'shacl-turtle'
+          ? { policy_version: input.policy_version, shapes_format: 'shacl-turtle', shapes: parsed.shapes, ...parsed.gates }
+          : { policy_version: input.policy_version, shapes: parsed.document };
     } catch (err) {
       throw new RegistryCoreError(
         'POLICY_PACKAGE_INVALID',
@@ -199,10 +227,7 @@ export class DefaultRegistryService implements RegistryService {
       );
     }
 
-    const content = canonicalJsonString({
-      policy_version: input.policy_version,
-      shapes: document,
-    });
+    const content = canonicalJsonString(envelope);
     const artifact = await this.deps.cas.put({
       bytes: Buffer.from(content, 'utf8'),
       media_type: 'application/json',
@@ -276,10 +301,15 @@ export class DefaultRegistryService implements RegistryService {
   ): Promise<import('../ports/registry-service.js').RegistryPolicyPackageDetails> {
     const sha256 = stringOrUndefined(node.properties['sha256']) ?? parseArtifactSha256(node.urn) ?? '';
     let shapes: unknown = null;
+    let shapes_format: import('../ports/registry-service.js').PolicyShapesFormat = 'legacy-json-v1';
     const stored = await this.deps.cas.getBySha256(sha256);
     if (stored) {
       try {
-        shapes = (JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)) as { shapes?: unknown }).shapes ?? null;
+        const parsed = parsePolicyPackageEnvelope(
+          JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)),
+        );
+        shapes_format = parsed.shapes_format;
+        shapes = parsed.shapes;
       } catch {
         shapes = null;
       }
@@ -293,6 +323,7 @@ export class DefaultRegistryService implements RegistryService {
       ...(stringOrUndefined(node.properties['description'])
         ? { description: String(node.properties['description']) }
         : {}),
+      shapes_format,
       shapes,
     };
   }
@@ -2882,26 +2913,32 @@ export class DefaultRegistryService implements RegistryService {
       edges: dataEdges,
     };
 
-    // Layer 1: built-in graph-shape validation (structural rules) executed
-    // as W3C SHACL via the shared engine (see shacl-publication-validation).
+    // Layer 1: built-in graph-shape validation (structural rules), authored
+    // as W3C SHACL Turtle and executed via the shared engine.
     const shaclEngine = resolveShaclEngine(this.deps.shaclExecution);
-    const graphShapeViolations = await validatePublicationGraphWithShacl(
-      { graph: dataGraph, document: BUILTIN_GRAPH_SHAPE_DOCUMENT },
+    const graphShapeViolations = await validatePublicationGraphWithTurtleShapes(
+      { graph: dataGraph, shapes_turtle: BUILTIN_GRAPH_SHAPE_TURTLE },
       shaclEngine,
     );
     const layers: Array<Record<string, unknown>> = [
       {
         layer: 'graph_shape',
         shape_document: 'registry-graph-shape/builtin',
+        shapes_format: 'shacl-turtle',
+        shapes_sha256: BUILTIN_GRAPH_SHAPE_SHA256,
         violations: graphShapeViolations,
       },
     ];
 
-    // Layer 2: SHACL-like policy validation against the registered policy
+    // Layer 2: W3C SHACL policy validation against the registered policy
     // package for this version's policy_version, when one is registered.
+    // Legacy JSON documents execute through the translation path; authored
+    // Turtle documents execute directly.
     const policyVersion = stringOrUndefined(input.properties['policy_version']) ?? 'registry-policy/v1';
     let policyViolations: ValidationViolation[] = [];
-    let policyDocument: ShapeDocument | null = null;
+    let policyResolved = false;
+    let policyShapesFormat: string | null = null;
+    let policyShapesSha256: string | null = null;
     const policyNode = await this.findPolicyPackageNode(policyVersion);
 
     if (policyNode) {
@@ -2909,21 +2946,34 @@ export class DefaultRegistryService implements RegistryService {
       const stored = sha ? await this.deps.cas.getBySha256(sha) : null;
       if (stored) {
         try {
-          const parsed = JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)) as { shapes?: unknown };
-          policyDocument = parseShapeDocument(parsed.shapes);
-          policyViolations = await validatePublicationGraphWithShacl(
-            { graph: dataGraph, document: policyDocument },
-            shaclEngine,
+          const parsed = parsePolicyPackageEnvelope(
+            JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)),
           );
+          if (parsed.shapes_turtle) {
+            policyViolations = await validatePublicationGraphWithTurtleShapes(
+              { graph: dataGraph, shapes_turtle: parsed.shapes_turtle },
+              shaclEngine,
+            );
+          } else if (parsed.document) {
+            policyViolations = await validatePublicationGraphWithShacl(
+              { graph: dataGraph, document: parsed.document },
+              shaclEngine,
+            );
+          }
+          policyResolved = true;
+          policyShapesFormat = parsed.shapes_format;
+          policyShapesSha256 = sha ?? null;
         } catch {
-          policyDocument = null;
+          policyResolved = false;
         }
       }
     }
     layers.push({
       layer: 'policy',
       policy_version: policyVersion,
-      policy_package_resolved: Boolean(policyDocument),
+      policy_package_resolved: policyResolved,
+      ...(policyShapesFormat ? { shapes_format: policyShapesFormat } : {}),
+      ...(policyShapesSha256 ? { shapes_sha256: policyShapesSha256 } : {}),
       violations: policyViolations,
     });
 
@@ -4358,7 +4408,7 @@ export class DefaultRegistryService implements RegistryService {
     errorCode: string;
   }): Promise<void> {
     const bound = await this.readBoundPolicyDocument(input.properties);
-    if (bound?.document.require_trusted_publisher !== true) return;
+    if (bound?.parsed.gates.require_trusted_publisher !== true) return;
     const material = await this.resolveTrustedPublicKeyMaterial(input.keyRef);
     const trustedKey = await this.getTrustedPublicKey({ key_ref: input.keyRef });
     const owner = stringOrUndefined(trustedKey?.public_key.properties['owner']);
@@ -4373,7 +4423,7 @@ export class DefaultRegistryService implements RegistryService {
 
   private async readBoundPolicyDocument(
     properties: Record<string, unknown>,
-  ): Promise<{ policyVersion: string; document: ShapeDocument } | null> {
+  ): Promise<{ policyVersion: string; parsed: import('./policy-package-envelope.js').ParsedPolicyPackageEnvelope } | null> {
     const policyVersion = stringOrUndefined(properties['policy_version']) ?? 'registry-policy/v1';
     const policyNode = await this.findPolicyPackageNode(policyVersion);
     if (!policyNode) return null;
@@ -4381,8 +4431,10 @@ export class DefaultRegistryService implements RegistryService {
     const stored = sha ? await this.deps.cas.getBySha256(sha) : null;
     if (!stored) return null;
     try {
-      const parsed = JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)) as { shapes?: unknown };
-      return { policyVersion, document: parseShapeDocument(parsed.shapes) };
+      const parsed = parsePolicyPackageEnvelope(
+        JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)),
+      );
+      return { policyVersion, parsed };
     } catch {
       return null;
     }
@@ -4395,7 +4447,7 @@ export class DefaultRegistryService implements RegistryService {
   }) {
     const bound = await this.readBoundPolicyDocument(input.properties);
     if (!bound) return;
-    if (bound.document.require_human_review === true && input.properties['review_status'] !== 'approved') {
+    if (bound.parsed.gates.require_human_review === true && input.properties['review_status'] !== 'approved') {
       throw new RegistryCoreError(
         input.errorCode,
         `Human review approval is required by policy ${bound.policyVersion} before ${input.action}.`,
@@ -4416,11 +4468,12 @@ export class DefaultRegistryService implements RegistryService {
   }): Promise<void> {
     const bound = await this.readBoundPolicyDocument(input.properties);
     if (!bound) return;
-    const { policyVersion, document } = bound;
+    const { policyVersion } = bound;
+    const gates = bound.parsed.gates;
 
     // A version that is still a draft has never passed validation; validated
     // status is the durable signal (publish itself stamps validation_status).
-    if (document.require_validation === true && input.operation === 'publish') {
+    if (gates.require_validation === true && input.operation === 'publish') {
       if (lifecycleStatus(input.properties) === 'draft') {
         throw new RegistryCoreError(
           `${input.errorCodePrefix}_VALIDATION_REQUIRED`,
@@ -4432,7 +4485,7 @@ export class DefaultRegistryService implements RegistryService {
     if (input.operation !== 'certify') return;
 
     const attestations = input.verification?.attestations ?? [];
-    if (document.require_build_provenance === true) {
+    if (gates.require_build_provenance === true) {
       const hasProvenance = attestations.some((attestation) =>
         BUILD_PROVENANCE_PREDICATE_TYPES.has(attestation.predicate_type.trim().toLowerCase()),
       );
@@ -4443,7 +4496,7 @@ export class DefaultRegistryService implements RegistryService {
         );
       }
     }
-    if (document.require_sbom === true) {
+    if (gates.require_sbom === true) {
       const hasSbom = attestations.some((attestation) =>
         SBOM_PREDICATE_TYPES.has(attestation.predicate_type.trim().toLowerCase()),
       );
@@ -4455,7 +4508,7 @@ export class DefaultRegistryService implements RegistryService {
       }
     }
 
-    const needsSignatures = document.require_signature === true || document.require_trusted_publisher === true;
+    const needsSignatures = gates.require_signature === true || gates.require_trusted_publisher === true;
     if (!needsSignatures) return;
     const validChecks = (input.verification?.signature_checks ?? []).filter(
       (check) =>
@@ -4464,13 +4517,13 @@ export class DefaultRegistryService implements RegistryService {
         (check.trusted_public_key_resolved ||
           (check.signature_kind === 'keyless' && check.keyless?.verified === true)),
     );
-    if (document.require_signature === true && validChecks.length === 0) {
+    if (gates.require_signature === true && validChecks.length === 0) {
       throw new RegistryCoreError(
         `${input.errorCodePrefix}_SIGNATURE_REQUIRED`,
         `Policy ${policyVersion} requires at least one verified detached signature before certify.`,
       );
     }
-    if (document.require_trusted_publisher === true) {
+    if (gates.require_trusted_publisher === true) {
       const publisher = stringOrUndefined(input.properties['publisher']);
       let publisherMatched = false;
       if (publisher) {
