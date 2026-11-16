@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.58](https://github.com/therandomsecurityguy/signet/compare/v0.1.57...v0.1.58) (2026-11-16)
+
+
+### Features
+
+* **webapp:** captioned demo-video recording script ([02d5309](https://github.com/therandomsecurityguy/signet/commit/02d530973afa28c71b4740bd511072454526e6ef))
+* **webapp:** demo video with terminal + browser segments ([7c0b23e](https://github.com/therandomsecurityguy/signet/commit/7c0b23ee370e0a92ae22740ecbc3fd64ded5b1ec))
+* **webapp:** terminal segment for the demo video (+ lifecycle badge polish) ([2733fe0](https://github.com/therandomsecurityguy/signet/commit/2733fe0bb81e48b0094335a2efb575dbe6f79da7))
+
 ## [0.1.57](https://github.com/therandomsecurityguy/signet/compare/v0.1.56...v0.1.57) (2026-11-16)
 
 
