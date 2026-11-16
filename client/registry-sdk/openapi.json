@@ -3370,13 +3370,81 @@
                             "canonical_rdf_sha256",
                             "canonical_rdf_artifact_urn"
                           ]
+                        },
+                        "provenance_signatures": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "artifact_urn": {
+                                "type": "string"
+                              },
+                              "signer": {
+                                "type": "string"
+                              },
+                              "key_ref": {
+                                "type": "string"
+                              },
+                              "algorithm": {
+                                "type": "string"
+                              },
+                              "signed_at": {
+                                "type": "string"
+                              },
+                              "provenance_sha256": {
+                                "type": "string"
+                              },
+                              "artifact_present": {
+                                "type": "boolean"
+                              },
+                              "trusted_public_key_resolved": {
+                                "type": "boolean"
+                              },
+                              "cryptographic_verification_passed": {
+                                "type": "boolean"
+                              },
+                              "digest_matches_current": {
+                                "type": "boolean"
+                              },
+                              "verdict": {
+                                "type": "string",
+                                "enum": [
+                                  "valid",
+                                  "invalid",
+                                  "stale"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "artifact_urn",
+                              "signer",
+                              "key_ref",
+                              "algorithm",
+                              "signed_at",
+                              "provenance_sha256",
+                              "artifact_present",
+                              "trusted_public_key_resolved",
+                              "cryptographic_verification_passed",
+                              "digest_matches_current",
+                              "verdict"
+                            ]
+                          }
+                        },
+                        "all_provenance_signatures_verified": {
+                          "type": "boolean"
+                        },
+                        "current_provenance_signed": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "entity",
                         "derivation_chain",
                         "replay",
-                        "evidence"
+                        "evidence",
+                        "provenance_signatures",
+                        "all_provenance_signatures_verified",
+                        "current_provenance_signed"
                       ]
                     }
                   ]
@@ -3416,6 +3484,204 @@
           },
           "404": {
             "description": "Agent version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/agents/{agentKey}/versions/{version}/provenance/signatures": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]*$"
+            },
+            "required": true,
+            "name": "agentKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "version",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "signer": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "key_ref": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "algorithm": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "signature": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000
+                  },
+                  "provenance_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                },
+                "required": [
+                  "signer",
+                  "key_ref",
+                  "algorithm",
+                  "signature"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Provenance signature attached (shape: { provenance_signature, created }; identical re-attach returns the existing record)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "nullable": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid provenance signature payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale digest, untrusted key, invalid signature, or conflicting duplicate",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
             "content": {
               "application/json": {
                 "schema": {
@@ -14917,13 +15183,81 @@
                             "canonical_rdf_sha256",
                             "canonical_rdf_artifact_urn"
                           ]
+                        },
+                        "provenance_signatures": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "artifact_urn": {
+                                "type": "string"
+                              },
+                              "signer": {
+                                "type": "string"
+                              },
+                              "key_ref": {
+                                "type": "string"
+                              },
+                              "algorithm": {
+                                "type": "string"
+                              },
+                              "signed_at": {
+                                "type": "string"
+                              },
+                              "provenance_sha256": {
+                                "type": "string"
+                              },
+                              "artifact_present": {
+                                "type": "boolean"
+                              },
+                              "trusted_public_key_resolved": {
+                                "type": "boolean"
+                              },
+                              "cryptographic_verification_passed": {
+                                "type": "boolean"
+                              },
+                              "digest_matches_current": {
+                                "type": "boolean"
+                              },
+                              "verdict": {
+                                "type": "string",
+                                "enum": [
+                                  "valid",
+                                  "invalid",
+                                  "stale"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "artifact_urn",
+                              "signer",
+                              "key_ref",
+                              "algorithm",
+                              "signed_at",
+                              "provenance_sha256",
+                              "artifact_present",
+                              "trusted_public_key_resolved",
+                              "cryptographic_verification_passed",
+                              "digest_matches_current",
+                              "verdict"
+                            ]
+                          }
+                        },
+                        "all_provenance_signatures_verified": {
+                          "type": "boolean"
+                        },
+                        "current_provenance_signed": {
+                          "type": "boolean"
                         }
                       },
                       "required": [
                         "entity",
                         "derivation_chain",
                         "replay",
-                        "evidence"
+                        "evidence",
+                        "provenance_signatures",
+                        "all_provenance_signatures_verified",
+                        "current_provenance_signed"
                       ]
                     }
                   ]
@@ -14963,6 +15297,204 @@
           },
           "404": {
             "description": "Skill version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/skills/{skillKey}/versions/{version}/provenance/signatures": {
+      "post": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]*$"
+            },
+            "required": true,
+            "name": "skillKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "version",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "signer": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "key_ref": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  },
+                  "algorithm": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "signature": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000
+                  },
+                  "provenance_sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  }
+                },
+                "required": [
+                  "signer",
+                  "key_ref",
+                  "algorithm",
+                  "signature"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Provenance signature attached (shape: { provenance_signature, created }; identical re-attach returns the existing record)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "nullable": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid provenance signature payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Skill version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale digest, untrusted key, invalid signature, or conflicting duplicate",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
             "content": {
               "application/json": {
                 "schema": {

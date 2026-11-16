@@ -79,4 +79,16 @@ export class AgentPublicationUseCase {
   }) {
     return await this.registry.createAgentDetachedSignature(input);
   }
+
+  async createProvenanceSignature(input: {
+    agent_key: string;
+    version: number;
+    signer: string;
+    key_ref: string;
+    algorithm: string;
+    signature: string;
+    provenance_sha256?: string;
+  }) {
+    return await this.registry.createAgentProvenanceSignature(input);
+  }
 }

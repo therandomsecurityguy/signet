@@ -5,7 +5,13 @@ export {
   sha256Hex,
   verifyDetachedSignature,
   verifyEnvelopeSignatures,
+  verifyProvenanceSignature,
   verifyRfc6962InclusionProof,
 } from './verify.js';
-export type { DetachedSignatureCheck, EnvelopeVerificationResult } from './verify.js';
+export type {
+  DetachedSignatureCheck,
+  EnvelopeVerificationResult,
+  ProvenanceSignatureCheck,
+  ProvenanceSignatureVerdict,
+} from './verify.js';
 export type { paths, components } from './generated/api.js';

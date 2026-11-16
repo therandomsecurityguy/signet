@@ -1301,6 +1301,22 @@ export interface paths {
                                 canonical_rdf_sha256: string;
                                 canonical_rdf_artifact_urn: string;
                             };
+                            provenance_signatures: {
+                                artifact_urn: string;
+                                signer: string;
+                                key_ref: string;
+                                algorithm: string;
+                                signed_at: string;
+                                provenance_sha256: string;
+                                artifact_present: boolean;
+                                trusted_public_key_resolved: boolean;
+                                cryptographic_verification_passed: boolean;
+                                digest_matches_current: boolean;
+                                /** @enum {string} */
+                                verdict: "valid" | "invalid" | "stale";
+                            }[];
+                            all_provenance_signatures_verified: boolean;
+                            current_provenance_signed: boolean;
                         };
                     };
                 };
@@ -1336,6 +1352,110 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents/{agentKey}/versions/{version}/provenance/signatures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    agentKey: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        signer: string;
+                        key_ref: string;
+                        algorithm: string;
+                        signature: string;
+                        provenance_sha256?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Provenance signature attached (shape: { provenance_signature, created }; identical re-attach returns the existing record) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Invalid provenance signature payload */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Agent version not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Stale digest, untrusted key, invalid signature, or conflicting duplicate */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -6367,6 +6487,22 @@ export interface paths {
                                 canonical_rdf_sha256: string;
                                 canonical_rdf_artifact_urn: string;
                             };
+                            provenance_signatures: {
+                                artifact_urn: string;
+                                signer: string;
+                                key_ref: string;
+                                algorithm: string;
+                                signed_at: string;
+                                provenance_sha256: string;
+                                artifact_present: boolean;
+                                trusted_public_key_resolved: boolean;
+                                cryptographic_verification_passed: boolean;
+                                digest_matches_current: boolean;
+                                /** @enum {string} */
+                                verdict: "valid" | "invalid" | "stale";
+                            }[];
+                            all_provenance_signatures_verified: boolean;
+                            current_provenance_signed: boolean;
                         };
                     };
                 };
@@ -6402,6 +6538,110 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/skills/{skillKey}/versions/{version}/provenance/signatures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    skillKey: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        signer: string;
+                        key_ref: string;
+                        algorithm: string;
+                        signature: string;
+                        provenance_sha256?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Provenance signature attached (shape: { provenance_signature, created }; identical re-attach returns the existing record) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Invalid provenance signature payload */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Skill version not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Stale digest, untrusted key, invalid signature, or conflicting duplicate */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;

@@ -17,7 +17,7 @@ import {
   SkillVersionOperationInputSchema,
 } from '../../contracts/skills/lifecycle.js';
 import { ErrorResponseSchema } from '../../contracts/error.js';
-import { ProvenanceJsonLdSchema, ProvenanceOutputSchema } from '../../contracts/provenance.js';
+import { ProvenanceJsonLdSchema, ProvenanceOutputSchema, CreateProvenanceSignatureInputSchema } from '../../contracts/provenance.js';
 import { projectProvenanceToJsonLd } from '../../../../registry/application/services/provenance-export.js';
 import {
   CreateDetachedSignatureInputSchema,
@@ -100,6 +100,28 @@ const getProvenanceRoute = createRoute({
     },
     400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid provenance request' },
     404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Skill version not found' },
+  },
+});
+
+const createProvenanceSignatureRoute = createRoute({
+  method: 'post',
+  path: '/v1/skills/{skillKey}/versions/{version}/provenance/signatures',
+  request: {
+    params: z.object({ skillKey: entityKeySchema, version: z.string() }),
+    body: { content: { 'application/json': { schema: CreateProvenanceSignatureInputSchema } } },
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.any() } },
+      description: 'Provenance signature attached (shape: { provenance_signature, created }; identical re-attach returns the existing record)',
+    },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid provenance signature payload' },
+    404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Skill version not found' },
+    409: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Stale digest, untrusted key, invalid signature, or conflicting duplicate',
+    },
+    500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Internal error' },
   },
 });
 
@@ -360,6 +382,38 @@ export function registerSkillLifecycleRoutes(
       return c.json(projectProvenanceToJsonLd(got), 200);
     }
     return c.json(got, 200);
+  });
+
+  app.openapi(createProvenanceSignatureRoute, async (c) => {
+    const raw = await c.req.json().catch(() => undefined);
+    const parsed = CreateProvenanceSignatureInputSchema.safeParse(raw);
+    const rawVersion = c.req.param('version');
+    const version = rawVersion ? parseVersion(rawVersion) : null;
+    const skillKey = c.req.param('skillKey');
+    return await handleLifecycleWrite({
+      c,
+      deps,
+      raw,
+      parsedSuccess: parsed.success && Boolean(version) && Boolean(skillKey),
+      parsedData:
+        parsed.success && version && skillKey
+          ? { skill_key: skillKey, version, ...parsed.data }
+          : undefined,
+      action: async (data) => {
+        const created = await deps.lifecycle.createProvenanceSignature({
+          skill_key: data.skill_key,
+          version: data.version,
+          signer: data.signer,
+          key_ref: data.key_ref,
+          algorithm: data.algorithm,
+          signature: data.signature,
+          ...(data.provenance_sha256 ? { provenance_sha256: data.provenance_sha256 } : {}),
+        });
+        return { provenance_signature: created.value, created: created.created };
+      },
+      validationMessage: 'Invalid provenance signature payload.',
+      method: 'POST',
+    });
   });
 
   app.openapi(createDraftRoute, async (c) => {

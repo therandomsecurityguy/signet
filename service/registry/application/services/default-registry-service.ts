@@ -6718,6 +6718,176 @@ export class DefaultRegistryService implements RegistryService {
     }
   }
 
+  async createAgentProvenanceSignature(
+    input: { agent_key: string; version: number } & import('../ports/registry-service.js').RegistryProvenanceSignatureInput,
+  ): Promise<CreateResult<import('../ports/registry-service.js').RegistryProvenanceSignatureRecord>> {
+    const version = await this.getAgentVersion(input);
+    if (!version) {
+      throw new RegistryCoreError('AGENT_VERSION_NOT_FOUND', 'Agent version not found.');
+    }
+    return await this.attachProvenanceSignature({
+      publication_urn: version.agent_version.urn,
+      logical_key: input.agent_key,
+      errorPrefix: 'AGENT_VERSION',
+      signature: input,
+    });
+  }
+
+  async createSkillProvenanceSignature(
+    input: { skill_key: string; version: number } & import('../ports/registry-service.js').RegistryProvenanceSignatureInput,
+  ): Promise<CreateResult<import('../ports/registry-service.js').RegistryProvenanceSignatureRecord>> {
+    const version = await this.getSkillVersion(input);
+    if (!version) {
+      throw new RegistryCoreError('SKILL_VERSION_NOT_FOUND', 'Skill version not found.');
+    }
+    return await this.attachProvenanceSignature({
+      publication_urn: version.skill_version.urn,
+      logical_key: input.skill_key,
+      errorPrefix: 'SKILL_VERSION',
+      signature: input,
+    });
+  }
+
+  /**
+   * Attach a detached signature over the canonical provenance export.
+   * Fail-closed: the key must resolve to a trusted, unexpired key and the
+   * signature must verify over the current canonical N-Quads; an explicit
+   * digest differing from the current export is rejected as stale so
+   * signers re-fetch (provenance grows with every lifecycle operation).
+   * Trusted keys only in v1 — keyless bundles need prepared signed bytes.
+   */
+  private async attachProvenanceSignature(input: {
+    publication_urn: string;
+    logical_key: string;
+    errorPrefix: 'SKILL_VERSION' | 'AGENT_VERSION';
+    signature: import('../ports/registry-service.js').RegistryProvenanceSignatureInput;
+  }): Promise<CreateResult<import('../ports/registry-service.js').RegistryProvenanceSignatureRecord>> {
+    const provenance = await this.getPublicationProvenance({ publication_urn: input.publication_urn });
+    if (!provenance) {
+      throw new RegistryCoreError(
+        `${input.errorPrefix}_PROVENANCE_SIGNATURE_CONFLICT`,
+        'Provenance is not available for this version.',
+      );
+    }
+    const provenance_sha256 = provenance.evidence.canonical_rdf_sha256;
+    if (input.signature.provenance_sha256 && input.signature.provenance_sha256 !== provenance_sha256) {
+      throw new RegistryCoreError(
+        `${input.errorPrefix}_PROVENANCE_SIGNATURE_STALE`,
+        'The supplied provenance digest is not the current export; re-fetch the provenance and sign the current canonical bytes.',
+      );
+    }
+    const resolvedKey = await this.resolveTrustedPublicKeyMaterial(input.signature.key_ref);
+    if (!resolvedKey) {
+      throw new RegistryCoreError(
+        `${input.errorPrefix}_PROVENANCE_SIGNATURE_KEY_UNTRUSTED`,
+        'Signature key_ref does not resolve to a trusted, unexpired public key.',
+      );
+    }
+    const canonicalArtifact = await this.readCasArtifact(provenance_sha256);
+    const canonicalBytes = canonicalArtifact ? Buffer.from(canonicalArtifact.bytes) : null;
+    if (!canonicalBytes) {
+      throw new RegistryCoreError(
+        `${input.errorPrefix}_PROVENANCE_SIGNATURE_CONFLICT`,
+        'Canonical provenance export could not be read.',
+      );
+    }
+    const verified = verifyDetachedSignatureBytes({
+      algorithm: input.signature.algorithm,
+      public_key_pem: resolvedKey.public_key_pem,
+      message: canonicalBytes.toString('utf8'),
+      signature: input.signature.signature,
+    });
+    if (!verified) {
+      throw new RegistryCoreError(
+        `${input.errorPrefix}_PROVENANCE_SIGNATURE_INVALID`,
+        'Signature does not verify over the canonical provenance bytes for this version.',
+      );
+    }
+
+    // Idempotent for an identical re-attach; conflicting duplicates fail.
+    const existingEdges = await this.deps.graph.listEdgesFrom(input.publication_urn, 'sg:hasProvenanceSignature');
+    for (const edge of existingEdges) {
+      const node = await this.deps.graph.getNode(edge.to_urn);
+      if (
+        node &&
+        stringOrUndefined(node.properties['key_ref']) === input.signature.key_ref &&
+        stringOrUndefined(node.properties['provenance_sha256']) === provenance_sha256
+      ) {
+        if (stringOrUndefined(node.properties['signature']) === input.signature.signature) {
+          return { created: false, value: this.toProvenanceSignatureRecord(node) };
+        }
+        throw new RegistryCoreError(
+          `${input.errorPrefix}_PROVENANCE_SIGNATURE_CONFLICT`,
+          'A different provenance signature from this key already exists for the current export.',
+        );
+      }
+    }
+
+    const signed_at = nowIso();
+    const content = canonicalJsonString({
+      publication_urn: input.publication_urn,
+      signer: input.signature.signer,
+      key_ref: input.signature.key_ref,
+      algorithm: input.signature.algorithm,
+      signed_at,
+      provenance_sha256,
+      signature: input.signature.signature,
+    });
+    const artifact = await this.deps.cas.put({
+      bytes: Buffer.from(content, 'utf8'),
+      media_type: 'application/json',
+      original_path: `generated/provenance-signature/${sanitizePathSegment(input.logical_key)}.json`,
+    });
+    const artifactNodeUrn = artifactUrn(artifact.sha256);
+    await this.deps.graph.upsertNode({
+      urn: artifactNodeUrn,
+      entity_type: 'ARTIFACT',
+      properties: {
+        sha256: artifact.sha256,
+        size_bytes: artifact.size_bytes,
+        media_type: artifact.media_type,
+        original_path: artifact.original_path,
+        governance_role: 'provenance_signature',
+        signer: input.signature.signer,
+        key_ref: input.signature.key_ref,
+        algorithm: input.signature.algorithm,
+        signed_at,
+        provenance_sha256,
+        signature: input.signature.signature,
+      },
+    });
+    await this.deps.graph.upsertEdge({
+      from_urn: input.publication_urn,
+      to_urn: artifactNodeUrn,
+      predicate: 'sg:hasProvenanceSignature',
+      properties: {},
+    });
+    const node = await this.deps.graph.getNode(artifactNodeUrn);
+    if (!node) {
+      throw new RegistryCoreError(
+        `${input.errorPrefix}_PROVENANCE_SIGNATURE_CONFLICT`,
+        'Failed to store the provenance signature.',
+      );
+    }
+    return { created: true, value: this.toProvenanceSignatureRecord(node) };
+  }
+
+  private toProvenanceSignatureRecord(node: {
+    urn: string;
+    properties: Record<string, unknown>;
+  }): import('../ports/registry-service.js').RegistryProvenanceSignatureRecord {
+    return {
+      artifact_urn: node.urn,
+      ...toOptionalStringProp('sha256', stringOrUndefined(node.properties['sha256']) ?? parseArtifactSha256(node.urn)),
+      signer: String(node.properties['signer'] ?? ''),
+      key_ref: String(node.properties['key_ref'] ?? ''),
+      algorithm: String(node.properties['algorithm'] ?? ''),
+      signed_at: String(node.properties['signed_at'] ?? ''),
+      provenance_sha256: String(node.properties['provenance_sha256'] ?? ''),
+      signature: String(node.properties['signature'] ?? ''),
+    };
+  }
+
   async getPublicationProvenance(input: { publication_urn: string }): Promise<import('../ports/registry-service.js').RegistryPublicationProvenance | null> {
     const start = await this.deps.graph.getNode(input.publication_urn);
     if (!start || (start.entity_type !== 'SKILL_VERSION' && start.entity_type !== 'AGENT_VERSION')) {
@@ -6808,14 +6978,19 @@ export class DefaultRegistryService implements RegistryService {
 
     // Canonical provenance export: PROV-O projection -> RDFC-1.0 canonical
     // N-Quads -> content-addressed artifact. Idempotent by construction
-    // (same graph shape/content => same digest => same bytes); the digest is
-    // what detached provenance signatures will bind to (PR 2).
+    // (same graph shape/content => same digest => same bytes); detached
+    // provenance signatures bind to that digest.
     const export_ = await canonicalizeProvenance({ entity: { urn: start.urn, entity_type: start.entity_type }, derivation_chain, replay });
     await this.deps.cas.put({
       bytes: Buffer.from(export_.nquads, 'utf8'),
       media_type: 'application/n-quads',
       original_path: `provenance/${sanitizePathSegment(start.urn)}.nq`,
     });
+
+    const provenance_signatures = await this.buildProvenanceSignatureChecks(start.urn, export_.sha256);
+    const all_provenance_signatures_verified =
+      provenance_signatures.length > 0 && provenance_signatures.every((check) => check.verdict !== 'invalid');
+    const current_provenance_signed = provenance_signatures.some((check) => check.verdict === 'valid');
 
     return {
       entity: { urn: start.urn, entity_type: start.entity_type },
@@ -6825,7 +7000,82 @@ export class DefaultRegistryService implements RegistryService {
         canonical_rdf_sha256: export_.sha256,
         canonical_rdf_artifact_urn: artifactUrn(export_.sha256),
       },
+      provenance_signatures,
+      all_provenance_signatures_verified,
+      current_provenance_signed,
     };
+  }
+
+  /**
+   * Re-verify every stored provenance signature on read: fetch the signed
+   * export from the CAS, resolve the trusted key, check the crypto, and
+   * classify against the current digest. `stale` marks signatures made over
+   * an earlier, still-retrievable export (provenance legitimately grows);
+   * `invalid` covers missing artifacts, unresolvable/revoked keys, and bad
+   * crypto.
+   */
+  private async buildProvenanceSignatureChecks(
+    publicationUrn: string,
+    currentSha256: string,
+  ): Promise<import('../ports/registry-service.js').RegistryProvenanceSignatureVerification[]> {
+    const edges = await this.deps.graph.listEdgesFrom(publicationUrn, 'sg:hasProvenanceSignature');
+    const checks: import('../ports/registry-service.js').RegistryProvenanceSignatureVerification[] = [];
+    for (const edge of edges) {
+      const node = await this.deps.graph.getNode(edge.to_urn);
+      if (!node || node.entity_type !== 'ARTIFACT') continue;
+      const signer = stringOrUndefined(node.properties['signer']);
+      const key_ref = stringOrUndefined(node.properties['key_ref']);
+      const algorithm = stringOrUndefined(node.properties['algorithm']);
+      const signed_at = stringOrUndefined(node.properties['signed_at']);
+      const provenance_sha256 = stringOrUndefined(node.properties['provenance_sha256']);
+      const signature = stringOrUndefined(node.properties['signature']);
+      if (!signer || !key_ref || !algorithm || !signed_at || !provenance_sha256 || !signature) continue;
+
+      let signedBytes: Buffer | null = null;
+      try {
+        const signedArtifact = await this.readCasArtifact(provenance_sha256);
+        signedBytes = signedArtifact ? Buffer.from(signedArtifact.bytes) : null;
+      } catch {
+        signedBytes = null; // integrity mismatch reads as a missing artifact
+      }
+      const resolvedKey = await this.resolveTrustedPublicKeyMaterial(key_ref);
+      const cryptographic_verification_passed =
+        signedBytes !== null && resolvedKey
+          ? verifyDetachedSignatureBytes({
+              algorithm,
+              public_key_pem: resolvedKey.public_key_pem,
+              message: signedBytes.toString('utf8'),
+              signature,
+            })
+          : false;
+      const digest_matches_current = provenance_sha256 === currentSha256;
+      const verdict: 'valid' | 'invalid' | 'stale' =
+        signedBytes === null || !resolvedKey || !cryptographic_verification_passed
+          ? 'invalid'
+          : digest_matches_current
+            ? 'valid'
+            : 'stale';
+      checks.push({
+        artifact_urn: node.urn,
+        signer,
+        key_ref,
+        algorithm,
+        signed_at,
+        provenance_sha256,
+        artifact_present: signedBytes !== null,
+        trusted_public_key_resolved: Boolean(resolvedKey),
+        cryptographic_verification_passed,
+        digest_matches_current,
+        verdict,
+      });
+    }
+    checks.sort(
+      (left, right) =>
+        left.key_ref.localeCompare(right.key_ref) ||
+        left.signed_at.localeCompare(right.signed_at) ||
+        left.artifact_urn.localeCompare(right.artifact_urn),
+    );
+    return checks;
   }
 
   private async getDetachedSignatures(publicationUrn: string): Promise<RegistryDetachedSignatureRecord[]> {
