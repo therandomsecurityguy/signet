@@ -117,6 +117,14 @@ version (re-running a `workflow_dispatch` without a bump fails safely).
   refuses provenance from non-public source repos. Keep
   `NPM_CONFIG_PROVENANCE=false` while this repository is internal; remove it
   only once the repository is public.
+- `E404 … PUT https://registry.npmjs.org/@signet-registry%2f<name>` during an
+  OIDC publish: the package's trusted-publisher configuration is missing,
+  mismatched, or expired — a fresh configuration expires if its first OIDC
+  publish does not land within 2 days (and first publishes are
+  maintainer-performed, see One-time bootstrap). Re-create the trusted
+  publisher (workflow filename must match exactly, "Allow npm publish"
+  checked), then re-run the publish workflow on the tag:
+  `gh workflow run publish-registry-cli.yml --ref registry-cli-vX.Y.Z`.
 - After a failed publish, re-running is safe via `workflow_dispatch` on the
   commit whose `package.json` holds the unpublished version — no new tag
   needed.

@@ -144,6 +144,12 @@ describe('authored Turtle policy packages (end to end)', () => {
           validator?: string;
           engine?: string;
           conforms?: boolean;
+          rdf?: {
+            format?: string;
+            canonical_rdf_sha256?: string;
+            canonical_rdf_artifact_urn?: string;
+            report?: { '@graph'?: Array<Record<string, unknown>> };
+          };
           layers?: Array<{ layer: string; shapes_format?: string; shapes_sha256?: string; violations: Array<{ message: string }> }>;
         };
       };
@@ -161,6 +167,28 @@ describe('authored Turtle policy packages (end to end)', () => {
       expect(policyLayer?.violations.map((violation) => violation.message)).toContain(
         'description_required_by_shacl_policy',
       );
+
+      // Standardized RDF export of the same report: sh:ValidationReport
+      // JSON-LD + RDFC-1.0 canonical digest whose artifact bytes hash back.
+      expect(payload.rdf?.format).toBe('jsonld');
+      expect(payload.rdf?.canonical_rdf_sha256).toMatch(/^[0-9a-f]{64}$/);
+      const rdfSha = payload.rdf?.canonical_rdf_sha256 as string;
+      const canonicalNQuads = await app.request(`/v1/artifacts/${rdfSha}`);
+      expect(canonicalNQuads.status).toBe(200);
+      const canonicalText = await canonicalNQuads.text();
+      expect(canonicalText).toContain('http://www.w3.org/ns/shacl#conforms');
+      expect(canonicalText).toContain('http://www.w3.org/ns/shacl#MinCountConstraintComponent');
+      const graph = payload.rdf?.report?.['@graph'] ?? [];
+      const reportNode = graph.find(
+        (node) => Array.isArray(node['@type']) && (node['@type'] as string[]).includes('http://www.w3.org/ns/shacl#ValidationReport'),
+      );
+      expect(reportNode).toBeDefined();
+      expect(reportNode?.['sh:conforms']).toEqual([{ '@value': false }]);
+      const results = graph.filter(
+        (node) => Array.isArray(node['@type']) && (node['@type'] as string[]).includes('http://www.w3.org/ns/shacl#ValidationResult'),
+      );
+      expect(results.length).toBeGreaterThan(0);
+      expect(results.some((node) => JSON.stringify(node['sh:resultMessage']).includes('description_required_by_shacl_policy'))).toBe(true);
     }
     expect(sawShaclReport).toBe(true);
     expect(sawFailedReport).toBe(true);

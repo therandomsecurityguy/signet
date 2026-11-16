@@ -41,6 +41,11 @@ import { BUILTIN_GRAPH_SHAPE_SHA256, BUILTIN_GRAPH_SHAPE_TURTLE } from './builti
 import { parsePolicyPackageEnvelope } from './policy-package-envelope.js';
 import { canonicalizeProvenance } from './provenance-export.js';
 import {
+  canonicalizeValidationReport,
+  projectValidationReportToJsonLd,
+  type ValidationReportLayer,
+} from './validation-report-export.js';
+import {
   parseOntologyDocument,
   validateCapabilityClaims,
   type OntologyDocument,
@@ -3071,6 +3076,26 @@ export class DefaultRegistryService implements RegistryService {
     // Every validation run emits a machine-readable report artifact with
     // per-layer violation paths, stored in the CAS and linked via
     // sg:validatedBy. Identical reports content-address to the same artifact.
+    // The payload also carries a standardized sh:ValidationReport JSON-LD
+    // representation with its own RDFC-1.0 canonical digest and artifact, so
+    // reports are portable, offline-checkable RDF evidence.
+    const validated_at = nowIso();
+    const conforms = failures.length === 0;
+    const reportExportInput = {
+      focus_urn: input.version_urn,
+      entity_type: input.entity_type,
+      validated_at,
+      validator: SHACL_VALIDATOR_ID,
+      engine: shaclEngine.engine,
+      conforms,
+      layers: layers as ValidationReportLayer[],
+    };
+    const reportExport = await canonicalizeValidationReport(reportExportInput);
+    await this.deps.cas.put({
+      bytes: Buffer.from(reportExport.nquads, 'utf8'),
+      media_type: 'application/n-quads',
+      original_path: `validation-reports/${sanitizePathSegment(input.logical_key)}.nq`,
+    });
     const reportArtifact = await this.createGovernanceArtifact({
       role: 'validation_report',
       logical_key: input.logical_key,
@@ -3078,11 +3103,17 @@ export class DefaultRegistryService implements RegistryService {
       payload: {
         focus_urn: input.version_urn,
         entity_type: input.entity_type,
-        validated_at: nowIso(),
+        validated_at,
         validator: SHACL_VALIDATOR_ID,
         engine: shaclEngine.engine,
-        conforms: failures.length === 0,
+        conforms,
         layers,
+        rdf: {
+          format: 'jsonld',
+          canonical_rdf_sha256: reportExport.sha256,
+          canonical_rdf_artifact_urn: artifactUrn(reportExport.sha256),
+          report: projectValidationReportToJsonLd(reportExportInput),
+        },
       },
     });
     await this.attachGovernanceArtifacts(input.version_urn, [reportArtifact]);

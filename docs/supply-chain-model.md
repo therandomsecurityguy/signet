@@ -106,14 +106,22 @@ The verify-then-load contract (see `adoption.md`) moves verification to the
 consumer:
 
 - `@signet-registry/sdk` ships `verifyEnvelopeSignatures`,
-  `verifyDetachedSignature`, `verifyRfc6962InclusionProof`, and
+  `verifyDetachedSignature`, `verifyProvenanceSignature`,
+  `verifyRfc6962InclusionProof`, and
   `fetchArtifact` (local re-hash against the requested digest and the
   `Content-Digest` header).
 - `registry-operator verify publication (--skill|--agent) --version <n>
-  [--strict]` reproduces the verdict in the CLI, and
+  [--strict]` reproduces the verdict in the CLI,
+  `registry-operator verify provenance (--skill|--agent) --version <n>
+  [--strict]` re-checks the canonical provenance export and every detached
+  provenance signature locally (transport digest + per-signature crypto;
+  `--strict` requires a signature over the current export), and
   `registry-operator verify artifact` checks bytes.
 - `verify mcp` re-hashes every artifact fetched through MCP instead of only
   checking tool success.
+- Validation reports carry a `sh:ValidationReport` JSON-LD representation
+  with its own RDFC-1.0 canonical digest + artifact, so validation evidence
+  is portable standard RDF alongside the JSON payload.
 
 ## Operate
 

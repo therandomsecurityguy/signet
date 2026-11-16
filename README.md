@@ -197,6 +197,17 @@ Transparency and provenance:
   `prov:used` / `prov:wasAssociatedWith` edges written at every lifecycle
   operation, with traversal + audit-replay endpoints and the read-only
   `registry.get_provenance` MCP tool
+- canonical provenance export: the read view projects to a deterministic
+  PROV-O graph — RDFC-1.0 canonical N-Quads with a content-addressed
+  artifact and digest on every response, plus a JSON-LD representation
+  (`?format=jsonld`); **detached provenance signatures** bind that digest
+  (reads re-verify with `valid` / `invalid` / `stale` verdicts — stale
+  marks signatures made before the trail grew, and the signed export
+  stays retrievable); `registry-operator verify provenance` and the SDK's
+  `verifyProvenanceSignature` reproduce verdicts locally
+- validation reports as standardized RDF: every report artifact carries a
+  `sh:ValidationReport` JSON-LD representation of its layers and results
+  with its own RDFC-1.0 canonical digest + artifact
 
 Ingestion and vocabulary:
 - semantic compiler ingestion: markdown frontmatter and tool manifests
