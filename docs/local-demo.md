@@ -51,11 +51,104 @@ Verify-before-load, offline repeat of the seed checks:
 ```bash
 cd client/registry-cli
 npm run dev -- verify mcp --mcp-token <mcp token from the seed output>
-npm run dev -- verify publication --skill skill:tame-llama --version 1 --strict --api-token <api token>
+npm run dev -- verify publication --skill skill:tame-llama --version 1 --api-token <api token>
+```
+
+The host demo pack is not signed, so `verify publication` reports
+`verdict: verified` without signatures; `--strict` additionally requires a
+valid detached signature and only passes for signed packs (the Kubernetes
+`signet-demo` manifest signs — see `docs/runbooks/demo-reseed.md`).
+
+Every seeded validation already runs through the W3C SHACL engine: the
+graph-shape layer's report entry records `validator: shacl-v1`, the engine
+version, and `shapes_format: "shacl-turtle"` with the built-in shapes
+digest. To see it for a seeded skill:
+
+```bash
+API=http://localhost:3100
+TOK=<api token from the seed output>
+V=$(curl -s -H "authorization: Bearer $TOK" "$API/v1/skills/skill%3Aregistry-mcp/versions/1")
+SHA=$(echo "$V" | jq -r '.governance_artifacts[] | select(.role=="validation_report") | .sha256' | head -1)
+curl -s -H "authorization: Bearer $TOK" "$API/v1/artifacts/$SHA" | jq .payload.validator   # -> "shacl-v1"
 ```
 
 The webapp's mock-Okta browser demo (optional) is printed by the seed as
 `mock_okta_demo_command`.
+
+## SHACL policy walkthrough (verified)
+
+Registers an authored W3C SHACL Turtle policy against the running host
+demo, drives a draft through rejection and certification, and inspects the
+machine-readable validation reports. Every step below is copy-paste
+runnable against `scripts/demo-local.sh demo` state.
+
+```bash
+API=http://localhost:3100
+TOK=<api token from the seed output>   # or mint one:
+# (cd service/api && DATABASE_URL="file:$PWD/../../data/api/signet-api.db" \
+#   NODE_ENV=development node --import tsx scripts/create-api-key.ts \
+#   --owner-label demo --scopes read,write,lifecycle)
+
+# 1. Register the policy (gates are top-level fields for Turtle policies).
+curl -s -H "authorization: Bearer $TOK" -H 'content-type: application/json' \
+  -X POST "$API/v1/policy-packages" -d '{
+    "policy_version": "demo-shacl/v1",
+    "author": "demo",
+    "shapes_format": "shacl-turtle",
+    "require_validation": true,
+    "shapes": "@prefix sh: <http://www.w3.org/ns/shacl#> .\n<urn:policy:description> a sh:NodeShape ;\n    sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;\n    sh:property [ sh:path <urn:sg:property:description> ; sh:minCount 1 ; sh:message \"description_required_by_demo_shacl_policy\" ] ."
+  }' | jq '{created, format: .policy_package.shapes_format, sha: .policy_package.sha256[0:12]}'
+# -> created: true, format: "shacl-turtle"
+
+# 2. A draft without a description is rejected by the turtle policy.
+curl -s -H "authorization: Bearer $TOK" -H 'content-type: application/json' \
+  -X POST "$API/v1/skills/skill%3Ashacl-demo/drafts" -d '{
+    "author": "demo",
+    "artifact": { "content": "# shacl demo", "original_path": "skills/shacl-demo.md" },
+    "governance": { "policy_version": "demo-shacl/v1" }
+  }' >/dev/null
+curl -s -H "authorization: Bearer $TOK" -H 'content-type: application/json' \
+  -X POST "$API/v1/skills/skill%3Ashacl-demo/versions/1/validate" -d '{"author":"demo"}' \
+  | jq '{lifecycle: .result.skill_version.properties.lifecycle_status,
+         failures: .result.skill_version.properties.validation_failures}'
+# -> lifecycle: "rejected", failures: ["description_required_by_demo_shacl_policy"]
+
+# 3. The report shows the W3C engine, the Turtle policy layer, and the
+#    policy package digest it executed.
+V=$(curl -s -H "authorization: Bearer $TOK" "$API/v1/skills/skill%3Ashacl-demo/versions/1")
+for SHA in $(echo "$V" | jq -r '.governance_artifacts[] | select(.role=="validation_report") | .sha256'); do
+  curl -s -H "authorization: Bearer $TOK" "$API/v1/artifacts/$SHA" \
+    | jq 'select(.payload.validator == "shacl-v1") | { validator: .payload.validator,
+        engine: .payload.engine, conforms: .payload.conforms,
+        policy_format: .payload.layers[1].shapes_format,
+        policy_sha: .payload.layers[1].shapes_sha256[0:12],
+        violation: .payload.layers[1].violations[0].message }'
+done
+# -> validator: "shacl-v1", engine: "rdf-validate-shacl@0.6.5",
+#    policy_format: "shacl-turtle", violation: "description_required_by_demo_shacl_policy"
+
+# 4. A conforming draft passes validation, publish is gated on it, and
+#    certify completes the lifecycle.
+curl -s -H "authorization: Bearer $TOK" -H 'content-type: application/json' \
+  -X POST "$API/v1/skills/skill%3Ashacl-demo-ok/drafts" -d '{
+    "author": "demo",
+    "description": "SHACL demo skill with a description",
+    "artifact": { "content": "# shacl demo ok", "original_path": "skills/shacl-demo-ok.md" },
+    "governance": { "policy_version": "demo-shacl/v1" }
+  }' >/dev/null
+for STEP in validate publish certify; do
+  curl -s -H "authorization: Bearer $TOK" -H 'content-type: application/json' \
+    -X POST "$API/v1/skills/skill%3Ashacl-demo-ok/versions/1/$STEP" -d '{"author":"demo"}' \
+    | jq -r --arg step "$STEP" '"\($step): \(.result.skill_version.properties.lifecycle_status)"'
+done
+# -> validate: validated, publish: published, certify: certified
+```
+
+Authoring conventions (enforced at registration): `sh:targetClass` over
+`urn:sg:entity-type:` IRIs, simple `urn:sg:property:`/`urn:sg:predicate:`
+paths, and `sh:pattern` that compiles under RE2 (linear-time execution,
+no backreferences/lookarounds); explicit node targeting is rejected. See
+`docs/api-reference.md` for both policy formats.
 
 ## Option 2 — Docker Compose
 

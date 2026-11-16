@@ -83,6 +83,22 @@ API_ORIGIN=http://127.0.0.1:3100 \
 kill %1
 ```
 
+The reseed's validations ran through the W3C SHACL engine; inspect a
+machine-readable report (the graph-shape layer records
+`shapes_format: "shacl-turtle"`):
+
+```bash
+kubectl -n signet port-forward svc/signet-api 3100:3100 & sleep 5
+V=$(curl -s http://127.0.0.1:3100/v1/skills/skill%3Aregistry-search/versions/1)
+for SHA in $(echo "$V" | jq -r '.governance_artifacts[] | select(.role=="validation_report") | .sha256'); do
+  curl -s "http://127.0.0.1:3100/v1/artifacts/$SHA" \
+    | jq 'select(.payload.validator == "shacl-v1") | { validator: .payload.validator,
+        engine: .payload.engine, conforms: .payload.conforms,
+        shapes: .payload.layers[0].shapes_format }'
+done
+kill %1
+```
+
 Then revoke the operator key:
 
 ```bash

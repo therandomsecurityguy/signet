@@ -166,6 +166,22 @@ Current implementation:
 - `sh:pattern` executes in the registry's linear-time RE2 layer rather than the engine's backtracking RegExp (ReDoS-safe by construction); patterns are RE2-compiled at registration and stripped before engine execution
 - violations use the SHACL result vocabulary (focus node, result path, constraint component, source shape, severity) and are stored as CAS validation reports linked via `sg:validatedBy`; reports record the validator (`shacl-v1`), the engine version, and per-layer shapes fingerprints (`shapes_format`, `shapes_sha256`)
 
+Example — an authored Turtle policy requiring a description on every
+skill version (in this format, lifecycle gates such as
+`require_validation` are envelope metadata):
+
+```turtle
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+<urn:policy:description> a sh:NodeShape ;
+    sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;
+    sh:property [
+        sh:path <urn:sg:property:description> ;
+        sh:minCount 1 ;
+        sh:message "description_required_by_policy" ;
+    ] .
+```
+
 #### 3. Ontology-based validation
 
 Purpose:

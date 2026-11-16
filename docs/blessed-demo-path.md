@@ -110,6 +110,29 @@ Expected outcome:
 - the loaded `tame-llama` artifact gives enough funny guidance for a playful answer
 - `registry.get_skill` should expose the active skill-version artifact so `registry.get_artifact` can fetch the raw skill body
 
+### Validation report check (W3C SHACL)
+
+Every seeded skill version was validated by the W3C SHACL engine before it
+was published. Inspect a seeded skill's machine-readable report (use the
+api token printed by the bootstrap):
+
+```bash
+API=http://localhost:3100
+TOK=<api token from the bootstrap output>
+V=$(curl -s -H "authorization: Bearer $TOK" "$API/v1/skills/skill%3Atame-llama/versions/1")
+for SHA in $(echo "$V" | jq -r '.governance_artifacts[] | select(.role=="validation_report") | .sha256'); do
+  curl -s -H "authorization: Bearer $TOK" "$API/v1/artifacts/$SHA" \
+    | jq 'select(.payload.validator == "shacl-v1") | { validator: .payload.validator,
+        engine: .payload.engine, conforms: .payload.conforms,
+        shapes: .payload.layers[0].shapes_format }'
+done
+# -> validator: "shacl-v1", engine: "rdf-validate-shacl@0.6.5", conforms: true,
+#    shapes: "shacl-turtle"
+```
+
+To register and enforce an authored SHACL Turtle policy against the same
+stack, see the verified walkthrough in `docs/local-demo.md`.
+
 ### Step 5. Graph inspection
 
 Open Fuseki:
