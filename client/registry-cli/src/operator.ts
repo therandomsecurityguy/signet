@@ -827,7 +827,7 @@ async function runVerifyProvenance(env: Env, args: Record<string, string | boole
         record = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
       }
     } catch {
-      record = null;
+      // Missing/unreadable signature record: the signature fails verification.
     }
     const key_ref = typeof record?.['key_ref'] === 'string' ? record['key_ref'] : (row.key_ref ?? '');
     const algorithm = typeof record?.['algorithm'] === 'string' ? record['algorithm'] : (row.algorithm ?? '');
@@ -843,7 +843,7 @@ async function runVerifyProvenance(env: Env, args: Record<string, string | boole
       const { bytes } = await api.getArtifactBytes(provenance_sha256, apiToken);
       signedBytes = bytes;
     } catch {
-      signedBytes = null;
+      // Missing/unreadable signed artifact: the signature fails verification.
     }
     if (!signedBytes) {
       signatures.push({ key_ref, algorithm, provenance_sha256, digest_matches: false, signature_valid: false, verdict: 'invalid' as const });
