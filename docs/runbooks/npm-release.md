@@ -73,20 +73,35 @@ A fresh configuration must complete its first OIDC publish **within 2 days**
 or it expires. After the first OIDC publish is verified, set each package's
 Publishing access to "Require two-factor authentication and disallow tokens".
 
-## Steady-state release
+## Steady-state release (automated via release-please)
+
+Client releases are driven by **release-please** alongside the main release
+(`.release-please-config.json`, packages `client/registry-sdk` and
+`client/registry-cli`; one release PR per package because
+`separate-pull-requests` is on, and `bootstrap-sha` keeps the first client
+release PR from sweeping in pre-automation history):
+
+1. Merge normal PRs with conventional commits (`fix(registry-sdk): …`,
+   `feat(registry-cli): …`). Pre-1.0 per the shared config,
+   `bump-patch-for-minor-pre-major` bumps patch for features and
+   `bump-minor-pre-major` bumps minor for breaking changes.
+2. release-please opens/updates `chore(main): release registry-sdk x.y.z`
+   (version in `package.json` + lockfile, `CHANGELOG.md`, release notes).
+   Merge it when that package should go out.
+3. The merge makes release-please create the `registry-sdk-vx.y.z` tag and
+   GitHub release. Those are App-authored (RELEASE_APP secrets), so the tag
+   push triggers `publish-registry-sdk.yml` — OIDC publish, no manual step.
+4. Verify the registry got the exact build: rebuild + pack from the tagged
+   commit and compare `npm pack --json --ignore-scripts` integrity with
+   `npm view <pkg>@<version> dist.integrity`.
+
+Fallback (release-please unavailable): bump the version in
+`client/registry-sdk/package.json` / `client/registry-cli/package.json`,
+merge, tag the merged commit matching the version, and push the tag:
 
 ```bash
-# 1. Bump the package version (patch for fixes) and merge it to main.
-#    client/registry-sdk/package.json / client/registry-cli/package.json
-
-# 2. Tag the commit and push (the tag name must match the version).
 git tag registry-sdk-v0.1.2
 git push origin registry-sdk-v0.1.2
-
-# 3. Watch the publish workflow, then verify the registry got the exact build:
-#    rebuild + pack locally from the tagged commit and compare
-#    `npm pack --json --ignore-scripts` integrity with
-#    `npm view <pkg>@<version> dist.integrity`.
 ```
 
 The version in `package.json` must match the tag: the workflow publishes

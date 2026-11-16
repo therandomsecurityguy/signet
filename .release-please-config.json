@@ -1,4 +1,6 @@
 {
+  "separate-pull-requests": true,
+  "bootstrap-sha": "c6080ee836523ce5a9f16fe8166dc1c75cee1bdd",
   "packages": {
     ".": {
       "release-type": "simple",
@@ -9,6 +11,18 @@
         { "type": "yaml", "path": "charts/signet/Chart.yaml", "jsonpath": "$.version" },
         { "type": "yaml", "path": "charts/signet/Chart.yaml", "jsonpath": "$.appVersion" }
       ]
+    },
+    "client/registry-sdk": {
+      "release-type": "node",
+      "component": "registry-sdk",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true
+    },
+    "client/registry-cli": {
+      "release-type": "node",
+      "component": "registry-cli",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true
     }
   }
 }
