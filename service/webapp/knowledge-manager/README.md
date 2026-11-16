@@ -179,6 +179,23 @@ This script proves:
 - the `agents` and `skills` pages are reachable
 - logout works
 
+### Demo video
+`scripts/demo-video.ts` records a captioned walkthrough of the running demo
+(login → dashboard → skills → skill detail → graph → agents → ontology →
+Swagger) with Playwright's video capture:
+
+```bash
+npx playwright install chromium
+# demo services must be running (scripts/demo-local.sh demo); in API-key mode
+# mint a token and pass it so the script can sign in:
+DEMO_API_TOKEN=<agk_…> npm run demo:video
+# raw WebM lands in data/demo-video/; convert with:
+ffmpeg -y -i data/demo-video/signet-demo-raw.webm -c:v libx264 \
+  -pix_fmt yuv420p -crf 23 -movflags +faststart ~/Downloads/signet-demo.mp4
+```
+
+`VIDEO_DIR` overrides the raw-video output directory.
+
 ### Test
 
 ```bash
