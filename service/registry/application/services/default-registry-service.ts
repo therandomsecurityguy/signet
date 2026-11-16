@@ -28,10 +28,15 @@ import {
 import {
   BUILTIN_GRAPH_SHAPE_DOCUMENT,
   parseShapeDocument,
-  validateShapes,
   type ShapeDocument,
   type ValidationViolation,
 } from './shacl-like-validator.js';
+import {
+  SHACL_VALIDATOR_ID,
+  resolveShaclEngine,
+  validatePublicationGraphWithShacl,
+} from './shacl-publication-validation.js';
+import type { ShaclExecutionPort } from './shacl-execution-port.js';
 import {
   parseOntologyDocument,
   validateCapabilityClaims,
@@ -107,6 +112,13 @@ export class DefaultRegistryService implements RegistryService {
       };
       keyless?: KeylessTrustPolicy;
       llmValidator?: LlmValidator;
+      /**
+       * W3C SHACL execution engine for publication validation; defaults to
+       * the in-process rdf-validate-shacl adapter. Injectable so tests can
+       * pin a fake engine and deployments can swap engines without touching
+       * validation orchestration.
+       */
+      shaclExecution?: ShaclExecutionPort;
     },
   ) {}
 
@@ -2870,8 +2882,13 @@ export class DefaultRegistryService implements RegistryService {
       edges: dataEdges,
     };
 
-    // Layer 1: built-in graph-shape validation (structural rules).
-    const graphShapeViolations = validateShapes(dataGraph, BUILTIN_GRAPH_SHAPE_DOCUMENT);
+    // Layer 1: built-in graph-shape validation (structural rules) executed
+    // as W3C SHACL via the shared engine (see shacl-publication-validation).
+    const shaclEngine = resolveShaclEngine(this.deps.shaclExecution);
+    const graphShapeViolations = await validatePublicationGraphWithShacl(
+      { graph: dataGraph, document: BUILTIN_GRAPH_SHAPE_DOCUMENT },
+      shaclEngine,
+    );
     const layers: Array<Record<string, unknown>> = [
       {
         layer: 'graph_shape',
@@ -2894,7 +2911,10 @@ export class DefaultRegistryService implements RegistryService {
         try {
           const parsed = JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)) as { shapes?: unknown };
           policyDocument = parseShapeDocument(parsed.shapes);
-          policyViolations = validateShapes(dataGraph, policyDocument);
+          policyViolations = await validatePublicationGraphWithShacl(
+            { graph: dataGraph, document: policyDocument },
+            shaclEngine,
+          );
         } catch {
           policyDocument = null;
         }
@@ -3008,7 +3028,8 @@ export class DefaultRegistryService implements RegistryService {
         focus_urn: input.version_urn,
         entity_type: input.entity_type,
         validated_at: nowIso(),
-        validator: 'shacl-like-v1',
+        validator: SHACL_VALIDATOR_ID,
+        engine: shaclEngine.engine,
         conforms: failures.length === 0,
         layers,
       },

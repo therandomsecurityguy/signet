@@ -1,23 +1,32 @@
 /**
- * SHACL-like policy validation for publication graphs.
+ * Legacy "SHACL-like" validator: shape-document parsing, the shared
+ * violation vocabulary, and the built-in graph shape.
  *
- * This module implements a deliberately small subset of SHACL semantics
- * ("SHACL-like") over the registry's typed publication graph rather than
- * full W3C SHACL over RDF datasets:
- * - node shapes target version entities by `entity_type`
- * - property constraints: minCount, maxCount, datatype, in, pattern
- * - edge constraints: predicate presence/cardinality, target entity type
- * - violations use the SHACL result vocabulary (focusNode, resultPath,
- *   sourceConstraintComponent, sourceShape, message, severity)
+ * Production validation no longer executes here: shape documents are
+ * translated to W3C SHACL Turtle and run by a real engine
+ * (`shacl-publication-validation.ts`). This module is retained as:
+ * - the parser/type home for the legacy JSON shape document format (still
+ *   accepted for policy packages);
+ * - the home of `BUILTIN_GRAPH_SHAPE_DOCUMENT`;
+ * - the frozen reference engine for the parity test suite, which asserts
+ *   the W3C engine reproduces these exact violation tuples.
+ *
+ * Subset semantics (unchanged): node shapes target version entities by
+ * `entity_type`; property constraints minCount, maxCount, datatype, in,
+ * pattern; edge constraints predicate presence/cardinality + target entity
+ * type; violations use the SHACL result vocabulary (focusNode, resultPath,
+ * sourceConstraintComponent, sourceShape, message, severity).
  *
  * Only `Violation`-severity results fail validation; `Warning` and `Info`
- * are evidence-only. Full W3C SHACL execution over RDF remains future work.
+ * are evidence-only.
  *
  * Security: `pattern` constraints are executed with RE2 (via re2js), a
  * linear-time regular-expression engine with no backtracking, so even
  * catastrophic patterns such as (a+)+$ cannot stall the validator (ReDoS
  * safe by construction). Perl-only features RE2 does not support
- * (backreferences, lookarounds) are rejected at registration time.
+ * (backreferences, lookarounds) are rejected at registration time. The W3C
+ * path preserves this: `sh:pattern` is stripped from shapes and evaluated
+ * by the same RE2 layer (see shacl-shape-translation.ts).
  */
 
 import { RE2JS } from 're2js';
