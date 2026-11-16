@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.3...registry-sdk-v0.1.4) (2026-11-16)
+
+
+### Features
+
+* **registry:** detached provenance signatures with valid/invalid/stale verdicts (PR 2/3) ([1bd5759](https://github.com/therandomsecurityguy/signet/commit/1bd5759557b181878cf26fa3eac5d2c06a8b1681))
+
 ## [0.1.3](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.2...registry-sdk-v0.1.3) (2026-11-16)
 
 
