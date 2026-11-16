@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.57](https://github.com/therandomsecurityguy/signet/compare/v0.1.56...v0.1.57) (2026-11-16)
+
+
+### Features
+
+* **api:** authored W3C SHACL Turtle policy packages (PR 2/3) ([35cdc4d](https://github.com/therandomsecurityguy/signet/commit/35cdc4d6bd826f7426054b1992eee1741ba1ffe6))
+
 ## [0.1.56](https://github.com/therandomsecurityguy/signet/compare/v0.1.55...v0.1.56) (2026-11-16)
 
 
