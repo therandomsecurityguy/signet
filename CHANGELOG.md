@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.59](https://github.com/therandomsecurityguy/signet/compare/v0.1.58...v0.1.59) (2026-11-16)
+
+
+### Features
+
+* **registry:** canonical provenance export with JSON-LD and RDFC-1.0 digest ([57cc115](https://github.com/therandomsecurityguy/signet/commit/57cc115fe1497a96e5f5bb194f0be29354530d9f))
+* **registry:** canonical provenance export with JSON-LD and RDFC-1.0 digest (PR 1/3) ([d46771a](https://github.com/therandomsecurityguy/signet/commit/d46771abc1f65e75c9a68fab8545dbde155c9b04))
+
 ## [0.1.58](https://github.com/therandomsecurityguy/signet/compare/v0.1.57...v0.1.58) (2026-11-16)
 
 
