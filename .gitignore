@@ -43,3 +43,6 @@ client/registry-cli/tests/fixtures/keyless/
 
 # Local demo runtime state (scripts/demo-local.sh).
 data/demo/
+
+# Demo-video recordings and webapp-local runtime state.
+service/webapp/knowledge-manager/data/

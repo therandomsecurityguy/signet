@@ -330,7 +330,16 @@ export class HttpRegistryApiClient implements RegistryApiClient {
   }
 
   async getActiveSkillVersion(skillKey: string): Promise<SkillVersionDetails | null> {
-    return await this.fetchJson(`/v1/skills/${encodeURIComponent(skillKey)}/active`);
+    try {
+      return await this.fetchJson(`/v1/skills/${encodeURIComponent(skillKey)}/active`);
+    } catch (err) {
+      // A skill whose versions are all drafts/rejected has no active version;
+      // the API reports that as 404 and the contract here is `null`.
+      if (err instanceof RegistryApiError && err.status === 404 && err.code === 'SKILL_ACTIVE_VERSION_NOT_FOUND') {
+        return null;
+      }
+      throw err;
+    }
   }
 
   async createSkillDraft(
