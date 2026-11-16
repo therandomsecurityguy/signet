@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.56](https://github.com/therandomsecurityguy/signet/compare/v0.1.55...v0.1.56) (2026-11-16)
+
+
+### Features
+
+* **registry:** execute publication validation as W3C SHACL ([d50806f](https://github.com/therandomsecurityguy/signet/commit/d50806f34e68e272463fe1225232e70ece8b9257))
+* **registry:** execute publication validation as W3C SHACL (PR 1/3) ([bf70010](https://github.com/therandomsecurityguy/signet/commit/bf70010c271ffc40e9160e81af4c6773920773a4))
+
 ## [0.1.55](https://github.com/therandomsecurityguy/signet/compare/v0.1.54...v0.1.55) (2026-11-15)
 
 
