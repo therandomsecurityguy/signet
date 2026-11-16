@@ -180,6 +180,39 @@ Policy packages come in two authoring formats, selected with
   (backreferences and lookarounds unsupported). Lifecycle gates are
   top-level request fields in this format.
 
+Example (legacy JSON document, gates inside the document):
+
+```json
+{
+  "policy_version": "strict/v1",
+  "author": "pablo",
+  "shapes": {
+    "shapes": [
+      {
+        "id": "policy/description",
+        "target": { "entity_type": "SKILL_VERSION" },
+        "properties": [
+          { "path": "description", "minCount": 1, "message": "description_required_by_policy" }
+        ]
+      }
+    ],
+    "require_validation": true
+  }
+}
+```
+
+Example (authored Turtle):
+
+```json
+{
+  "policy_version": "demo-shacl/v1",
+  "author": "demo",
+  "shapes_format": "shacl-turtle",
+  "require_validation": true,
+  "shapes": "@prefix sh: <http://www.w3.org/ns/shacl#> .\n<urn:policy:description> a sh:NodeShape ;\n    sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;\n    sh:property [ sh:path <urn:sg:property:description> ; sh:minCount 1 ; sh:message \"description_required_by_policy\" ] ."
+}
+```
+
 Draft validation executes the built-in graph shape and the resolved policy
 as W3C SHACL Core and stores a machine-readable report per run
 (`validator: shacl-v1`, engine id, per-layer `shapes_format` /

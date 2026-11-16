@@ -154,6 +154,25 @@ Validation (five layers):
   `require_human_review` gating at publish/certify, and a pending-review
   queue (`/v1/reviews/pending`)
 
+Authored Turtle policies are registered with `POST /v1/policy-packages`
+(`shapes_format: "shacl-turtle"`). A minimal policy — require a description
+on every skill version — looks like:
+
+```turtle
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+<urn:policy:description> a sh:NodeShape ;
+    sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;
+    sh:property [
+        sh:path <urn:sg:property:description> ;
+        sh:minCount 1 ;
+        sh:message "description_required_by_policy" ;
+    ] .
+```
+
+The [local demo walkthrough](docs/local-demo.md#shacl-policy-walkthrough-verified)
+registers this policy end to end and inspects the resulting validation report.
+
 Transparency and provenance:
 - trusted `PUBLIC_KEY`, `TRANSPARENCY_LOG`, and `TRANSPARENCY_WITNESS`
   trust roots
@@ -213,9 +232,11 @@ scripts/demo-local.sh demo
 
 That starts api (:3100), mcp (:3000), and the webapp (:3200) against local
 SQLite/JSON-file/filesystem backends and seeds the blessed demo pack
-(1 agent, 2 published skills) with `registry-operator`. See
+(1 agent, 2 published skills — each validated through the W3C SHACL engine)
+with `registry-operator`. See
 `docs/local-demo.md` for the Docker Compose and local-Kubernetes (kind)
-variants that keep the same no-AWS property.
+variants that keep the same no-AWS property, and for the verified
+SHACL policy walkthrough.
 
 Then verify:
 

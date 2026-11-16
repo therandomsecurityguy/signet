@@ -190,6 +190,7 @@ Certification is now operationally meaningful, not a boolean flag:
 - optional certification expiry
 - certification evidence artifacts linked via `sg:certificationEvidence`
 - validation and review evidence linked via `sg:validatedBy` and `sg:reviewedBy`
+- W3C SHACL policy validation: legacy JSON shape documents and authored SHACL Turtle policies execute as W3C SHACL Core (`rdf-validate-shacl`) with RE2-governed patterns; validation reports record the validator, engine version, and per-layer shapes fingerprints
 
 Examples of remaining certification metadata:
 - certification scope
