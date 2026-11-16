@@ -54,6 +54,12 @@ Do not start from the MCP adapter. The MCP layer stays thin.
 
 ## Repository-specific notes
 
+### Read-plane rule
+`service/mcp` is a read-only trust surface by governance rule: do not add
+publish, certify, revoke, supersede, or other write tools to `registry.*`.
+Management operations belong to `service/api` with operator credentials
+(see the root `AGENTS.md` canonical boundaries).
+
 ### ToolRegistry
 `ToolRegistry` is the source of truth for:
 - name
@@ -89,6 +95,10 @@ Pay special attention to:
 - execute-tool tests
 - tool route tests
 - MCP tool-list contract tests
+
+CI also runs an OpenAPI spec/SDK type-sync check for `service/api`; MCP-only
+tool additions do not affect it, but changes under `service/registry` surface
+in both planes' suites.
 
 ## Output checklist
 - [ ] contracts added
