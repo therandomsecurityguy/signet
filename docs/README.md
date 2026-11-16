@@ -13,6 +13,7 @@ These docs are the human-readable overview layer for **Signet**.
 - graph UI plan: `graph-ui-plan.md`
 - local operator guide: `local-development.md`
 - local demo without AWS/Docker: `local-demo.md`
+- recorded demo video (terminal + web console): `demo/signet-demo.mp4`
 - service boundaries and topology: `service-map.md`
 - registry graph + CAS model: `registry-model.md`
 - API reference: `api-reference.md`

@@ -176,6 +176,8 @@ on every skill version — looks like:
 
 The [local demo walkthrough](docs/local-demo.md#shacl-policy-walkthrough-verified)
 registers this policy end to end and inspects the resulting validation report.
+A recorded run of the same walkthrough — plus the browser console — is in
+[`docs/demo/signet-demo.mp4`](docs/demo/signet-demo.mp4).
 
 Transparency and provenance:
 - trusted `PUBLIC_KEY`, `TRANSPARENCY_LOG`, and `TRANSPARENCY_WITNESS`
@@ -241,6 +243,21 @@ with `registry-operator`. See
 `docs/local-demo.md` for the Docker Compose and local-Kubernetes (kind)
 variants that keep the same no-AWS property, and for the verified
 SHACL policy walkthrough.
+
+<p align="center">
+  <a href="docs/demo/signet-demo.mp4">
+    <img src="docs/demo/signet-demo.gif" alt="Signet demo — the operator shell registers a W3C SHACL Turtle policy, a draft is rejected, the publication verifies, then the web console" width="760">
+  </a>
+</p>
+
+Recorded walkthrough (65s, click for full quality): the operator shell runs
+`scripts/demo-local.sh status`, registers an authored **W3C SHACL Turtle
+policy**, shows a draft **rejected with the policy's message**, prints the
+machine-readable report (`validator: shacl-v1` + engine + policy shapes),
+and `registry-operator verify publication` returns `verdict: verified` —
+followed by the web console, graph explorer, and OpenAPI docs.
+Full video: [`docs/demo/signet-demo.mp4`](docs/demo/signet-demo.mp4)
+(source script: `service/webapp/knowledge-manager/scripts/demo-video.ts`).
 
 Then verify:
 
