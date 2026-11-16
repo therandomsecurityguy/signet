@@ -27,8 +27,11 @@ import { assertValidIri, entityTypeIri, literalTerm, SG_PROPERTY_PREFIX } from '
 const PROV = 'http://www.w3.org/ns/prov#';
 const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 
-/** The provenance view is the input; evidence fields are computed here. */
-export type ProvenanceExportInput = Omit<RegistryPublicationProvenance, 'evidence'>;
+/** The provenance view is the input; evidence/signature fields are computed here. */
+export type ProvenanceExportInput = Omit<
+  RegistryPublicationProvenance,
+  'evidence' | 'provenance_signatures' | 'all_provenance_signatures_verified' | 'current_provenance_signed'
+>;
 
 export type ProvenanceTripleObject =
   | { kind: 'iri'; value: string }

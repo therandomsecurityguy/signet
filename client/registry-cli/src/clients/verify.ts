@@ -53,6 +53,60 @@ export type DetachedSignatureVerdict = {
   signature_valid: boolean;
 };
 
+export type ProvenanceSignatureVerdict = 'valid' | 'invalid' | 'stale';
+
+export type ProvenanceSignatureCheck = {
+  key_ref: string;
+  algorithm: string;
+  digest_matches: boolean;
+  signature_valid: boolean;
+  verdict: ProvenanceSignatureVerdict;
+};
+
+/**
+ * Mirrors the registry's verdict logic for detached provenance signatures.
+ * Fetch the canonical N-Quads artifact the signature binds
+ * (`provenance_sha256`, via \`GET /v1/artifacts/{sha256}\`), pass those bytes
+ * here, and pass the current export digest as \`currentProvenanceSha256\` to
+ * distinguish \`valid\` from \`stale\` after the provenance has grown.
+ */
+export function verifyProvenanceSignature(input: {
+  canonicalRdfBytes: Uint8Array | string;
+  currentProvenanceSha256?: string;
+  signature: { key_ref: string; algorithm: string; provenance_sha256: string; signature: string };
+  resolvePublicKey: (keyRef: string) => string | undefined;
+}): ProvenanceSignatureCheck {
+  const bytes =
+    typeof input.canonicalRdfBytes === 'string'
+      ? Buffer.from(input.canonicalRdfBytes, 'utf8')
+      : input.canonicalRdfBytes;
+  const digest_matches = sha256Hex(bytes) === input.signature.provenance_sha256;
+  const publicKeyPem = input.resolvePublicKey(input.signature.key_ref);
+  const signature_valid =
+    digest_matches && publicKeyPem !== undefined
+      ? verifyDetachedSignature({
+          algorithm: input.signature.algorithm,
+          publicKeyPem,
+          message: bytes,
+          signature: input.signature.signature,
+        })
+      : false;
+  const verdict: ProvenanceSignatureVerdict =
+    !digest_matches || !signature_valid
+      ? 'invalid'
+      : input.currentProvenanceSha256 !== undefined &&
+          input.signature.provenance_sha256 !== input.currentProvenanceSha256
+        ? 'stale'
+        : 'valid';
+  return {
+    key_ref: input.signature.key_ref,
+    algorithm: input.signature.algorithm,
+    digest_matches,
+    signature_valid,
+    verdict,
+  };
+}
+
 export type EnvelopeVerdict = {
   canonical_json_sha256_matches: boolean;
   signatures: DetachedSignatureVerdict[];

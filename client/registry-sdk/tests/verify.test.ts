@@ -8,6 +8,7 @@ import {
   sha256Hex,
   verifyDetachedSignature,
   verifyEnvelopeSignatures,
+  verifyProvenanceSignature,
   verifyRfc6962InclusionProof,
 } from '../src/index.js';
 
@@ -40,6 +41,46 @@ describe('verifyDetachedSignature', () => {
     expect(
       verifyDetachedSignature({ algorithm: 'ed25519', publicKeyPem, message, signature: 'not-prefixed' }),
     ).toBe(false);
+  });
+});
+
+describe('verifyProvenanceSignature', () => {
+  it('classifies valid, stale, and invalid provenance signatures', () => {
+    const { publicKeyPem, privateKey } = ed25519();
+    const canonicalBytes = '<urn:a> <urn:b> <urn:c> .\n';
+    const signedDigest = sha256Hex(canonicalBytes);
+    const signature = {
+      key_ref: 'demo://keys/provenance',
+      algorithm: 'ed25519',
+      provenance_sha256: signedDigest,
+      signature: `base64:${signBytes(null, Buffer.from(canonicalBytes, 'utf8'), privateKey).toString('base64')}`,
+    };
+    const resolvePublicKey = (keyRef: string) => (keyRef === signature.key_ref ? publicKeyPem : undefined);
+
+    // Signed digest equals the current export -> valid.
+    expect(
+      verifyProvenanceSignature({ canonicalRdfBytes: canonicalBytes, currentProvenanceSha256: signedDigest, signature, resolvePublicKey }),
+    ).toMatchObject({ digest_matches: true, signature_valid: true, verdict: 'valid' });
+
+    // Provenance grew since signing -> still cryptographically valid, stale.
+    expect(
+      verifyProvenanceSignature({
+        canonicalRdfBytes: canonicalBytes,
+        currentProvenanceSha256: sha256Hex(`${canonicalBytes}<urn:d> <urn:e> <urn:f> .\n`),
+        signature,
+        resolvePublicKey,
+      }),
+    ).toMatchObject({ digest_matches: true, signature_valid: true, verdict: 'stale' });
+
+    // Bytes do not match the signed digest (wrong artifact / tampering) -> invalid.
+    expect(
+      verifyProvenanceSignature({ canonicalRdfBytes: `${canonicalBytes}#tampered`, signature, resolvePublicKey }),
+    ).toMatchObject({ digest_matches: false, signature_valid: false, verdict: 'invalid' });
+
+    // Unresolvable key -> invalid.
+    expect(
+      verifyProvenanceSignature({ canonicalRdfBytes: canonicalBytes, signature, resolvePublicKey: () => undefined }),
+    ).toMatchObject({ signature_valid: false, verdict: 'invalid' });
   });
 });
 

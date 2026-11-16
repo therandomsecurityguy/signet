@@ -14,7 +14,7 @@ import {
   PublicationVerificationSchema,
 } from '../../contracts/publication/envelope.js';
 import { ErrorResponseSchema } from '../../contracts/error.js';
-import { ProvenanceJsonLdSchema, ProvenanceOutputSchema } from '../../contracts/provenance.js';
+import { ProvenanceJsonLdSchema, ProvenanceOutputSchema, CreateProvenanceSignatureInputSchema } from '../../contracts/provenance.js';
 import { projectProvenanceToJsonLd } from '../../../../registry/application/services/provenance-export.js';
 import type { AppEnv } from '../server.js';
 import { auditApiWrite } from './audit.js';
@@ -80,6 +80,28 @@ const getAgentProvenanceRoute = createRoute({
     },
     400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid provenance request' },
     404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Agent version not found' },
+  },
+});
+
+const createAgentProvenanceSignatureRoute = createRoute({
+  method: 'post',
+  path: '/v1/agents/{agentKey}/versions/{version}/provenance/signatures',
+  request: {
+    params: z.object({ agentKey: entityKeySchema, version: z.string() }),
+    body: { content: { 'application/json': { schema: CreateProvenanceSignatureInputSchema } } },
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.any() } },
+      description: 'Provenance signature attached (shape: { provenance_signature, created }; identical re-attach returns the existing record)',
+    },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid provenance signature payload' },
+    404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Agent version not found' },
+    409: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Stale digest, untrusted key, invalid signature, or conflicting duplicate',
+    },
+    500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Internal error' },
   },
 });
 
@@ -167,6 +189,37 @@ export function registerAgentPublicationRoutes(
       return c.json(projectProvenanceToJsonLd(got), 200);
     }
     return c.json(got, 200);
+  });
+
+  app.openapi(createAgentProvenanceSignatureRoute, async (c) => {
+    const raw = await c.req.json().catch(() => undefined);
+    const parsed = CreateProvenanceSignatureInputSchema.safeParse(raw);
+    const rawVersion = c.req.param('version');
+    const version = rawVersion ? parseVersion(rawVersion) : null;
+    const agentKey = c.req.param('agentKey');
+    return await handlePublicationWrite({
+      c,
+      deps,
+      raw,
+      parsedSuccess: parsed.success && Boolean(version) && Boolean(agentKey),
+      parsedData:
+        parsed.success && version && agentKey
+          ? { agent_key: agentKey, version, ...parsed.data }
+          : undefined,
+      action: async (data) => {
+        const created = await deps.publication.createProvenanceSignature({
+          agent_key: data.agent_key,
+          version: data.version,
+          signer: data.signer,
+          key_ref: data.key_ref,
+          algorithm: data.algorithm,
+          signature: data.signature,
+          ...(data.provenance_sha256 ? { provenance_sha256: data.provenance_sha256 } : {}),
+        });
+        return { provenance_signature: created.value, created: created.created };
+      },
+      validationMessage: 'Invalid provenance signature payload.',
+    });
   });
 
   app.openapi(createAgentDetachedSignatureRoute, async (c) => {

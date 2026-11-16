@@ -56,6 +56,29 @@ export const RegistryGetProvenanceOutputSchema = z.object({
       canonical_rdf_artifact_urn: z.string(),
     })
     .optional(),
+  /**
+   * Detached signatures over canonical provenance exports (re-verified on
+   * read). Optional for rolling clients.
+   */
+  provenance_signatures: z
+    .array(
+      z.object({
+        artifact_urn: z.string(),
+        signer: z.string(),
+        key_ref: z.string(),
+        algorithm: z.string(),
+        signed_at: z.string(),
+        provenance_sha256: z.string(),
+        artifact_present: z.boolean(),
+        trusted_public_key_resolved: z.boolean(),
+        cryptographic_verification_passed: z.boolean(),
+        digest_matches_current: z.boolean(),
+        verdict: z.enum(['valid', 'invalid', 'stale']),
+      }),
+    )
+    .optional(),
+  all_provenance_signatures_verified: z.boolean().optional(),
+  current_provenance_signed: z.boolean().optional(),
 });
 
 export type RegistryGetProvenanceInput = z.infer<typeof RegistryGetProvenanceInputSchema>;

@@ -55,6 +55,18 @@ export class SkillLifecycleUseCase {
     return await this.registry.createSkillDetachedSignature(input);
   }
 
+  async createProvenanceSignature(input: {
+    skill_key: string;
+    version: number;
+    signer: string;
+    key_ref: string;
+    algorithm: string;
+    signature: string;
+    provenance_sha256?: string;
+  }) {
+    return await this.registry.createSkillProvenanceSignature(input);
+  }
+
   async attachAttestation(input: {
     publication_urn: string;
     signer: string;

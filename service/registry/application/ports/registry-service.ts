@@ -776,6 +776,50 @@ export type RegistryProvenanceEvidence = {
   canonical_rdf_artifact_urn: string;
 };
 
+export type RegistryProvenanceSignatureInput = {
+  signer: string;
+  key_ref: string;
+  algorithm: string;
+  signature: string;
+  /**
+   * Optional explicit digest the signature was produced over. When present it
+   * must equal the current canonical digest; stale payloads are rejected at
+   * attach time (re-fetch the export and re-sign).
+   */
+  provenance_sha256?: string;
+};
+
+export type RegistryProvenanceSignatureRecord = {
+  artifact_urn: string;
+  sha256?: string;
+  signer: string;
+  key_ref: string;
+  algorithm: string;
+  signed_at: string;
+  provenance_sha256: string;
+  signature: string;
+};
+
+export type RegistryProvenanceSignatureVerification = {
+  artifact_urn: string;
+  signer: string;
+  key_ref: string;
+  algorithm: string;
+  signed_at: string;
+  provenance_sha256: string;
+  artifact_present: boolean;
+  trusted_public_key_resolved: boolean;
+  cryptographic_verification_passed: boolean;
+  digest_matches_current: boolean;
+  /**
+   * `valid`: cryptographically verified over an artifact that matches the
+   * current export. `stale`: verified, but the provenance has grown since
+   * the signature was made (the signed export is still retrievable).
+   * `invalid`: missing artifact, unresolvable/revoked key, or bad crypto.
+   */
+  verdict: 'valid' | 'invalid' | 'stale';
+};
+
 export type RegistryPublicationProvenance = {
   entity: { urn: string; entity_type: string };
   derivation_chain: Array<{
@@ -791,6 +835,12 @@ export type RegistryPublicationProvenance = {
     status: string;
   }>;
   evidence: RegistryProvenanceEvidence;
+  /** Detached signatures over canonical provenance exports (may bind older digests). */
+  provenance_signatures: RegistryProvenanceSignatureVerification[];
+  /** True when at least one signature exists and none is `invalid` (stale is acceptable). */
+  all_provenance_signatures_verified: boolean;
+  /** True when at least one signature verifies over exactly the current export. */
+  current_provenance_signed: boolean;
 };
 
 export type RegistryPublicationVerification = {
@@ -1109,6 +1159,9 @@ export interface RegistryService {
   createAgentDetachedSignature(
     input: { agent_key: string; version: number } & RegistryDetachedSignatureInput,
   ): Promise<RegistryDetachedSignatureRecord>;
+  createAgentProvenanceSignature(
+    input: { agent_key: string; version: number } & RegistryProvenanceSignatureInput,
+  ): Promise<CreateResult<RegistryProvenanceSignatureRecord>>;
   createAgentDraft(input: CreateAgentDraftInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
   validateAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
   prepareAgentPublication(input: AgentVersionOperationInput): Promise<RegistryPreparedPublication>;
@@ -1165,6 +1218,9 @@ export interface RegistryService {
   createSkillDetachedSignature(
     input: { skill_key: string; version: number } & RegistryDetachedSignatureInput,
   ): Promise<RegistryDetachedSignatureRecord>;
+  createSkillProvenanceSignature(
+    input: { skill_key: string; version: number } & RegistryProvenanceSignatureInput,
+  ): Promise<CreateResult<RegistryProvenanceSignatureRecord>>;
 
   getArtifact(input: { sha256?: string; artifact_urn?: string }): Promise<RegistryArtifactDetails | null>;
   getArtifactBytes(input: { sha256?: string; artifact_urn?: string }): Promise<RegistryArtifactBytes | null>;

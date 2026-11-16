@@ -443,6 +443,22 @@ export class HttpRegistryOperatorApiClient implements RegistryOperatorApiClient 
     );
   }
 
+  async getSkillProvenance(skillKey: string, version: number, apiToken?: string): Promise<Record<string, unknown>> {
+    return await this.fetchJson(
+      `/v1/skills/${encodeURIComponent(skillKey)}/versions/${version}/provenance`,
+      undefined,
+      apiToken,
+    );
+  }
+
+  async getAgentProvenance(agentKey: string, version: number, apiToken?: string): Promise<Record<string, unknown>> {
+    return await this.fetchJson(
+      `/v1/agents/${encodeURIComponent(agentKey)}/versions/${version}/provenance`,
+      undefined,
+      apiToken,
+    );
+  }
+
   async getAgentPublicationVerification(
     agentKey: string,
     version: number,
