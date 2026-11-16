@@ -5,7 +5,7 @@ This module is the **canonical internal domain/application layer** for the regis
 It owns:
 - registry semantics for agents and skills
 - the certification state machine (draft/validated/rejected/published/certified/deprecated/revoked/archived) with full agent parity
-- SHACL-like policy validation, ontology validation of `capability_claims`, advisory LLM validation, and the human review workflow
+- W3C SHACL policy validation (authored Turtle + legacy JSON shape documents), ontology validation of `capability_claims`, advisory LLM validation, and the human review workflow
 - semantic compiler ingestion and the de facto vocabulary store
 - RFC 8785 (JCS) + RDFC-1.0 canonicalization and dual detached signatures
 - PROV-O provenance modeling and the internal governance Merkle log

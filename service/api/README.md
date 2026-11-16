@@ -11,7 +11,7 @@ It is intended for:
 ### Current status
 - full lifecycle management plane for skills and agents: draft/validate/publish/promote/deprecate/certify/revoke/archive/review
 - certification state machine with deterministic draft rejection, supersession guards, and policy/ontology-bound certification
-- SHACL-like policy packages, dual ontology packages, semantic compile, de facto vocabulary queue, and human review workflow
+- policy packages (legacy JSON + authored W3C SHACL Turtle), dual ontology packages, semantic compile, de facto vocabulary queue, and human review workflow
 - RFC 8785 (JCS) + RDFC-1.0 canonicalization with dual detached signatures and verification endpoints
 - PROV-O provenance traversal and audit replay, plus the internal governance Merkle log with inclusion proofs and replay
 - durable, non-destructive GC job execution seam
@@ -570,7 +570,7 @@ Current governance baseline:
 - publication evidence fields surfaced from the shared registry core
 - active publication reads for both agents and skills
 
-SHACL-like policy packages, PROV-O provenance, and dual canonical signatures are implemented here by consuming `service/registry` — not by bypassing it. Future governance layers should follow the same rule.
+Policy packages (legacy JSON + authored W3C SHACL Turtle), PROV-O provenance, and dual canonical signatures are implemented here by consuming `service/registry` — not by bypassing it. Future governance layers should follow the same rule.
 
 ### Related docs
 - `docs/governance-model.md`

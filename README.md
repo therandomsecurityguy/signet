@@ -19,7 +19,7 @@ What makes it different:
   snapshots, with real lifecycle semantics: supersession, revocation,
   archival.
 - **Five-layer validation, not single approval.** Every version passes
-  graph-shape checks, SHACL-like policy shapes, ontology validation,
+  W3C SHACL graph-shape and policy validation, ontology validation,
   advisory LLM semantic analysis, and human review before it can be
   certified — with machine-readable evidence stored at each layer.
 - **Cryptographic trust, not vibes.** Publication envelopes are
@@ -133,12 +133,16 @@ Canonicalization and signatures:
   semantic (RDF) canonical bytes with cross-verification
 
 Validation (five layers):
-- graph-shape validation (required properties, edges, cardinalities)
-- SHACL-like policy packages as versioned CAS artifacts
-  (`POST /v1/policy-packages`), with RE2-backed pattern execution
-  (ReDoS-safe by construction)
-- machine-readable violation reports (SHACL result vocabulary) stored in
-  the CAS and linked via `sg:validatedBy`
+- built-in graph-shape validation (authored as W3C SHACL Turtle) and
+  policy packages as versioned CAS artifacts
+  (`POST /v1/policy-packages`) in legacy JSON and authored SHACL Turtle
+  formats
+- W3C SHACL Core execution (`rdf-validate-shacl`, in-process) over
+  derived RDF with focus-scoped targeting and RE2-backed pattern
+  execution (ReDoS-safe by construction)
+- machine-readable violation reports (SHACL result vocabulary; recorded
+  `validator: shacl-v1`, engine id, and per-layer shapes fingerprints)
+  stored in the CAS and linked via `sg:validatedBy`
 - dual ontology packages (`registry_shape` / `skill_area`) as versioned
   CAS artifacts (`POST /v1/ontology-packages`)
 - ontology validation of `capability_claims`: concept binding, disjoint
@@ -185,7 +189,8 @@ Storage and operations:
 - GitHub Actions CI for service/api, service/mcp, and tessera-sidecar
 
 Proposed next (not implemented yet):
-- full W3C SHACL execution over RDF datasets
+- richer SHACL engine coverage (SHACL-SPARQL constraints, SHACL-AF rules)
+  beyond the executed Core components
 - normative ontologies encoded as first-class RDF/OWL vocabularies
 - richer de facto ontology mining (runtime observations, corpus analysis)
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures over
@@ -433,7 +438,7 @@ Current implementation status (incremental):
 - `service/api/`: bootstrap skeleton plus first versioned `agents` and `skills` metadata API slices implemented and green, including artifact attachment semantics, skill linkage, and idempotent create behavior.
 - `service/api/`: lifecycle-oriented management plane for skills **and** agents with full parity (draft/validate/publish/promote/deprecate/certify/revoke/archive/active-version resolution).
 - `service/api/`: the certification state machine now covers `draft`/`validated`/`rejected`/`published`/`certified`/`deprecated`/`revoked`/`archived` with deterministic draft rejection, supersession guards, and policy/ontology-bound certification.
-- `service/api/`: SHACL-like policy packages are first-class versioned artifacts (`POST /v1/policy-packages`); draft validation layers built-in graph-shape rules under registered policy shapes, stores machine-readable violation reports in the CAS, and links them via `sg:validatedBy`.
+- `service/api/`: policy packages are first-class versioned artifacts (`POST /v1/policy-packages`) in legacy JSON and authored W3C SHACL Turtle formats; draft validation executes W3C SHACL Core for the built-in graph shape and policy shapes, stores machine-readable violation reports in the CAS, and links them via `sg:validatedBy`.
 - `service/api/`: dual ontology packages (`registry_shape` / `skill_area`) are versioned artifacts (`POST /v1/ontology-packages`); draft validation checks `capability_claims` bind to known skill-area concepts, rejects disjoint combinations, records de facto candidates, and binds certification to registered ontology packages.
 - `service/api/`: advisory LLM validation runs as a fourth, always-non-blocking layer with scorecard evidence artifacts; human review records decisions as `review_evidence` artifacts with policy-driven gating and a pending-review queue.
 - `service/api/`: semantic compiler ingestion (`POST /v1/compile/skill`) normalizes markdown and tool manifests into typed proposals, with a de facto vocabulary store and human-reviewed promotion.

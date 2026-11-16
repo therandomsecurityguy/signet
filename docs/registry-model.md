@@ -210,7 +210,7 @@ Implemented now already includes:
 - a certification state machine for skill and agent versions (`draft`, `validated`, `rejected`, `published`, `certified`, `deprecated`, `revoked`, `archived`) with deterministic rejection, supersession guards, and certification bound to policy and ontology versions
 - full agent-version lifecycle parity with skills, including dependency validation for linked skills
 - a durable, non-destructive GC job execution seam over retention-root plans
-- SHACL-like policy packages as versioned CAS artifacts, graph-shape + policy validation gating `draft` → `validated`, and CAS-stored violation reports linked via `sg:validatedBy`
+- policy packages (legacy JSON shape documents and authored W3C SHACL Turtle) as versioned CAS artifacts, W3C SHACL Core execution for graph-shape + policy validation gating `draft` → `validated` (focus-scoped targeting, RE2-governed patterns), and CAS-stored violation reports linked via `sg:validatedBy`
 - dual ontology packages (`registry_shape` / `skill_area`) as versioned CAS artifacts, ontology validation of `capability_claims` with de facto candidate recording, and certification bound to registered ontology packages
 - PROV-O provenance edges (`prov:wasDerivedFrom`, `prov:wasGeneratedBy`, `prov:used`, `prov:wasAssociatedWith`) written at lifecycle operations, with traversal and audit-replay endpoints and a read-only MCP tool
 - canonical governance events for all lifecycle operations stored as immutable CAS artifacts, an internal append-only Merkle log with RFC 6962 inclusion-proof generation, and verifier replay
@@ -222,7 +222,7 @@ Implemented now already includes:
 - advisory LLM validation (heuristic default + HTTP seam) with scorecard evidence artifacts, and a human review workflow with policy-driven gating and a pending-review queue
 
 The remaining gaps are things like:
-- full W3C SHACL execution over RDF datasets
+- richer SHACL engine coverage beyond Core constraint components (SHACL-SPARQL / SHACL-AF)
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures)
 - deeper external Trillian/Tessera interoperability and native backend integration
 - larger realistic sample-graph fixtures and persistent-backend validation packs

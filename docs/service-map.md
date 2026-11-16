@@ -107,7 +107,7 @@ Current responsibilities:
   - transparency checkpoint observations and gossip events
   - transparency verification and timeline inspection
 - expose the semantic-governance management-plane operations:
-  - SHACL-like policy packages (`/v1/policy-packages`)
+  - policy packages — legacy JSON and authored W3C SHACL Turtle (`/v1/policy-packages`)
   - dual ontology packages (`/v1/ontology-packages`)
   - semantic compiler ingestion (`POST /v1/compile/skill`)
   - de facto vocabulary queue (`/v1/de-facto-terms*`)

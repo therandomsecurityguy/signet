@@ -65,7 +65,7 @@ flowchart LR
 - MCP registry reads need stronger registry-specific authorization posture
 - registry bootstrap/ingest must be durable and repeatable for internal environments
 - AWS deployment path needs stronger release/persistence/secrets/observability posture
-- semantic-governance hardening is largely delivered (publication evidence fields, dual canonical digests and signatures, SHACL-like policy and ontology validation); remaining hardening:
+- semantic-governance hardening is largely delivered (publication evidence fields, dual canonical digests and signatures, W3C SHACL policy validation, ontology validation); remaining hardening:
   - broader beta bootstrap coverage for the new governance surfaces
   - AWS deployment path needs stronger release/persistence/secrets/observability posture
 
