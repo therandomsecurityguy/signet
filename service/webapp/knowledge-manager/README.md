@@ -180,14 +180,23 @@ This script proves:
 - logout works
 
 ### Demo video
-`scripts/demo-video.ts` records a captioned walkthrough of the running demo
-(login → dashboard → skills → skill detail → graph → agents → ontology →
-Swagger) with Playwright's video capture:
+`scripts/demo-video.ts` records a captioned two-act walkthrough of the
+running demo:
+
+1. **Terminal segment** — an operator shell runs the real commands against
+   the demo: service status, registering an authored W3C SHACL Turtle
+   policy, a draft rejected by it, the machine-readable validation report
+   (`validator: shacl-v1`), and `registry-operator verify publication`.
+   Commands execute before recording; their captured output is typed onto
+   a styled terminal surface.
+2. **Browser segment** — login → dashboard → skills → skill detail → graph
+   → agents → ontology → Swagger.
 
 ```bash
 npx playwright install chromium
-# demo services must be running (scripts/demo-local.sh demo); in API-key mode
-# mint a token and pass it so the script can sign in:
+# start from a fresh demo so the policy registration shows created: true:
+scripts/demo-local.sh demo
+# in API-key mode mint a token and pass it (required for the terminal act):
 DEMO_API_TOKEN=<agk_…> npm run demo:video
 # raw WebM lands in data/demo-video/; convert with:
 ffmpeg -y -i data/demo-video/signet-demo-raw.webm -c:v libx264 \

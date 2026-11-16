@@ -824,7 +824,8 @@ function renderPage(title: string, body: string, page?: PageChromeInput) {
 function renderStateBadge(state: string | undefined) {
   if (!state) return '';
   const key = String(state).toLowerCase().replace(/[^a-z_]/g, '');
-  return `<span class="state-badge ${escapeHtml(key)}">${escapeHtml(String(state))}</span>`;
+  const label = key === 'none' ? 'no active version' : String(state);
+  return `<span class="state-badge ${escapeHtml(key)}">${escapeHtml(label)}</span>`;
 }
 
 function renderTable(headers: string[], rows: string[][], emptyAction = '', tableId = '') {

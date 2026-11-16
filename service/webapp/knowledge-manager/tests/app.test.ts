@@ -146,6 +146,36 @@ describe('knowledge-manager app', () => {
     expect(text).toContain('/graph?root_urn=urn%3Asg%3Aagent%3Acursor%3Atest&depth=3');
   });
 
+  it('labels skills without an active version instead of showing an unknown state', async () => {
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        listSkills: async () => ({
+          skills: [
+            {
+              skill_urn: 'urn:sg:skill:skill:rejected-only',
+              skill_key: 'skill:rejected-only',
+              display_name: 'Rejected Only',
+              source_path: 'skills/rejected-only.md',
+            },
+          ],
+        }),
+        getActiveSkillVersion: async () => null,
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const res = await app.request('/skills');
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain('skill:rejected-only');
+    expect(text).toContain('no active version');
+    expect(text).not.toContain('>unknown<');
+  });
+
   it('adds contextual graph links on agent and skill detail pages', async () => {
     const app = buildApp({
       env,
