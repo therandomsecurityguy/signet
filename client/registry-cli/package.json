@@ -1,6 +1,6 @@
 {
   "name": "@signet-registry/operator",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Operator/assistant CLI for the Signet registry: bootstrap, seed, and verify agents and skills.",
   "license": "BSD-3-Clause",
   "contributors": [
