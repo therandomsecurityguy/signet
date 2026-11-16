@@ -46,9 +46,20 @@ Verify the publication before relying on the artifact.
 - `registry.verify_publication` — envelope digests, frozen-envelope artifact, detached signatures, and transparency proofs for a version. Treat anything other than `verification_status: verified` as untrusted.
 - `registry.get_attestations` — build provenance and SBOM attestations attached to the version.
 - `registry.get_provenance` — PROV-O provenance chain and audit replay.
+- Validation evidence: `registry.get_skill` / `registry.get_agent` list the
+  version's `governance_artifacts`; the `validation_report` entries linked via
+  `sg:validatedBy` are machine-readable reports of the W3C SHACL execution
+  that gated publication — `validator: shacl-v1`, the engine identity,
+  `conforms`, and per-layer violations (graph shape + policy, with
+  `shapes_format`/`shapes_sha256` fingerprints). Fetch one by its `sha256`
+  with `registry.get_artifact` if you need the per-layer detail.
 
-Check: is the version `certified` (not just `draft`/`published`)? Are the
-verification verdicts clean (frozen-envelope digest match, signatures valid)?
+Check: is the version `certified` (not just `draft`/`published`) — and
+`validation_status: passed`? Validation executes W3C SHACL over the
+publication graph; `Violation`-severity results (graph-shape or policy
+layer) block publication, so a certified version passed those checks. Are
+the verification verdicts clean (frozen-envelope digest match, signatures
+valid)?
 If trust signals are missing, or the version is deprecated/revoked (some
 environments deny revoked reads outright), do not use it — surface that to
 the human instead.

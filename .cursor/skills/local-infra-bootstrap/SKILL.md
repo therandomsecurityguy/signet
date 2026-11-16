@@ -1,6 +1,6 @@
 ---
 name: local-infra-bootstrap
-description: Creates or extends local development infrastructure for this repository. Use when adding a new service, Dockerfile, service env files, root compose wiring, compose overrides, shared volumes, Makefile shortcuts, or local-development docs for `projects/signet`.
+description: Creates or extends local development infrastructure for this repository. Use when adding a new service, Dockerfile, service env files, root compose wiring, compose overrides, shared volumes, Makefile shortcuts, or local-development docs for signet.
 ---
 # Local Infra Bootstrap
 
@@ -60,9 +60,17 @@ Keep cross-service orchestration in `infra/`:
 ## Repository-specific implementation notes
 
 ### Existing stack expectations
-- `mcp` is the main runnable local service today
-- `registry` currently behaves as a dev workspace seam, not a full HTTP runtime
-- shared runtime data lives under `data/`
+- `service/api` is the management plane (lifecycle + governance over
+  `service/registry`); `service/mcp` is the read-only AI-facing plane;
+  `service/webapp/knowledge-manager` is the browser surface
+- `service/registry` is the canonical core library (no standalone HTTP
+  runtime); `service/tessera-sidecar` and `service/tessera-runtime` are the
+  Go transparency services used by compose and the chart
+- local run paths: `scripts/demo-local.sh` (host processes, no Docker),
+  `infra/` compose, and the Helm chart with `charts/signet/values-local.yaml`
+  (kind/OrbStack)
+- shared runtime data lives under `data/`; the chart mounts one shared PVC in
+  api + mcp so graph state and CAS stay visible to both planes
 
 ### Node service advice
 - set `HOST=0.0.0.0` if the service must be reachable from Docker port publishing
@@ -89,6 +97,13 @@ If the main service is MCP, also validate from `service/mcp/`:
 npm run lint
 npm run typecheck
 npm test
+```
+
+If you touched the chart or the host demo path, also run:
+
+```bash
+helm lint charts/signet -f charts/signet/values-local.yaml
+scripts/demo-local.sh demo
 ```
 
 ## Output checklist

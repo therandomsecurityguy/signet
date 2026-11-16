@@ -43,7 +43,10 @@ After a move or rename, make the repository consistent again across:
 - `service/*/src/**/*`
 - `service/*/scripts/**/*`
 - `service/*/AGENTS.md`
+- `charts/**/*`
+- `.github/workflows/*.yml`
 - `infra/**/*`
+- `docs/**/*`
 - `../../../../_devagents/signet/projects/**/*`
 
 ## Repository-specific checks
@@ -71,6 +74,9 @@ When a path changes, update all three layers:
 - search for the old path again
 - run the moved service's validation commands
 - if a server moved, verify its health endpoint or startup logs
+- if a chart path or workflow changed, run
+  `helm lint charts/signet -f charts/signet/values-local.yaml` and
+  `actionlint .github/workflows/*.yml`
 
 For `service/mcp`, the default validation is:
 
