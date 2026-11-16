@@ -82,6 +82,11 @@ demo, drives a draft through rejection and certification, and inspects the
 machine-readable validation reports. Every step below is copy-paste
 runnable against `scripts/demo-local.sh demo` state.
 
+A recorded run of this walkthrough — combined with the browser console —
+is committed at [`demo/signet-demo.mp4`](demo/signet-demo.mp4) (preview
+GIF inlined in the root README); regenerate it with
+`service/webapp/knowledge-manager/scripts/demo-video.ts`.
+
 ```bash
 API=http://localhost:3100
 TOK=<api token from the seed output>   # or mint one:

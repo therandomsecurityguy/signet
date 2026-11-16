@@ -203,7 +203,9 @@ ffmpeg -y -i data/demo-video/signet-demo-raw.webm -c:v libx264 \
   -pix_fmt yuv420p -crf 23 -movflags +faststart ~/Downloads/signet-demo.mp4
 ```
 
-`VIDEO_DIR` overrides the raw-video output directory.
+`VIDEO_DIR` overrides the raw-video output directory. The committed copy
+lives at `docs/demo/signet-demo.mp4` with an inline GIF preview next to it —
+refresh both when the demo surfaces change.
 
 ### Test
 
