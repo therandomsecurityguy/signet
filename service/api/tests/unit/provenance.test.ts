@@ -37,6 +37,7 @@ type ProvenanceBody = {
     }>;
   }>;
   replay: Array<{ occurred_at?: string; operation: string; actor?: string; version_urn: string; status: string }>;
+  evidence: { canonical_rdf_sha256: string; canonical_rdf_artifact_urn: string };
 };
 
 describe('PROV-O provenance tracking', () => {
@@ -183,6 +184,41 @@ describe('PROV-O provenance tracking', () => {
       expect(entry.actor).toBe('pablo');
       expect(entry.occurred_at).toBeDefined();
     }
+
+    // Canonical provenance export: the response carries the RDFC-1.0 digest
+    // and the artifact urn; the artifact bytes hash to that digest.
+    expect(body.evidence.canonical_rdf_sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(body.evidence.canonical_rdf_artifact_urn).toBe(`urn:sg:artifact:sha256:${body.evidence.canonical_rdf_sha256}`);
+    const canonicalBytes = await app.request(`/v1/artifacts/${body.evidence.canonical_rdf_sha256}`);
+    expect(canonicalBytes.status).toBe(200);
+    const canonicalText = await canonicalBytes.text();
+    const { createHash } = await import('node:crypto');
+    expect(createHash('sha256').update(Buffer.from(canonicalText, 'utf8')).digest('hex')).toBe(
+      body.evidence.canonical_rdf_sha256,
+    );
+    expect(canonicalText).toContain('http://www.w3.org/ns/prov#wasGeneratedBy');
+
+    // The export is stable across reads (same digest, same artifact).
+    const second = await app.request('/v1/skills/skill:prov/versions/2/provenance');
+    const secondBody = (await second.json()) as ProvenanceBody;
+    expect(secondBody.evidence.canonical_rdf_sha256).toBe(body.evidence.canonical_rdf_sha256);
+
+    // JSON-LD export: PROV-O document derived from the same triple list.
+    const jsonld = await app.request('/v1/skills/skill:prov/versions/2/provenance?format=jsonld');
+    expect(jsonld.status).toBe(200);
+    const jsonldBody = (await jsonld.json()) as {
+      '@context': { prov: string; sg: string };
+      '@graph': Array<{ '@id': string; '@type'?: string[]; [key: string]: unknown }>;
+    };
+    expect(jsonldBody['@context'].prov).toBe('http://www.w3.org/ns/prov#');
+    expect(jsonldBody['@graph'].length).toBeGreaterThan(0);
+    const v2Node = jsonldBody['@graph'].find((node) => node['@id'] === 'urn:sg:skill-version:skill:prov@v2');
+    expect(v2Node?.['@type']).toEqual(
+      expect.arrayContaining(['http://www.w3.org/ns/prov#Entity', 'urn:sg:entity-type:SKILL_VERSION']),
+    );
+    expect(v2Node?.['prov:wasGeneratedBy']).toEqual(
+      expect.arrayContaining([expect.objectContaining({ '@id': expect.stringContaining('urn:sg:task:') })]),
+    );
   });
 
   it('serves agent version provenance and 404s for unknown versions', async () => {
@@ -204,6 +240,12 @@ describe('PROV-O provenance tracking', () => {
     const body = (await provenance.json()) as ProvenanceBody;
     expect(body.entity.entity_type).toBe('AGENT_VERSION');
     expect(body.derivation_chain).toHaveLength(1);
+    expect(body.evidence.canonical_rdf_sha256).toMatch(/^[0-9a-f]{64}$/);
+
+    const jsonld = await app.request('/v1/agents/agent:prov/versions/1/provenance?format=jsonld');
+    expect(jsonld.status).toBe(200);
+    const jsonldBody = (await jsonld.json()) as { '@graph': Array<{ '@id': string }> };
+    expect(jsonldBody['@graph'].some((node) => node['@id'] === 'urn:sg:agent-version:agent:prov@v1')).toBe(true);
 
     const missing = await app.request('/v1/agents/agent:prov/versions/99/provenance');
     expect(missing.status).toBe(404);

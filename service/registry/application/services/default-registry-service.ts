@@ -39,6 +39,7 @@ import {
 import type { ShaclExecutionPort } from './shacl-execution-port.js';
 import { BUILTIN_GRAPH_SHAPE_SHA256, BUILTIN_GRAPH_SHAPE_TURTLE } from './builtin-graph-shape.js';
 import { parsePolicyPackageEnvelope } from './policy-package-envelope.js';
+import { canonicalizeProvenance } from './provenance-export.js';
 import {
   parseOntologyDocument,
   validateCapabilityClaims,
@@ -6805,10 +6806,25 @@ export class DefaultRegistryService implements RegistryService {
     }
     replay.sort((left, right) => (left.occurred_at ?? '').localeCompare(right.occurred_at ?? ''));
 
+    // Canonical provenance export: PROV-O projection -> RDFC-1.0 canonical
+    // N-Quads -> content-addressed artifact. Idempotent by construction
+    // (same graph shape/content => same digest => same bytes); the digest is
+    // what detached provenance signatures will bind to (PR 2).
+    const export_ = await canonicalizeProvenance({ entity: { urn: start.urn, entity_type: start.entity_type }, derivation_chain, replay });
+    await this.deps.cas.put({
+      bytes: Buffer.from(export_.nquads, 'utf8'),
+      media_type: 'application/n-quads',
+      original_path: `provenance/${sanitizePathSegment(start.urn)}.nq`,
+    });
+
     return {
       entity: { urn: start.urn, entity_type: start.entity_type },
       derivation_chain,
       replay,
+      evidence: {
+        canonical_rdf_sha256: export_.sha256,
+        canonical_rdf_artifact_urn: artifactUrn(export_.sha256),
+      },
     };
   }
 
