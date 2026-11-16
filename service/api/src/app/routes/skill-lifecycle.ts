@@ -17,6 +17,8 @@ import {
   SkillVersionOperationInputSchema,
 } from '../../contracts/skills/lifecycle.js';
 import { ErrorResponseSchema } from '../../contracts/error.js';
+import { ProvenanceJsonLdSchema, ProvenanceOutputSchema } from '../../contracts/provenance.js';
+import { projectProvenanceToJsonLd } from '../../../../registry/application/services/provenance-export.js';
 import {
   CreateDetachedSignatureInputSchema,
   PreparedPublicationSchema,
@@ -84,9 +86,18 @@ const getPublicationVerificationRoute = createRoute({
 const getProvenanceRoute = createRoute({
   method: 'get',
   path: '/v1/skills/{skillKey}/versions/{version}/provenance',
-  request: { params: z.object({ skillKey: entityKeySchema, version: z.string() }) },
+  request: {
+    params: z.object({ skillKey: entityKeySchema, version: z.string() }),
+    query: z.object({ format: z.enum(['structured', 'jsonld']).optional() }),
+  },
   responses: {
-    200: { content: { 'application/json': { schema: z.any() } }, description: 'Get provenance' },
+    200: {
+      content: {
+        'application/json': { schema: z.union([ProvenanceJsonLdSchema, ProvenanceOutputSchema]) },
+      },
+      description:
+        'Get provenance: structured view by default; PROV-O JSON-LD document with ?format=jsonld (derived from the same canonical triple list)',
+    },
     400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid provenance request' },
     404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Skill version not found' },
   },
@@ -344,6 +355,9 @@ export function registerSkillLifecycleRoutes(
     const got = await deps.lifecycle.getProvenance({ skill_key: skillKey, version });
     if (!got) {
       return c.json({ error: { code: 'SKILL_VERSION_NOT_FOUND', message: 'Skill version not found.' } }, 404);
+    }
+    if (c.req.valid('query').format === 'jsonld') {
+      return c.json(projectProvenanceToJsonLd(got), 200);
     }
     return c.json(got, 200);
   });

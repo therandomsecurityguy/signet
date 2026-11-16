@@ -14,6 +14,8 @@ import {
   PublicationVerificationSchema,
 } from '../../contracts/publication/envelope.js';
 import { ErrorResponseSchema } from '../../contracts/error.js';
+import { ProvenanceJsonLdSchema, ProvenanceOutputSchema } from '../../contracts/provenance.js';
+import { projectProvenanceToJsonLd } from '../../../../registry/application/services/provenance-export.js';
 import type { AppEnv } from '../server.js';
 import { auditApiWrite } from './audit.js';
 import { entityKeySchema } from '../../contracts/keys.js';
@@ -64,9 +66,18 @@ const getAgentPublicationVerificationRoute = createRoute({
 const getAgentProvenanceRoute = createRoute({
   method: 'get',
   path: '/v1/agents/{agentKey}/versions/{version}/provenance',
-  request: { params: z.object({ agentKey: entityKeySchema, version: z.string() }) },
+  request: {
+    params: z.object({ agentKey: entityKeySchema, version: z.string() }),
+    query: z.object({ format: z.enum(['structured', 'jsonld']).optional() }),
+  },
   responses: {
-    200: { content: { 'application/json': { schema: z.any() } }, description: 'Get agent version provenance' },
+    200: {
+      content: {
+        'application/json': { schema: z.union([ProvenanceJsonLdSchema, ProvenanceOutputSchema]) },
+      },
+      description:
+        'Get agent version provenance: structured view by default; PROV-O JSON-LD document with ?format=jsonld (derived from the same canonical triple list)',
+    },
     400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid provenance request' },
     404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Agent version not found' },
   },
@@ -151,6 +162,9 @@ export function registerAgentPublicationRoutes(
     const got = await deps.publication.getProvenance({ agent_key: agentKey, version });
     if (!got) {
       return c.json({ error: { code: 'AGENT_VERSION_NOT_FOUND', message: 'Agent version not found.' } }, 404);
+    }
+    if (c.req.valid('query').format === 'jsonld') {
+      return c.json(projectProvenanceToJsonLd(got), 200);
     }
     return c.json(got, 200);
   });

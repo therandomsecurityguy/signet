@@ -46,6 +46,16 @@ export const RegistryGetProvenanceOutputSchema = z.object({
       status: z.string(),
     }),
   ),
+  /**
+   * Canonical provenance export: SHA-256 over the RDFC-1.0 canonical N-Quads
+   * (fetchable via /v1/artifacts/{sha256}). Optional for rolling clients.
+   */
+  evidence: z
+    .object({
+      canonical_rdf_sha256: z.string(),
+      canonical_rdf_artifact_urn: z.string(),
+    })
+    .optional(),
 });
 
 export type RegistryGetProvenanceInput = z.infer<typeof RegistryGetProvenanceInputSchema>;

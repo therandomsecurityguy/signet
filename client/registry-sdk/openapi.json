@@ -3159,15 +3159,227 @@
             "required": true,
             "name": "version",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "structured",
+                "jsonld"
+              ]
+            },
+            "required": false,
+            "name": "format",
+            "in": "query"
           }
         ],
         "responses": {
           "200": {
-            "description": "Get agent version provenance",
+            "description": "Get agent version provenance: structured view by default; PROV-O JSON-LD document with ?format=jsonld (derived from the same canonical triple list)",
             "content": {
               "application/json": {
                 "schema": {
-                  "nullable": true
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "@context": {
+                          "type": "object",
+                          "properties": {
+                            "prov": {
+                              "type": "string"
+                            },
+                            "sg": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "prov",
+                            "sg"
+                          ]
+                        },
+                        "@graph": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "@id": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "@id"
+                            ],
+                            "additionalProperties": {
+                              "nullable": true
+                            }
+                          }
+                        }
+                      },
+                      "required": [
+                        "@context",
+                        "@graph"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "entity": {
+                          "type": "object",
+                          "properties": {
+                            "urn": {
+                              "type": "string"
+                            },
+                            "entity_type": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "urn",
+                            "entity_type"
+                          ]
+                        },
+                        "derivation_chain": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "version_urn": {
+                                "type": "string"
+                              },
+                              "was_derived_from": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "activities": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "task_urn": {
+                                      "type": "string"
+                                    },
+                                    "operation": {
+                                      "type": "string"
+                                    },
+                                    "status": {
+                                      "type": "string"
+                                    },
+                                    "occurred_at": {
+                                      "type": "string"
+                                    },
+                                    "actor": {
+                                      "type": "string"
+                                    },
+                                    "used": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "urn": {
+                                            "type": "string"
+                                          },
+                                          "entity_type": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "urn"
+                                        ]
+                                      }
+                                    },
+                                    "associated_agents": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "urn": {
+                                            "type": "string"
+                                          },
+                                          "agent_name": {
+                                            "type": "string"
+                                          },
+                                          "role": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "urn"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "task_urn",
+                                    "operation",
+                                    "status",
+                                    "used",
+                                    "associated_agents"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "version_urn",
+                              "was_derived_from",
+                              "activities"
+                            ]
+                          }
+                        },
+                        "replay": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "occurred_at": {
+                                "type": "string"
+                              },
+                              "operation": {
+                                "type": "string"
+                              },
+                              "actor": {
+                                "type": "string"
+                              },
+                              "version_urn": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "operation",
+                              "version_urn",
+                              "status"
+                            ]
+                          }
+                        },
+                        "evidence": {
+                          "type": "object",
+                          "properties": {
+                            "canonical_rdf_sha256": {
+                              "type": "string"
+                            },
+                            "canonical_rdf_artifact_urn": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "canonical_rdf_sha256",
+                            "canonical_rdf_artifact_urn"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "entity",
+                        "derivation_chain",
+                        "replay",
+                        "evidence"
+                      ]
+                    }
+                  ]
                 }
               }
             }
@@ -14494,15 +14706,227 @@
             "required": true,
             "name": "version",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "structured",
+                "jsonld"
+              ]
+            },
+            "required": false,
+            "name": "format",
+            "in": "query"
           }
         ],
         "responses": {
           "200": {
-            "description": "Get provenance",
+            "description": "Get provenance: structured view by default; PROV-O JSON-LD document with ?format=jsonld (derived from the same canonical triple list)",
             "content": {
               "application/json": {
                 "schema": {
-                  "nullable": true
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "@context": {
+                          "type": "object",
+                          "properties": {
+                            "prov": {
+                              "type": "string"
+                            },
+                            "sg": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "prov",
+                            "sg"
+                          ]
+                        },
+                        "@graph": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "@id": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "@id"
+                            ],
+                            "additionalProperties": {
+                              "nullable": true
+                            }
+                          }
+                        }
+                      },
+                      "required": [
+                        "@context",
+                        "@graph"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "entity": {
+                          "type": "object",
+                          "properties": {
+                            "urn": {
+                              "type": "string"
+                            },
+                            "entity_type": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "urn",
+                            "entity_type"
+                          ]
+                        },
+                        "derivation_chain": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "version_urn": {
+                                "type": "string"
+                              },
+                              "was_derived_from": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "activities": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "task_urn": {
+                                      "type": "string"
+                                    },
+                                    "operation": {
+                                      "type": "string"
+                                    },
+                                    "status": {
+                                      "type": "string"
+                                    },
+                                    "occurred_at": {
+                                      "type": "string"
+                                    },
+                                    "actor": {
+                                      "type": "string"
+                                    },
+                                    "used": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "urn": {
+                                            "type": "string"
+                                          },
+                                          "entity_type": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "urn"
+                                        ]
+                                      }
+                                    },
+                                    "associated_agents": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "urn": {
+                                            "type": "string"
+                                          },
+                                          "agent_name": {
+                                            "type": "string"
+                                          },
+                                          "role": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "urn"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "task_urn",
+                                    "operation",
+                                    "status",
+                                    "used",
+                                    "associated_agents"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "version_urn",
+                              "was_derived_from",
+                              "activities"
+                            ]
+                          }
+                        },
+                        "replay": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "occurred_at": {
+                                "type": "string"
+                              },
+                              "operation": {
+                                "type": "string"
+                              },
+                              "actor": {
+                                "type": "string"
+                              },
+                              "version_urn": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "operation",
+                              "version_urn",
+                              "status"
+                            ]
+                          }
+                        },
+                        "evidence": {
+                          "type": "object",
+                          "properties": {
+                            "canonical_rdf_sha256": {
+                              "type": "string"
+                            },
+                            "canonical_rdf_artifact_urn": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "canonical_rdf_sha256",
+                            "canonical_rdf_artifact_urn"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "entity",
+                        "derivation_chain",
+                        "replay",
+                        "evidence"
+                      ]
+                    }
+                  ]
                 }
               }
             }

@@ -769,6 +769,13 @@ export type RegistryProvenanceActivity = {
   associated_agents: Array<{ urn: string; agent_name?: string; role?: string }>;
 };
 
+export type RegistryProvenanceEvidence = {
+  /** SHA-256 over the RDFC-1.0 canonical N-Quads of the provenance export. */
+  canonical_rdf_sha256: string;
+  /** Content-addressed artifact holding the canonical N-Quads (fetch via /v1/artifacts/{sha256}). */
+  canonical_rdf_artifact_urn: string;
+};
+
 export type RegistryPublicationProvenance = {
   entity: { urn: string; entity_type: string };
   derivation_chain: Array<{
@@ -783,6 +790,7 @@ export type RegistryPublicationProvenance = {
     version_urn: string;
     status: string;
   }>;
+  evidence: RegistryProvenanceEvidence;
 };
 
 export type RegistryPublicationVerification = {

@@ -1237,7 +1237,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    format?: "structured" | "jsonld";
+                };
                 header?: never;
                 path: {
                     agentKey: string;
@@ -1247,13 +1249,59 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Get agent version provenance */
+                /** @description Get agent version provenance: structured view by default; PROV-O JSON-LD document with ?format=jsonld (derived from the same canonical triple list) */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": unknown;
+                        "application/json": {
+                            "@context": {
+                                prov: string;
+                                sg: string;
+                            };
+                            "@graph": ({
+                                "@id": string;
+                            } & {
+                                [key: string]: unknown;
+                            })[];
+                        } | {
+                            entity: {
+                                urn: string;
+                                entity_type: string;
+                            };
+                            derivation_chain: {
+                                version_urn: string;
+                                was_derived_from: string[];
+                                activities: {
+                                    task_urn: string;
+                                    operation: string;
+                                    status: string;
+                                    occurred_at?: string;
+                                    actor?: string;
+                                    used: {
+                                        urn: string;
+                                        entity_type?: string;
+                                    }[];
+                                    associated_agents: {
+                                        urn: string;
+                                        agent_name?: string;
+                                        role?: string;
+                                    }[];
+                                }[];
+                            }[];
+                            replay: {
+                                occurred_at?: string;
+                                operation: string;
+                                actor?: string;
+                                version_urn: string;
+                                status: string;
+                            }[];
+                            evidence: {
+                                canonical_rdf_sha256: string;
+                                canonical_rdf_artifact_urn: string;
+                            };
+                        };
                     };
                 };
                 /** @description Invalid provenance request */
@@ -6255,7 +6303,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    format?: "structured" | "jsonld";
+                };
                 header?: never;
                 path: {
                     skillKey: string;
@@ -6265,13 +6315,59 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Get provenance */
+                /** @description Get provenance: structured view by default; PROV-O JSON-LD document with ?format=jsonld (derived from the same canonical triple list) */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": unknown;
+                        "application/json": {
+                            "@context": {
+                                prov: string;
+                                sg: string;
+                            };
+                            "@graph": ({
+                                "@id": string;
+                            } & {
+                                [key: string]: unknown;
+                            })[];
+                        } | {
+                            entity: {
+                                urn: string;
+                                entity_type: string;
+                            };
+                            derivation_chain: {
+                                version_urn: string;
+                                was_derived_from: string[];
+                                activities: {
+                                    task_urn: string;
+                                    operation: string;
+                                    status: string;
+                                    occurred_at?: string;
+                                    actor?: string;
+                                    used: {
+                                        urn: string;
+                                        entity_type?: string;
+                                    }[];
+                                    associated_agents: {
+                                        urn: string;
+                                        agent_name?: string;
+                                        role?: string;
+                                    }[];
+                                }[];
+                            }[];
+                            replay: {
+                                occurred_at?: string;
+                                operation: string;
+                                actor?: string;
+                                version_urn: string;
+                                status: string;
+                            }[];
+                            evidence: {
+                                canonical_rdf_sha256: string;
+                                canonical_rdf_artifact_urn: string;
+                            };
+                        };
                     };
                 };
                 /** @description Invalid provenance request */
