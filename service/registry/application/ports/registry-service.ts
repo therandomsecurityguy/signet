@@ -932,11 +932,28 @@ export type RevokeTrustedPublicKeyInput = {
   reason?: string;
 };
 
+export type PolicyShapesFormat = 'legacy-json-v1' | 'shacl-turtle';
+
 export type CreatePolicyPackageInput = {
   policy_version: string;
   author: string;
+  /** Legacy JSON shape document, or authored SHACL Turtle when shapes_format is "shacl-turtle". */
   shapes: unknown;
+  /** Authored W3C SHACL Turtle; omit for the legacy JSON shape document format. */
+  shapes_format?: 'shacl-turtle';
   description?: string;
+  /**
+   * Policy lifecycle gates. Legacy JSON documents carry these inside the
+   * shape document; for Turtle policies they are envelope metadata (SHACL
+   * has no place for lifecycle gates). Top-level gates are rejected for
+   * legacy documents.
+   */
+  require_human_review?: boolean;
+  require_validation?: boolean;
+  require_signature?: boolean;
+  require_trusted_publisher?: boolean;
+  require_build_provenance?: boolean;
+  require_sbom?: boolean;
 };
 
 export type RegistryPolicyPackageDetails = {
@@ -946,6 +963,7 @@ export type RegistryPolicyPackageDetails = {
   created_by: string;
   created_at: string;
   description?: string;
+  shapes_format: PolicyShapesFormat;
   shapes: unknown;
 };
 

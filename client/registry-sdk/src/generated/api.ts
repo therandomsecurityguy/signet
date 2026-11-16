@@ -2784,6 +2784,8 @@ export interface paths {
                                 created_by: string;
                                 created_at: string;
                                 description?: string;
+                                /** @enum {string} */
+                                shapes_format: "legacy-json-v1" | "shacl-turtle";
                                 shapes?: unknown;
                             }[];
                         };
@@ -2819,7 +2821,15 @@ export interface paths {
                         policy_version: string;
                         author: string;
                         shapes?: unknown;
+                        /** @enum {string} */
+                        shapes_format?: "shacl-turtle";
                         description?: string;
+                        require_human_review?: boolean;
+                        require_validation?: boolean;
+                        require_signature?: boolean;
+                        require_trusted_publisher?: boolean;
+                        require_build_provenance?: boolean;
+                        require_sbom?: boolean;
                     };
                 };
             };
@@ -2937,6 +2947,8 @@ export interface paths {
                             created_by: string;
                             created_at: string;
                             description?: string;
+                            /** @enum {string} */
+                            shapes_format: "legacy-json-v1" | "shacl-turtle";
                             shapes?: unknown;
                         };
                     };

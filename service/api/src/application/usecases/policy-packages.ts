@@ -9,7 +9,18 @@ export class PolicyPackageUseCase {
       policy_version: input.policy_version,
       author: input.author,
       shapes: input.shapes,
+      ...(input.shapes_format ? { shapes_format: input.shapes_format } : {}),
       ...(input.description ? { description: input.description } : {}),
+      ...(input.require_human_review !== undefined ? { require_human_review: input.require_human_review } : {}),
+      ...(input.require_validation !== undefined ? { require_validation: input.require_validation } : {}),
+      ...(input.require_signature !== undefined ? { require_signature: input.require_signature } : {}),
+      ...(input.require_trusted_publisher !== undefined
+        ? { require_trusted_publisher: input.require_trusted_publisher }
+        : {}),
+      ...(input.require_build_provenance !== undefined
+        ? { require_build_provenance: input.require_build_provenance }
+        : {}),
+      ...(input.require_sbom !== undefined ? { require_sbom: input.require_sbom } : {}),
     });
   }
 
