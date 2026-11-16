@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.60](https://github.com/therandomsecurityguy/signet/compare/v0.1.59...v0.1.60) (2026-11-16)
+
+
+### Features
+
+* **registry:** detached provenance signatures with valid/invalid/stale verdicts (PR 2/3) ([1bd5759](https://github.com/therandomsecurityguy/signet/commit/1bd5759557b181878cf26fa3eac5d2c06a8b1681))
+
+
+### Bug Fixes
+
+* **cli:** drop redundant catch assignments flagged by no-useless-assignment ([91ce26f](https://github.com/therandomsecurityguy/signet/commit/91ce26f35ece8587918d62109154c4c5fde97831))
+
 ## [0.1.59](https://github.com/therandomsecurityguy/signet/compare/v0.1.58...v0.1.59) (2026-11-16)
 
 
