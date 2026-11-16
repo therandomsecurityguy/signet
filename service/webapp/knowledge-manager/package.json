@@ -15,7 +15,7 @@
     "demo:mock-okta": "node --import tsx scripts/mock-okta-demo.ts"
   },
   "dependencies": {
-    "@hono/node-server": "^2.1.6",
+    "@hono/node-server": "^2.1.8",
     "@picocss/pico": "^2.1.1",
     "cytoscape": "^3.35.0",
     "hono": "^4.13.17",
