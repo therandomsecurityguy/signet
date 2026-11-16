@@ -160,10 +160,11 @@ Examples:
 - a certification-ready snapshot may require lineage completeness
 
 Current implementation:
-- SHACL-like policy packages are registered as versioned CAS artifacts and resolved by `policy_version`
-- the engine supports a deliberate subset of SHACL semantics (node shapes targeted by entity type; property constraints `minCount`/`maxCount`/`datatype`/`in`/`pattern`; edge cardinality and target-type constraints; `Violation`/`Warning`/`Info` severities)
-- violations use the SHACL result vocabulary (focus node, result path, constraint component, source shape) and are stored as CAS validation reports linked via `sg:validatedBy`
-- full W3C SHACL execution over RDF datasets remains future work
+- policy packages are registered as versioned CAS artifacts and resolved by `policy_version`, in two authoring formats: legacy JSON shape documents (translated to SHACL before execution, byte-identical gating behavior) and authored W3C SHACL Turtle (`shapes_format: "shacl-turtle"`, with `require_*` gates as envelope metadata)
+- validation executes W3C SHACL Core constraint components (Zazuko `rdf-validate-shacl`, in-process behind a swappable port) over an N-Quads dataset derived from the typed publication graph: focus properties and edges plus entity-type triples so `sh:class` can check edge targets
+- targeting is focus-scoped: `sh:targetClass` shapes are rewritten to `sh:targetNode <focus>` for the matching entity type (other shapes go inert), so edge targets — including other versions reached via supersession edges — are never validated incidentally
+- `sh:pattern` executes in the registry's linear-time RE2 layer rather than the engine's backtracking RegExp (ReDoS-safe by construction); patterns are RE2-compiled at registration and stripped before engine execution
+- violations use the SHACL result vocabulary (focus node, result path, constraint component, source shape, severity) and are stored as CAS validation reports linked via `sg:validatedBy`; reports record the validator (`shacl-v1`), the engine version, and per-layer shapes fingerprints (`shapes_format`, `shapes_sha256`)
 
 #### 3. Ontology-based validation
 
@@ -549,8 +550,8 @@ The project already has:
 - supersession guards: only trusted (published or certified) snapshots are superseded, never revoked ones
 - full agent-version lifecycle parity with skills (drafts, validate, publish, promote, deprecate, certify, revoke, archive) including dependency validation for linked skills
 - a durable, non-destructive GC job seam (planned to completed execution records over retention-root plans)
-- SHACL-like policy packages registered as versioned, content-addressed artifacts (`POST /v1/policy-packages`) and resolved by `policy_version`
-- multi-layer draft validation: built-in graph-shape rules (required properties, edges, cardinalities) plus registered SHACL-like policy shapes, with machine-readable violation reports (focus node, result path, constraint component) stored in the CAS and linked via `sg:validatedBy`
+- policy packages (legacy JSON shape documents and authored W3C SHACL Turtle) registered as versioned, content-addressed artifacts (`POST /v1/policy-packages`) and resolved by `policy_version`
+- multi-layer draft validation: built-in graph-shape rules (authored as W3C SHACL Turtle) plus registered policy shapes, executed as W3C SHACL Core over derived RDF with RE2-governed patterns, with machine-readable violation reports (focus node, result path, constraint component) stored in the CAS and linked via `sg:validatedBy`
 - publish-time linkage of registered policy package artifacts via `sg:governedByPolicy` in place of generated placeholders
 - dual ontology packages registered as versioned CAS artifacts (`POST /v1/ontology-packages`) in two architecturally separate kinds: `registry_shape` (lifecycle/evidence vocabulary) and `skill_area` (domain capability concepts)
 - ontology validation of version `capability_claims`: claims must bind to known skill-area concepts, disjoint concept combinations fail, and unmapped claims are recorded as de facto vocabulary candidates in the validation report
@@ -623,7 +624,7 @@ Examples:
 These are target-state capabilities, not current claims:
 - full normative registry ontology encoded as first-class RDF/OWL vocabulary (current ontology packages use a JSON document format)
 - richer de facto ontology mining (runtime observations, corpus analysis) beyond the current claim-candidate capture
-- full W3C SHACL package execution over RDF datasets and stored reports as standardized RDF artifacts
+- richer SHACL engine coverage beyond Core constraint components (SHACL-SPARQL constraints, SHACL-AF rules) and stored validation reports as standardized RDF artifacts
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures over provenance graphs)
 - richer trust-root policy modeling beyond the current trusted public-key registry objects
 - cryptographic trust-chain and key-rotation policy enforcement

@@ -149,7 +149,9 @@ Publication verification responses include frozen-envelope fields:
 `publication_envelope_artifact_urn` and `publication_envelope_sha256`; see
 `docs/registry-model.md` for the freeze semantics.
 
-### Policy / ontology / vocabulary| Method | Path | Description |
+### Policy / ontology / vocabulary
+
+| Method | Path | Description |
 |---|---|---|
 | GET | `/v1/policy-packages` | List policy packages |
 | GET | `/v1/policy-packages/{policyVersion}` | Get policy package |
@@ -161,6 +163,28 @@ Publication verification responses include frozen-envelope fields:
 | GET | `/v1/de-facto-terms` | List de facto vocabulary candidates |
 | POST | `/v1/de-facto-terms/{term}/review` | Review a de facto term |
 | GET | `/v1/reviews/pending` | Pending human-review queue |
+
+Policy packages come in two authoring formats, selected with
+`shapes_format`:
+
+- **Legacy JSON shape documents** (omit `shapes_format`): the historical
+  format. Lifecycle gates (`require_human_review`, `require_validation`,
+  `require_signature`, `require_trusted_publisher`,
+  `require_build_provenance`, `require_sbom`) live inside the shapes
+  document.
+- **Authored W3C SHACL Turtle** (`shapes_format: "shacl-turtle"`, `shapes`
+  is a Turtle string): shapes target entity types with `sh:targetClass`
+  over `urn:sg:entity-type:` IRIs and use simple `urn:sg:property:` /
+  `urn:sg:predicate:` paths; explicit node targeting and complex paths are
+  rejected at registration, and `sh:pattern` is RE2-compiled up front
+  (backreferences and lookarounds unsupported). Lifecycle gates are
+  top-level request fields in this format.
+
+Draft validation executes the built-in graph shape and the resolved policy
+as W3C SHACL Core and stores a machine-readable report per run
+(`validator: shacl-v1`, engine id, per-layer `shapes_format` /
+`shapes_sha256`), linked to the version via `sg:validatedBy`; see
+`docs/governance-model.md` for the validation rules.
 
 ### Artifacts
 | Method | Path | Description |
