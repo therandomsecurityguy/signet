@@ -1064,10 +1064,17 @@ export type RegistryPolicyPackageDetails = {
   shapes: unknown;
 };
 
+export type OntologyPackageFormat = 'legacy-json-v1' | 'owl-turtle';
+
 export type CreateOntologyPackageInput = {
   ontology_version: string;
   author: string;
+  /** Legacy JSON ontology document, or authored OWL Turtle when ontology_format is "owl-turtle". */
   ontology: unknown;
+  /** Authored OWL Turtle ontology package; omit for the legacy JSON format. */
+  ontology_format?: 'owl-turtle';
+  /** Required with the OWL format (the registry kind is envelope metadata there). */
+  ontology_kind?: 'registry_shape' | 'skill_area';
   description?: string;
 };
 
@@ -1076,6 +1083,10 @@ export type RegistryOntologyPackageDetails = {
   sha256: string;
   ontology_version: string;
   ontology_kind: 'registry_shape' | 'skill_area';
+  ontology_format: OntologyPackageFormat;
+  /** RDFC-1.0 canonical digest over the ontology's semantic projection (format-independent). */
+  canonical_rdf_sha256: string;
+  canonical_rdf_artifact_urn: string;
   created_by: string;
   created_at: string;
   description?: string;

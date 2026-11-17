@@ -9,6 +9,8 @@ export class OntologyPackageUseCase {
       ontology_version: input.ontology_version,
       author: input.author,
       ontology: input.ontology,
+      ...(input.ontology_format ? { ontology_format: input.ontology_format } : {}),
+      ...(input.ontology_kind ? { ontology_kind: input.ontology_kind } : {}),
       ...(input.description ? { description: input.description } : {}),
     });
   }

@@ -193,6 +193,7 @@ Certification is now operationally meaningful, not a boolean flag:
 - W3C SHACL policy validation: legacy JSON shape documents and authored SHACL Turtle policies execute as W3C SHACL Core (`rdf-validate-shacl`) with RE2-governed patterns, and authored policies may use SPARQL constraints and SPARQL-based targets (SPARQL-capable hybrid engine with the plugin always loaded; registration refuses unexecuted features); validation reports record the validator, engine version per layer, and per-layer shapes fingerprints
 - canonical provenance export + signatures: PROV-O export with an RDFC-1.0 canonical digest and content-addressed artifact (plus `?format=jsonld`), detached signatures with `valid`/`stale`/`invalid` verdicts re-computed on every read, and local verification via the operator CLI and the SDK
 - validation reports as standardized RDF: `sh:ValidationReport` JSON-LD with its own canonical digest and artifact; report artifacts are signable by trusted keys over that canonical RDF and re-verified (`valid`/`invalid` — reports are immutable), with provenance exports, provenance signatures, report RDF, and report signatures all covered by Tessera append intents + reconciliation
+- first-class RDF/OWL vocabularies: ontology packages can be authored as OWL Turtle (tight, totally-projected subset with registration-time refusals) alongside legacy JSON; every package carries an RDFC-1.0 format-independent canonical semantic digest + artifact recorded on details and the validation report
 
 Examples of remaining certification metadata:
 - certification scope

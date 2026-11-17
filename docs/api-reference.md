@@ -207,6 +207,28 @@ reproduces the verdicts locally.
 | GET | `/v1/ontology-packages` | List ontology packages |
 | GET | `/v1/ontology-packages/{ontologyVersion}` | Get ontology package |
 | POST | `/v1/ontology-packages` | Create ontology package |
+
+Ontology packages come in two authoring formats:
+
+- **Legacy JSON documents** (omit `ontology_format`): `{ kind:
+  "registry_shape" | "skill_area", concepts: [{ id, label?, parents? }],
+  disjoint: [[a, b]] }` — the kind lives inside the document.
+- **Authored OWL Turtle** (`ontology_format: "owl-turtle"`, `ontology` is
+  a Turtle string, `ontology_kind` required): a totally-projected subset —
+  `owl:Class` concepts, `rdfs:subClassOf` between declared classes,
+  `owl:disjointWith` (symmetric, normalized), `rdfs:label`, an optional
+  `urn:sg:property:concept-id` override, and an `owl:Ontology` header.
+  Concept ids default to class-IRI local names; ambiguous ids are refused.
+  Registration rejects everything outside the subset (`owl:equivalentClass`,
+  unions/intersections/complements/restrictions, `owl:imports`,
+  `owl:AllDisjointClasses`, `skos:*`, external or blank-node superclasses)
+  — a normative ontology is never silently narrowed.
+
+Details include `ontology_format`, `canonical_rdf_sha256` (RDFC-1.0 digest
+over the format-independent semantic projection — equivalent JSON and OWL
+documents digest identically) and `canonical_rdf_artifact_urn` (fetch via
+`GET /v1/artifacts/{sha256}`). De-facto promotion from authored OWL
+ontologies is refused (v1).
 | POST | `/v1/compile/skill` | Compile markdown/tool manifest to capability claims |
 | GET | `/v1/de-facto-terms` | List de facto vocabulary candidates |
 | POST | `/v1/de-facto-terms/{term}/review` | Review a de facto term |

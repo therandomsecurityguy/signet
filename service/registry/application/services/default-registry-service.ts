@@ -41,6 +41,8 @@ import type { ShaclExecutionPort } from './shacl-execution-port.js';
 import { BUILTIN_GRAPH_SHAPE_SHA256, BUILTIN_GRAPH_SHAPE_TURTLE } from './builtin-graph-shape.js';
 import { parsePolicyPackageEnvelope } from './policy-package-envelope.js';
 import { canonicalizeProvenance } from './provenance-export.js';
+import { canonicalizeOntologyDocument } from './ontology-projection.js';
+import { parseOwlOntologyTurtle } from './owl-ontology.js';
 import {
   canonicalizeValidationReport,
   projectValidationReportToJsonLd,
@@ -338,20 +340,65 @@ export class DefaultRegistryService implements RegistryService {
   async createOntologyPackage(
     input: import('../ports/registry-service.js').CreateOntologyPackageInput,
   ): Promise<CreateResult<import('../ports/registry-service.js').RegistryOntologyPackageDetails>> {
-    let document;
-    try {
-      document = parseOntologyDocument(input.ontology);
-    } catch (err) {
-      throw new RegistryCoreError(
-        'ONTOLOGY_PACKAGE_INVALID',
-        err instanceof Error ? err.message : 'Ontology package document is invalid.',
-      );
+    let document: OntologyDocument;
+    let envelope: Record<string, unknown>;
+    if (input.ontology_format === 'owl-turtle') {
+      if (!input.ontology_kind) {
+        throw new RegistryCoreError(
+          'ONTOLOGY_PACKAGE_INVALID',
+          'ontology_kind is required for owl-turtle ontologies (the registry kind is envelope metadata in this format).',
+        );
+      }
+      if (typeof input.ontology !== 'string' || input.ontology.length === 0) {
+        throw new RegistryCoreError(
+          'ONTOLOGY_PACKAGE_INVALID',
+          'ontology must be a Turtle string when ontology_format is "owl-turtle".',
+        );
+      }
+      try {
+        const projected = parseOwlOntologyTurtle(input.ontology);
+        document = { kind: input.ontology_kind, concepts: projected.concepts, disjoint: projected.disjoint };
+      } catch (err) {
+        throw new RegistryCoreError(
+          'ONTOLOGY_PACKAGE_INVALID',
+          err instanceof Error ? err.message : 'Ontology package document is invalid.',
+        );
+      }
+      envelope = {
+        ontology_version: input.ontology_version,
+        ontology_format: 'owl-turtle',
+        ontology_kind: input.ontology_kind,
+        ontology: input.ontology,
+      };
+    } else {
+      if (input.ontology_kind !== undefined) {
+        throw new RegistryCoreError(
+          'ONTOLOGY_PACKAGE_INVALID',
+          'ontology_kind is only accepted with ontology_format "owl-turtle"; legacy JSON documents carry the kind inside the document.',
+        );
+      }
+      try {
+        document = parseOntologyDocument(input.ontology);
+      } catch (err) {
+        throw new RegistryCoreError(
+          'ONTOLOGY_PACKAGE_INVALID',
+          err instanceof Error ? err.message : 'Ontology package document is invalid.',
+        );
+      }
+      // Legacy envelope stays byte-frozen (content-addressed idempotency).
+      envelope = { ontology_version: input.ontology_version, ontology: document };
     }
 
-    const content = canonicalJsonString({
-      ontology_version: input.ontology_version,
-      ontology: document,
+    // Canonical semantic projection (format-independent): equivalent JSON and
+    // OWL documents digest identically. Stored as a CAS artifact either way.
+    const canonical = await canonicalizeOntologyDocument(document);
+    await this.deps.cas.put({
+      bytes: Buffer.from(canonical.nquads, 'utf8'),
+      media_type: 'application/n-quads',
+      original_path: `ontology-packages/${sanitizePathSegment(input.ontology_version)}.nq`,
     });
+
+    const content = canonicalJsonString(envelope);
     const artifact = await this.deps.cas.put({
       bytes: Buffer.from(content, 'utf8'),
       media_type: 'application/json',
@@ -381,6 +428,8 @@ export class DefaultRegistryService implements RegistryService {
         governance_role: 'ontology_package',
         ontology_version: input.ontology_version,
         ontology_kind: document.kind,
+        ontology_format: input.ontology_format === 'owl-turtle' ? 'owl-turtle' : 'legacy-json-v1',
+        canonical_rdf_sha256: canonical.sha256,
         created_by: input.author,
         created_at: nowIso(),
         ...(input.description ? { description: input.description } : {}),
@@ -425,23 +474,54 @@ export class DefaultRegistryService implements RegistryService {
     node: { urn: string; properties: Record<string, unknown> },
   ): Promise<import('../ports/registry-service.js').RegistryOntologyPackageDetails> {
     const sha256 = stringOrUndefined(node.properties['sha256']) ?? parseArtifactSha256(node.urn) ?? '';
+    const kind = node.properties['ontology_kind'];
+    const ontology_kind = kind === 'registry_shape' ? 'registry_shape' : 'skill_area';
     let ontology: unknown = null;
+    let envelopeFormat: string | undefined;
     const stored = await this.deps.cas.getBySha256(sha256);
     if (stored) {
       try {
-        ontology =
-          (JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)) as { ontology?: unknown }).ontology ??
-          null;
+        const parsed = JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)) as {
+          ontology?: unknown;
+          ontology_format?: unknown;
+        };
+        envelopeFormat = typeof parsed.ontology_format === 'string' ? parsed.ontology_format : undefined;
+        ontology = parsed.ontology ?? null;
       } catch {
         ontology = null;
       }
     }
-    const kind = node.properties['ontology_kind'];
+    const ontology_format: import('../ports/registry-service.js').OntologyPackageFormat =
+      node.properties['ontology_format'] === 'owl-turtle' || envelopeFormat === 'owl-turtle'
+        ? 'owl-turtle'
+        : 'legacy-json-v1';
+
+    // Canonical semantic digest: recorded at registration; computed on read
+    // for packages registered before the digest existed.
+    let canonicalSha = stringOrUndefined(node.properties['canonical_rdf_sha256']);
+    if (!canonicalSha) {
+      try {
+        const document: OntologyDocument =
+          ontology_format === 'owl-turtle' && typeof ontology === 'string'
+            ? (() => {
+                const projected = parseOwlOntologyTurtle(ontology);
+                return { kind: ontology_kind, concepts: projected.concepts, disjoint: projected.disjoint };
+              })()
+            : parseOntologyDocument(ontology);
+        canonicalSha = (await canonicalizeOntologyDocument(document)).sha256;
+      } catch {
+        canonicalSha = undefined;
+      }
+    }
+
     return {
       artifact_urn: node.urn,
       sha256,
       ontology_version: stringOrUndefined(node.properties['ontology_version']) ?? '',
-      ontology_kind: kind === 'registry_shape' ? 'registry_shape' : 'skill_area',
+      ontology_kind,
+      ontology_format,
+      canonical_rdf_sha256: canonicalSha ?? '',
+      canonical_rdf_artifact_urn: canonicalSha ? artifactUrn(canonicalSha) : '',
       created_by: stringOrUndefined(node.properties['created_by']) ?? '',
       created_at: stringOrUndefined(node.properties['created_at']) ?? '',
       ...(stringOrUndefined(node.properties['description'])
@@ -3000,6 +3080,9 @@ export class DefaultRegistryService implements RegistryService {
     let ontologyViolations: ValidationViolation[] = [];
     let deFactoCandidates: string[] = [];
     let ontologyDocument: OntologyDocument | null = null;
+    let ontologyFormat: string | null = null;
+    let ontologySha256: string | null = null;
+    let ontologyCanonicalRdfSha256: string | null = null;
     let ontologyNode = null;
     if (ontologyVersion) {
       ontologyNode = await this.findOntologyPackageNode(ontologyVersion);
@@ -3008,10 +3091,23 @@ export class DefaultRegistryService implements RegistryService {
         const stored = sha ? await this.deps.cas.getBySha256(sha) : null;
         if (stored) {
           try {
-            const parsed = JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)) as {
+            const envelope = JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)) as {
               ontology?: unknown;
+              ontology_format?: unknown;
+              ontology_kind?: unknown;
             };
-            ontologyDocument = parseOntologyDocument(parsed.ontology);
+            if (envelope.ontology_format === 'owl-turtle' && typeof envelope.ontology === 'string') {
+              const projected = parseOwlOntologyTurtle(envelope.ontology);
+              ontologyDocument = {
+                kind: envelope.ontology_kind === 'registry_shape' ? 'registry_shape' : 'skill_area',
+                concepts: projected.concepts,
+                disjoint: projected.disjoint,
+              };
+              ontologyFormat = 'owl-turtle';
+            } else {
+              ontologyDocument = parseOntologyDocument(envelope.ontology);
+              ontologyFormat = 'legacy-json-v1';
+            }
             const result = validateCapabilityClaims({
               focus_urn: input.version_urn,
               claims,
@@ -3020,8 +3116,15 @@ export class DefaultRegistryService implements RegistryService {
             });
             ontologyViolations = result.violations;
             deFactoCandidates = result.de_facto_candidates;
+            ontologySha256 = sha ?? null;
+            ontologyCanonicalRdfSha256 =
+              stringOrUndefined(ontologyNode.properties['canonical_rdf_sha256']) ??
+              (await canonicalizeOntologyDocument(ontologyDocument)).sha256;
           } catch {
             ontologyDocument = null;
+            ontologyFormat = null;
+            ontologySha256 = null;
+            ontologyCanonicalRdfSha256 = null;
           }
         }
       }
@@ -3030,6 +3133,9 @@ export class DefaultRegistryService implements RegistryService {
       layer: 'ontology',
       ontology_version: ontologyVersion ?? null,
       ontology_package_resolved: Boolean(ontologyDocument),
+      ...(ontologyFormat ? { ontology_format: ontologyFormat } : {}),
+      ...(ontologySha256 ? { ontology_sha256: ontologySha256 } : {}),
+      ...(ontologyCanonicalRdfSha256 ? { ontology_canonical_rdf_sha256: ontologyCanonicalRdfSha256 } : {}),
       capability_claims: claims,
       de_facto_candidates: deFactoCandidates,
       violations: ontologyViolations,
@@ -6438,6 +6544,12 @@ export class DefaultRegistryService implements RegistryService {
       const sourceNode = await this.findOntologyPackageNode(input.source_ontology_version);
       if (!sourceNode || sourceNode.properties['ontology_kind'] !== 'skill_area') {
         throw new RegistryCoreError('ONTOLOGY_PACKAGE_NOT_FOUND', `Skill-area ontology package not found: ${input.source_ontology_version}`);
+      }
+      if (sourceNode.properties['ontology_format'] === 'owl-turtle') {
+        throw new RegistryCoreError(
+          'DEFACTO_TERM_PROMOTE_INVALID',
+          'Promotion from authored OWL ontologies is not supported yet; promote into a legacy JSON skill-area ontology package.',
+        );
       }
       const sha = stringOrUndefined(sourceNode.properties['sha256']);
       const stored = sha ? await this.deps.cas.getBySha256(sha) : null;
