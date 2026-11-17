@@ -44,6 +44,7 @@ import type { ConstraintRef } from './shacl-shape-translation.js';
 import { translateShapeDocument } from './shacl-shape-translation.js';
 import type { ShaclExecutionPort } from './shacl-execution-port.js';
 import { createRdfValidateShaclEngine } from './rdf-validate-shacl-engine.js';
+import { createShaclEngineSparqlAdapter } from './shacl-engine-sparql-engine.js';
 
 /** Recorded in validation report artifacts. */
 export const SHACL_VALIDATOR_ID = 'shacl-v1';
@@ -60,6 +61,34 @@ export function resolveShaclEngine(port?: ShaclExecutionPort): ShaclExecutionPor
   if (port) return port;
   defaultEngine ??= createRdfValidateShaclEngine();
   return defaultEngine;
+}
+
+/**
+ * Engine selection for authored Turtle shapes: SPARQL features
+ * (sh:sparql constraints or SPARQL-based targets) require the shacl-engine
+ * hybrid adapter; everything else stays on the default core engine. An
+ * injected engine always wins (tests/deployments).
+ */
+export async function resolveTurtleShapesEngine(
+  shapesTurtle: string,
+  injected?: ShaclExecutionPort,
+): Promise<ShaclExecutionPort> {
+  if (injected) return injected;
+  let usesSparql = false;
+  try {
+    const store = new Store(new Parser({ format: 'text/turtle' }).parse(shapesTurtle));
+    const sparqlPredicate = DataFactory.namedNode(`${SHACL_NS}sparql`);
+    const targetPredicate = DataFactory.namedNode(`${SHACL_NS}target`);
+    const selectPredicate = DataFactory.namedNode(`${SHACL_NS}select`);
+    usesSparql =
+      store.getQuads(null, sparqlPredicate, null, null).length > 0 ||
+      store
+        .getQuads(null, targetPredicate, null, null)
+        .some((targetQuad) => store.getQuads(targetQuad.object, selectPredicate, null, null).length > 0);
+  } catch {
+    usesSparql = false; // unparseable shapes fail later in preparation
+  }
+  return usesSparql ? await createShaclEngineSparqlAdapter() : resolveShaclEngine(undefined);
 }
 
 /**
@@ -343,6 +372,7 @@ async function prepareAuthoredTurtle(
   const shapesNQuads = await new Promise<string>((resolve, reject) => {
     writer.end((error, result) => (error ? reject(error) : resolve(String(result))));
   });
+
   return { shapes_nquads: shapesNQuads, pattern_specs: patternSpecs };
 }
 
@@ -372,13 +402,21 @@ export async function validatePublicationGraphWithTurtleShapes(
     focus_urn: input.graph.focus_urn,
     entity_type: input.graph.entity_type,
   });
-  const report = await resolveShaclEngine(engine).validate({
+  // SPARQL-feature shapes need shacl-engine (with its SPARQL plugin loaded);
+  // everything else stays on the default rdf-validate-shacl engine. An
+  // injected engine (tests/deployments) always wins.
+  const activeEngine = await resolveTurtleShapesEngine(input.shapes_turtle, engine);
+  const report = await activeEngine.validate({
     data_nquads: buildValidationDatasetNQuads(input.graph).join('\n'),
     shapes_turtle: translated.shapes_nquads,
   });
 
   const mapped: Array<{ key: string; violation: ValidationViolation }> = [];
   for (const result of report.results ?? []) {
+    // Focus-scoped by construction: SPARQL-based targets can select other
+    // nodes in the dataset (e.g. version-to-version edge targets sharing the
+    // focus entity type); only the focus publication is ever validated.
+    if (result.focusNode !== input.graph.focus_urn) continue;
     const path = result.path;
     const sourceShape = stableSourceShape(result.sourceShape, path);
     mapped.push({

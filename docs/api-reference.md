@@ -228,6 +228,28 @@ Policy packages come in two authoring formats, selected with
   (backreferences and lookarounds unsupported). Lifecycle gates are
   top-level request fields in this format.
 
+Authored policies may additionally use SPARQL features, executed on the
+`shacl-engine` hybrid adapter with its SPARQL plugin always loaded:
+
+- **Node-shape `sh:sparql` constraints**: `sh:select` required;
+  `sh:prefixes` must resolve to `sh:declare` blocks (`sh:prefix` +
+  xsd:anyURI `sh:namespace`) in the document; `$this` binds the focus
+  node, `?path`/`?value` results are carried into the report, and
+  `{$this}`-style placeholders are interpolated in messages.
+- **SPARQL-based targets**: `sh:target` must reference a node declaring
+  `sh:select`; results are focus-filtered, so edge targets (for example
+  version-to-version lineage targets sharing the entity type) are never
+  validated incidentally.
+
+Registration rejects: property-shape `sh:sparql` (the engine evaluates
+those outside the W3C prebinding model — put the constraint on the node
+shape and traverse in the query), `REGEX(` inside SPARQL (backtracking
+XPath regex; the RE2-backed `sh:pattern` remains the regex path), and
+`sh:rule` / `sh:function` / `sh:js` (not executed by the engine — a policy
+is never accepted with features that would be silently ignored).
+Validation report policy layers record the engine that ran them
+(`rdf-validate-shacl@…` or `shacl-engine@…+sparql`).
+
 Example (legacy JSON document, gates inside the document):
 
 ```json
