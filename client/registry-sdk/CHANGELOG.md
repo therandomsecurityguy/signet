@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.6](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.5...registry-sdk-v0.1.6) (2026-11-17)
+
+
+### Features
+
+* **registry:** authored OWL Turtle ontology packages ([8edc2e9](https://github.com/therandomsecurityguy/signet/commit/8edc2e9c915261642864e37fe8bb665d3cd08ea9))
+* **registry:** authored OWL Turtle ontology packages (RDF/OWL) ([7e486d5](https://github.com/therandomsecurityguy/signet/commit/7e486d5e8d1b7bb2c90a565ff702800c825144b6))
+
 ## [0.1.5](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.4...registry-sdk-v0.1.5) (2026-11-17)
 
 
