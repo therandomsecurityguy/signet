@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.65](https://github.com/therandomsecurityguy/signet/compare/v0.1.64...v0.1.65) (2026-11-17)
+
+
+### Features
+
+* **registry:** authored OWL Turtle ontology packages ([8edc2e9](https://github.com/therandomsecurityguy/signet/commit/8edc2e9c915261642864e37fe8bb665d3cd08ea9))
+* **registry:** authored OWL Turtle ontology packages (RDF/OWL) ([7e486d5](https://github.com/therandomsecurityguy/signet/commit/7e486d5e8d1b7bb2c90a565ff702800c825144b6))
+
 ## [0.1.64](https://github.com/therandomsecurityguy/signet/compare/v0.1.63...v0.1.64) (2026-11-17)
 
 
