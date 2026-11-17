@@ -204,10 +204,15 @@ Transparency and provenance:
   (reads re-verify with `valid` / `invalid` / `stale` verdicts — stale
   marks signatures made before the trail grew, and the signed export
   stays retrievable); `registry-operator verify provenance` and the SDK's
-  `verifyProvenanceSignature` reproduce verdicts locally
+  `verifyProvenanceSignature` reproduce verdicts locally; evidence
+  artifacts (exports, signatures, report RDF) also stage transparency
+  append intents and reconcile against the companion log
 - validation reports as standardized RDF: every report artifact carries a
   `sh:ValidationReport` JSON-LD representation of its layers and results
-  with its own RDFC-1.0 canonical digest + artifact
+  with its own RDFC-1.0 canonical digest + artifact; report artifacts are
+  signable by trusted keys over that canonical RDF
+  (`GET|POST .../report-signatures`) and re-verifiable locally
+  (`registry-operator verify report-signatures`)
 
 Ingestion and vocabulary:
 - semantic compiler ingestion: markdown frontmatter and tool manifests

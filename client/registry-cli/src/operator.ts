@@ -21,7 +21,7 @@ import {
 } from './types.js';
 import { HttpRegistryOperatorApiClient, RegistryOperatorApiError } from './clients/api.js';
 import { RegistryOperatorMcpClient } from './clients/mcp.js';
-import { sha256Hex, verifyEnvelopeSignatures, verifyProvenanceSignature } from './clients/verify.js';
+import { sha256Hex, isTrustedKeyUsableAt, verifyEnvelopeSignatures, verifyProvenanceSignature } from './clients/verify.js';
 import {
   buildTransparencySampleGraphSpec,
   readTransparencySampleGraphSpec,
@@ -55,7 +55,7 @@ type CliCommand =
     }
   | {
       group: 'verify';
-      action: 'api' | 'mcp' | 'okta-config' | 'browser-session' | 'publication' | 'artifact' | 'provenance';
+      action: 'api' | 'mcp' | 'okta-config' | 'browser-session' | 'publication' | 'artifact' | 'provenance' | 'report-signatures';
       args: Record<string, string | boolean | string[] | undefined>;
     }
   | { group: 'bootstrap'; action: 'test'; args: Record<string, string | boolean | string[] | undefined> }
@@ -102,6 +102,7 @@ export async function runCli(argv: string[]) {
   if (command.action === 'publication') return await runVerifyPublication(env, command.args);
   if (command.action === 'artifact') return await runVerifyArtifact(env, command.args);
   if (command.action === 'provenance') return await runVerifyProvenance(env, command.args);
+  if (command.action === 'report-signatures') return await runVerifyReportSignatures(env, command.args);
       return await runVerifyBrowserSession(env, command.args);
     case 'bootstrap':
       return await runBootstrapTest(env, command.args);
@@ -126,7 +127,7 @@ export function parseArgs(argv: string[]): CliCommand {
   if (group === 'seed' && (action === 'skill' || action === 'agent' || action === 'bootstrap' || action === 'transparency-sample')) {
     return { group: 'seed', action, args };
   }
-  if (group === 'verify' && (action === 'api' || action === 'mcp' || action === 'okta-config' || action === 'browser-session' || action === 'publication' || action === 'artifact' || action === 'provenance')) {
+  if (group === 'verify' && (action === 'api' || action === 'mcp' || action === 'okta-config' || action === 'browser-session' || action === 'publication' || action === 'artifact' || action === 'provenance' || action === 'report-signatures')) {
     return { group: 'verify', action, args };
   }
   if (group === 'bootstrap' && action === 'test') {
@@ -576,6 +577,40 @@ async function runVerifyMcp(env: Env, args: Record<string, string | boolean | st
 // Non-strict mode passes for a publication with no signatures (vacuous
 // validity); --strict additionally requires the server verdict, at least one
 // valid signature, and a matching frozen-envelope artifact when present.
+/**
+ * Resolve trusted signing keys to their PEMs (stored as CAS artifacts),
+ * mirroring the registry's resolver: the key must be `trusted` and inside
+ * its validity window before its PEM is used. Revoked/expired/not-yet-valid
+ * keys stay absent so local verdicts match the server's
+ * `trusted_public_key_resolved` semantics (a revoked key's signatures must
+ * read as invalid, not verified).
+ */
+async function loadTrustedPublicKeyPems(
+  api: HttpRegistryOperatorApiClient,
+  keyRefs: Iterable<string>,
+  apiToken: string | undefined,
+): Promise<Map<string, string>> {
+  const publicKeys = new Map<string, string>();
+  const now = new Date().toISOString();
+  for (const keyRef of new Set(keyRefs)) {
+    if (!keyRef) continue;
+    try {
+      const key = await api.getPublicKey(keyRef, apiToken);
+      const publicKey = key['public_key'] as { properties?: Record<string, unknown> } | undefined;
+      const properties = publicKey?.properties;
+      if (!properties || !isTrustedKeyUsableAt(properties, now)) continue;
+      const artifacts = Array.isArray(key['artifacts']) ? (key['artifacts'] as Array<{ artifact_urn?: string }>) : [];
+      const sha = parseArtifactUrnSha256(artifacts[0]?.artifact_urn);
+      if (!sha) continue;
+      const { bytes } = await api.getArtifactBytes(sha, apiToken);
+      publicKeys.set(keyRef, new TextDecoder().decode(bytes));
+    } catch {
+      // Unresolvable or untrusted keys stay absent; their signatures fail verification.
+    }
+  }
+  return publicKeys;
+}
+
 async function runVerifyPublication(env: Env, args: Record<string, string | boolean | string[] | undefined>) {
   const skillKey = asString(args.skill);
   const agentKey = asString(args.agent);
@@ -608,25 +643,18 @@ async function runVerifyPublication(env: Env, args: Record<string, string | bool
       }>)
     : [];
 
-  // Resolve every trusted signing key to its PEM (stored as a CAS artifact).
-  // Keyless signatures carry no registered key: their trust policy lives with
-  // the registry, so their verdict is taken from the server verification.
-  const publicKeys = new Map<string, string>();
-  for (const keyRef of new Set(
-    signatures.filter((signature) => !signature.keyless).map((signature) => signature.key_ref).filter(Boolean),
-  )) {
-    if (!keyRef) continue;
-    try {
-      const key = await api.getPublicKey(keyRef, apiToken);
-      const artifacts = Array.isArray(key['artifacts']) ? (key['artifacts'] as Array<{ artifact_urn?: string }>) : [];
-      const sha = parseArtifactUrnSha256(artifacts[0]?.artifact_urn);
-      if (!sha) continue;
-      const { bytes } = await api.getArtifactBytes(sha, apiToken);
-      publicKeys.set(keyRef, new TextDecoder().decode(bytes));
-    } catch {
-      // Unresolvable keys stay absent; their signatures fail verification.
-    }
-  }
+  // Resolve every trusted signing key to its PEM, enforcing the same trust
+  // status + validity window as the registry. Keyless signatures carry no
+  // registered key: their trust policy lives with the registry, so their
+  // verdict is taken from the server verification.
+  const publicKeys = await loadTrustedPublicKeyPems(
+    api,
+    signatures
+      .filter((signature) => !signature.keyless)
+      .map((signature) => signature.key_ref)
+      .filter((keyRef): keyRef is string => Boolean(keyRef)),
+    apiToken,
+  );
 
   const clientVerdict = verifyEnvelopeSignatures({
     envelope: {
@@ -799,21 +827,13 @@ async function runVerifyProvenance(env: Env, args: Record<string, string | boole
       }>)
     : [];
 
-  // Resolve every trusted signing key to its PEM (stored as a CAS artifact).
-  const publicKeys = new Map<string, string>();
-  for (const keyRef of new Set(servedSignatures.map((row) => row.key_ref).filter(Boolean))) {
-    if (!keyRef) continue;
-    try {
-      const key = await api.getPublicKey(keyRef, apiToken);
-      const artifacts = Array.isArray(key['artifacts']) ? (key['artifacts'] as Array<{ artifact_urn?: string }>) : [];
-      const sha = parseArtifactUrnSha256(artifacts[0]?.artifact_urn);
-      if (!sha) continue;
-      const { bytes } = await api.getArtifactBytes(sha, apiToken);
-      publicKeys.set(keyRef, new TextDecoder().decode(bytes));
-    } catch {
-      // Unresolvable keys stay absent; their signatures fail verification.
-    }
-  }
+  // Resolve every trusted signing key to its PEM, enforcing the same trust
+  // status + validity window as the registry.
+  const publicKeys = await loadTrustedPublicKeyPems(
+    api,
+    servedSignatures.map((row) => row.key_ref).filter((keyRef): keyRef is string => Boolean(keyRef)),
+    apiToken,
+  );
 
   // Reproduce each verdict locally: fetch the stored signature record, the
   // canonical artifact it binds, and check the crypto against the key.
@@ -887,6 +907,145 @@ async function runVerifyProvenance(env: Env, args: Record<string, string | boole
 
   if (!verified) {
     throw new Error('Provenance did not verify.');
+  }
+}
+
+async function runVerifyReportSignatures(env: Env, args: Record<string, string | boolean | string[] | undefined>) {
+  const skillKey = asString(args.skill);
+  const agentKey = asString(args.agent);
+  const version = Number(asString(args.version));
+  const strict = args.strict === true;
+  const apiToken = asString(args['api-token']);
+  if ((!skillKey && !agentKey) || (skillKey && agentKey) || !Number.isInteger(version) || version <= 0) {
+    throw new Error(
+      'Usage: registry-operator verify report-signatures (--skill <key> | --agent <key>) --version <n> [--strict] [--api-token <token>]',
+    );
+  }
+
+  const api = new HttpRegistryOperatorApiClient({ apiOrigin: env.API_ORIGIN, extraHeaders: cfAccessHeaders(env) });
+  const served = skillKey
+    ? await api.getSkillReportSignatures(skillKey, version, apiToken)
+    : await api.getAgentReportSignatures(agentKey as string, version, apiToken);
+  const rows = Array.isArray(served['report_signatures'])
+    ? (served['report_signatures'] as Array<{
+        artifact_urn?: string;
+        key_ref?: string;
+        algorithm?: string;
+        report_artifact_urn?: string;
+        report_canonical_rdf_sha256?: string;
+      }>)
+    : [];
+
+  // Resolve every trusted signing key to its PEM, enforcing the same trust
+  // status + validity window as the registry.
+  const publicKeys = await loadTrustedPublicKeyPems(
+    api,
+    rows.map((row) => row.key_ref).filter((keyRef): keyRef is string => Boolean(keyRef)),
+    apiToken,
+  );
+
+  // Reproduce each verdict locally: the stored signature record, the target
+  // report (must still declare the signed digest), and the canonical RDF
+  // artifact the signature binds.
+  const signatures = [];
+  for (const row of rows) {
+    const recordSha = parseArtifactUrnSha256(row.artifact_urn);
+    let record: Record<string, unknown> | null = null;
+    try {
+      if (recordSha) {
+        const { bytes } = await api.getArtifactBytes(recordSha, apiToken);
+        record = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
+      }
+    } catch {
+      // Missing/unreadable signature record: the row fails verification.
+    }
+    const key_ref = typeof record?.['key_ref'] === 'string' ? record['key_ref'] : (row.key_ref ?? '');
+    const algorithm = typeof record?.['algorithm'] === 'string' ? record['algorithm'] : (row.algorithm ?? '');
+    const report_artifact_urn =
+      typeof record?.['report_artifact_urn'] === 'string' ? record['report_artifact_urn'] : (row.report_artifact_urn ?? '');
+    const report_canonical_rdf_sha256 =
+      typeof record?.['report_canonical_rdf_sha256'] === 'string'
+        ? record['report_canonical_rdf_sha256']
+        : (row.report_canonical_rdf_sha256 ?? '');
+    const signature = typeof record?.['signature'] === 'string' ? record['signature'] : undefined;
+
+    const failRow = {
+      key_ref,
+      algorithm,
+      report_artifact_present: false,
+      digest_matches: false,
+      signature_valid: false,
+      verdict: 'invalid' as const,
+    };
+    if (!signature || !report_canonical_rdf_sha256) {
+      signatures.push(failRow);
+      continue;
+    }
+
+    const reportSha = parseArtifactUrnSha256(report_artifact_urn);
+    let report_artifact_present = false;
+    try {
+      if (reportSha) {
+        const { bytes } = await api.getArtifactBytes(reportSha, apiToken);
+        const parsed = JSON.parse(new TextDecoder().decode(bytes)) as {
+          payload?: { rdf?: { canonical_rdf_sha256?: string } };
+        };
+        report_artifact_present = parsed.payload?.rdf?.canonical_rdf_sha256 === report_canonical_rdf_sha256;
+      }
+    } catch {
+      report_artifact_present = false;
+    }
+
+    let signedBytes: Uint8Array | null = null;
+    try {
+      const { bytes } = await api.getArtifactBytes(report_canonical_rdf_sha256, apiToken);
+      signedBytes = bytes;
+    } catch {
+      // Missing/unreadable canonical artifact: the signature fails verification.
+    }
+
+    if (!signedBytes) {
+      signatures.push({ ...failRow, report_artifact_present });
+      continue;
+    }
+    const check = verifyProvenanceSignature({
+      canonicalRdfBytes: signedBytes,
+      signature: { key_ref, algorithm, provenance_sha256: report_canonical_rdf_sha256, signature },
+      resolvePublicKey: (ref) => publicKeys.get(ref),
+    });
+    signatures.push({
+      key_ref: check.key_ref,
+      algorithm: check.algorithm,
+      report_artifact_present,
+      digest_matches: check.digest_matches,
+      signature_valid: check.signature_valid,
+      verdict: report_artifact_present && check.verdict === 'valid' ? ('valid' as const) : ('invalid' as const),
+    });
+  }
+
+  const validSignatures = signatures.filter((check) => check.verdict === 'valid').length;
+  const invalidSignatures = signatures.filter((check) => check.verdict === 'invalid').length;
+
+  const strictFailures = strict && validSignatures === 0 ? ['no valid report signature'] : [];
+  const verified = invalidSignatures === 0 && strictFailures.length === 0;
+
+  console.log(
+    JSON.stringify(
+      {
+        strict,
+        report_signatures: signatures,
+        valid_signatures: validSignatures,
+        invalid_signatures: invalidSignatures,
+        strict_failures: strictFailures,
+        verdict: verified ? 'verified' : 'unverified',
+      },
+      null,
+      2,
+    ),
+  );
+
+  if (!verified) {
+    throw new Error('Report signatures did not verify.');
   }
 }
 

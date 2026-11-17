@@ -6174,6 +6174,12 @@ export class DefaultRegistryService implements RegistryService {
       const intent = node ? readTransparencyAppendIntentFromProperties(node.properties) : null;
       if (intent) intents.push(intent);
     }
+    const reportSignatureEdges = await this.deps.graph.listEdgesFrom(input.publication_urn, 'sg:hasReportSignature');
+    for (const edge of reportSignatureEdges) {
+      const node = await this.deps.graph.getNode(edge.to_urn);
+      const intent = node ? readTransparencyAppendIntentFromProperties(node.properties) : null;
+      if (intent) intents.push(intent);
+    }
     const uniqueIntents = [...new Map(intents.map((intent) => [intent.request_id, intent])).values()];
 
     const reconciledAt = nowIso();
@@ -6692,7 +6698,8 @@ export class DefaultRegistryService implements RegistryService {
       | 'review_evidence'
       | 'provenance_signature'
       | 'provenance_export'
-      | 'validation_report_rdf';
+      | 'validation_report_rdf'
+      | 'validation_report_signature';
     logical_key: string;
     publication_urn: string;
     sha256: string;
@@ -7017,6 +7024,310 @@ export class DefaultRegistryService implements RegistryService {
       provenance_sha256: String(node.properties['provenance_sha256'] ?? ''),
       signature: String(node.properties['signature'] ?? ''),
     };
+  }
+
+  async createAgentReportSignature(
+    input: { agent_key: string; version: number } & import('../ports/registry-service.js').RegistryReportSignatureInput,
+  ): Promise<CreateResult<import('../ports/registry-service.js').RegistryReportSignatureRecord>> {
+    const version = await this.getAgentVersion(input);
+    if (!version) {
+      throw new RegistryCoreError('AGENT_VERSION_NOT_FOUND', 'Agent version not found.');
+    }
+    return await this.attachReportSignature({
+      publication_urn: version.agent_version.urn,
+      logical_key: input.agent_key,
+      errorPrefix: 'AGENT_VERSION',
+      signature: input,
+    });
+  }
+
+  async createSkillReportSignature(
+    input: { skill_key: string; version: number } & import('../ports/registry-service.js').RegistryReportSignatureInput,
+  ): Promise<CreateResult<import('../ports/registry-service.js').RegistryReportSignatureRecord>> {
+    const version = await this.getSkillVersion(input);
+    if (!version) {
+      throw new RegistryCoreError('SKILL_VERSION_NOT_FOUND', 'Skill version not found.');
+    }
+    return await this.attachReportSignature({
+      publication_urn: version.skill_version.urn,
+      logical_key: input.skill_key,
+      errorPrefix: 'SKILL_VERSION',
+      signature: input,
+    });
+  }
+
+  /**
+   * Attach a detached signature over a specific validation report artifact's
+   * canonical RDF export. Fail-closed: the target must be one of the
+   * version's `sg:validatedBy` reports carrying an RDF representation, the
+   * key must resolve to a trusted, unexpired key, and the signature must
+   * verify over the canonical N-Quads bytes. Reports are immutable, so
+   * signatures are valid or invalid — never stale.
+   */
+  private async attachReportSignature(input: {
+    publication_urn: string;
+    logical_key: string;
+    errorPrefix: 'SKILL_VERSION' | 'AGENT_VERSION';
+    signature: import('../ports/registry-service.js').RegistryReportSignatureInput;
+  }): Promise<CreateResult<import('../ports/registry-service.js').RegistryReportSignatureRecord>> {
+    const governanceRefs = await this.loadGovernanceArtifacts(input.publication_urn);
+    const reportRefs = governanceRefs.filter((ref) => ref.role === 'validation_report');
+    const target = reportRefs.find((ref) => ref.artifact_urn === input.signature.report_artifact_urn);
+    if (!target) {
+      throw new RegistryCoreError(
+        `${input.errorPrefix}_REPORT_SIGNATURE_TARGET_INVALID`,
+        'The report_artifact_urn is not one of this version\'s validation report artifacts.',
+      );
+    }
+    const reportBytes = await this.getArtifactBytes({ artifact_urn: target.artifact_urn });
+    let reportCanonicalSha: string | null = null;
+    if (reportBytes) {
+      try {
+        const parsed = JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(reportBytes.bytes)) as {
+          payload?: { validator?: string; rdf?: { canonical_rdf_sha256?: string } };
+        };
+        if (parsed.payload?.validator === 'shacl-v1' && typeof parsed.payload.rdf?.canonical_rdf_sha256 === 'string') {
+          reportCanonicalSha = parsed.payload.rdf.canonical_rdf_sha256;
+        }
+      } catch {
+        reportCanonicalSha = null;
+      }
+    }
+    if (!reportCanonicalSha) {
+      throw new RegistryCoreError(
+        `${input.errorPrefix}_REPORT_SIGNATURE_TARGET_INVALID`,
+        'The target report has no standardized RDF representation to sign.',
+      );
+    }
+    const resolvedKey = await this.resolveTrustedPublicKeyMaterial(input.signature.key_ref);
+    if (!resolvedKey) {
+      throw new RegistryCoreError(
+        `${input.errorPrefix}_REPORT_SIGNATURE_KEY_UNTRUSTED`,
+        'Signature key_ref does not resolve to a trusted, unexpired public key.',
+      );
+    }
+    const canonicalArtifact = await this.readCasArtifact(reportCanonicalSha);
+    const canonicalBytes = canonicalArtifact ? Buffer.from(canonicalArtifact.bytes) : null;
+    if (!canonicalBytes) {
+      throw new RegistryCoreError(
+        `${input.errorPrefix}_REPORT_SIGNATURE_TARGET_INVALID`,
+        'The report canonical RDF artifact could not be read.',
+      );
+    }
+    const verified = verifyDetachedSignatureBytes({
+      algorithm: input.signature.algorithm,
+      public_key_pem: resolvedKey.public_key_pem,
+      message: canonicalBytes.toString('utf8'),
+      signature: input.signature.signature,
+    });
+    if (!verified) {
+      throw new RegistryCoreError(
+        `${input.errorPrefix}_REPORT_SIGNATURE_INVALID`,
+        'Signature does not verify over the report canonical RDF bytes.',
+      );
+    }
+
+    // Idempotent for an identical re-attach; conflicting duplicates fail.
+    const existingEdges = await this.deps.graph.listEdgesFrom(input.publication_urn, 'sg:hasReportSignature');
+    for (const edge of existingEdges) {
+      const node = await this.deps.graph.getNode(edge.to_urn);
+      if (
+        node &&
+        stringOrUndefined(node.properties['key_ref']) === input.signature.key_ref &&
+        stringOrUndefined(node.properties['report_canonical_rdf_sha256']) === reportCanonicalSha
+      ) {
+        if (stringOrUndefined(node.properties['signature']) === input.signature.signature) {
+          return { created: false, value: this.toReportSignatureRecord(node) };
+        }
+        throw new RegistryCoreError(
+          `${input.errorPrefix}_REPORT_SIGNATURE_CONFLICT`,
+          'A different report signature from this key already exists for this report.',
+        );
+      }
+    }
+
+    const signed_at = nowIso();
+    const content = canonicalJsonString({
+      publication_urn: input.publication_urn,
+      report_artifact_urn: target.artifact_urn,
+      report_canonical_rdf_sha256: reportCanonicalSha,
+      signer: input.signature.signer,
+      key_ref: input.signature.key_ref,
+      algorithm: input.signature.algorithm,
+      signed_at,
+      signature: input.signature.signature,
+    });
+    const artifact = await this.deps.cas.put({
+      bytes: Buffer.from(content, 'utf8'),
+      media_type: 'application/json',
+      original_path: `generated/report-signature/${sanitizePathSegment(input.logical_key)}.json`,
+    });
+    const artifactNodeUrn = artifactUrn(artifact.sha256);
+    await this.deps.graph.upsertNode({
+      urn: artifactNodeUrn,
+      entity_type: 'ARTIFACT',
+      properties: {
+        sha256: artifact.sha256,
+        size_bytes: artifact.size_bytes,
+        media_type: artifact.media_type,
+        original_path: artifact.original_path,
+        governance_role: 'validation_report_signature',
+        signer: input.signature.signer,
+        key_ref: input.signature.key_ref,
+        algorithm: input.signature.algorithm,
+        signed_at,
+        report_artifact_urn: target.artifact_urn,
+        report_canonical_rdf_sha256: reportCanonicalSha,
+        signature: input.signature.signature,
+      },
+    });
+    await this.deps.graph.upsertEdge({
+      from_urn: input.publication_urn,
+      to_urn: artifactNodeUrn,
+      predicate: 'sg:hasReportSignature',
+      properties: {},
+    });
+    await this.attachGovernanceArtifactAppendIntent({
+      artifact_urn: artifactNodeUrn,
+      role: 'validation_report_signature',
+      logical_key: input.logical_key,
+      publication_urn: input.publication_urn,
+      sha256: artifact.sha256,
+      payload: {
+        publication_urn: input.publication_urn,
+        report_artifact_urn: target.artifact_urn,
+        report_canonical_rdf_sha256: reportCanonicalSha,
+        signer: input.signature.signer,
+        key_ref: input.signature.key_ref,
+      },
+    });
+    const node = await this.deps.graph.getNode(artifactNodeUrn);
+    if (!node) {
+      throw new RegistryCoreError(
+        `${input.errorPrefix}_REPORT_SIGNATURE_CONFLICT`,
+        'Failed to store the report signature.',
+      );
+    }
+    return { created: true, value: this.toReportSignatureRecord(node) };
+  }
+
+  private toReportSignatureRecord(node: {
+    urn: string;
+    properties: Record<string, unknown>;
+  }): import('../ports/registry-service.js').RegistryReportSignatureRecord {
+    return {
+      artifact_urn: node.urn,
+      ...toOptionalStringProp('sha256', stringOrUndefined(node.properties['sha256']) ?? parseArtifactSha256(node.urn)),
+      signer: String(node.properties['signer'] ?? ''),
+      key_ref: String(node.properties['key_ref'] ?? ''),
+      algorithm: String(node.properties['algorithm'] ?? ''),
+      signed_at: String(node.properties['signed_at'] ?? ''),
+      report_artifact_urn: String(node.properties['report_artifact_urn'] ?? ''),
+      report_canonical_rdf_sha256: String(node.properties['report_canonical_rdf_sha256'] ?? ''),
+      signature: String(node.properties['signature'] ?? ''),
+    };
+  }
+
+  /**
+   * Re-verify every stored report signature on read: the target report and
+   * its canonical artifact must be retrievable (and the report must still
+   * declare the signed digest), the key must resolve, and the crypto must
+   * pass — otherwise the row is `invalid`.
+   */
+  private async buildReportSignatureChecks(
+    publicationUrn: string,
+  ): Promise<import('../ports/registry-service.js').RegistryReportSignatureVerification[]> {
+    const edges = await this.deps.graph.listEdgesFrom(publicationUrn, 'sg:hasReportSignature');
+    const checks: import('../ports/registry-service.js').RegistryReportSignatureVerification[] = [];
+    for (const edge of edges) {
+      const node = await this.deps.graph.getNode(edge.to_urn);
+      if (!node || node.entity_type !== 'ARTIFACT') continue;
+      const signer = stringOrUndefined(node.properties['signer']);
+      const key_ref = stringOrUndefined(node.properties['key_ref']);
+      const algorithm = stringOrUndefined(node.properties['algorithm']);
+      const signed_at = stringOrUndefined(node.properties['signed_at']);
+      const report_artifact_urn = stringOrUndefined(node.properties['report_artifact_urn']);
+      const report_canonical_rdf_sha256 = stringOrUndefined(node.properties['report_canonical_rdf_sha256']);
+      const signature = stringOrUndefined(node.properties['signature']);
+      if (
+        !signer ||
+        !key_ref ||
+        !algorithm ||
+        !signed_at ||
+        !report_artifact_urn ||
+        !report_canonical_rdf_sha256 ||
+        !signature
+      ) {
+        continue;
+      }
+
+      let report_artifact_present = false;
+      const reportSha = parseArtifactSha256(report_artifact_urn);
+      if (reportSha) {
+        try {
+          const reportBytes = await this.readCasArtifact(reportSha);
+          if (reportBytes) {
+            const parsed = JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(reportBytes.bytes)) as {
+              payload?: { rdf?: { canonical_rdf_sha256?: string } };
+            };
+            report_artifact_present = parsed.payload?.rdf?.canonical_rdf_sha256 === report_canonical_rdf_sha256;
+          }
+        } catch {
+          report_artifact_present = false;
+        }
+      }
+      let canonicalBytes: Buffer | null = null;
+      try {
+        const canonicalArtifact = await this.readCasArtifact(report_canonical_rdf_sha256);
+        canonicalBytes = canonicalArtifact ? Buffer.from(canonicalArtifact.bytes) : null;
+      } catch {
+        canonicalBytes = null;
+      }
+      const resolvedKey = await this.resolveTrustedPublicKeyMaterial(key_ref);
+      const cryptographic_verification_passed =
+        canonicalBytes !== null && resolvedKey
+          ? verifyDetachedSignatureBytes({
+              algorithm,
+              public_key_pem: resolvedKey.public_key_pem,
+              message: canonicalBytes.toString('utf8'),
+              signature,
+            })
+          : false;
+      const verdict: 'valid' | 'invalid' =
+        report_artifact_present &&
+        canonicalBytes !== null &&
+        resolvedKey &&
+        cryptographic_verification_passed
+          ? 'valid'
+          : 'invalid';
+      checks.push({
+        artifact_urn: node.urn,
+        signer,
+        key_ref,
+        algorithm,
+        signed_at,
+        report_artifact_urn,
+        report_canonical_rdf_sha256,
+        report_artifact_present,
+        canonical_artifact_present: canonicalBytes !== null,
+        trusted_public_key_resolved: Boolean(resolvedKey),
+        cryptographic_verification_passed,
+        verdict,
+      });
+    }
+    checks.sort(
+      (left, right) =>
+        left.key_ref.localeCompare(right.key_ref) ||
+        left.signed_at.localeCompare(right.signed_at) ||
+        left.artifact_urn.localeCompare(right.artifact_urn),
+    );
+    return checks;
+  }
+
+  async getPublicationReportSignatures(input: {
+    publication_urn: string;
+  }): Promise<import('../ports/registry-service.js').RegistryReportSignatureVerification[]> {
+    return await this.buildReportSignatureChecks(input.publication_urn);
   }
 
   async getPublicationProvenance(input: { publication_urn: string }): Promise<import('../ports/registry-service.js').RegistryPublicationProvenance | null> {

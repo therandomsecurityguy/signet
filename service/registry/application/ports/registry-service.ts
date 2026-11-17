@@ -820,6 +820,45 @@ export type RegistryProvenanceSignatureVerification = {
   verdict: 'valid' | 'invalid' | 'stale';
 };
 
+export type RegistryReportSignatureInput = {
+  /** One of the version's `sg:validatedBy` report artifacts (SHACL report with an RDF export). */
+  report_artifact_urn: string;
+  signer: string;
+  key_ref: string;
+  algorithm: string;
+  signature: string;
+};
+
+export type RegistryReportSignatureRecord = {
+  artifact_urn: string;
+  sha256?: string;
+  signer: string;
+  key_ref: string;
+  algorithm: string;
+  signed_at: string;
+  report_artifact_urn: string;
+  report_canonical_rdf_sha256: string;
+  signature: string;
+};
+
+export type RegistryReportSignatureVerification = {
+  artifact_urn: string;
+  signer: string;
+  key_ref: string;
+  algorithm: string;
+  signed_at: string;
+  report_artifact_urn: string;
+  report_canonical_rdf_sha256: string;
+  /** The target report artifact is retrievable and still declares this digest. */
+  report_artifact_present: boolean;
+  /** The canonical N-Quads artifact the signature binds is retrievable. */
+  canonical_artifact_present: boolean;
+  trusted_public_key_resolved: boolean;
+  cryptographic_verification_passed: boolean;
+  /** Reports are immutable: signatures are valid or invalid, never stale. */
+  verdict: 'valid' | 'invalid';
+};
+
 export type RegistryPublicationProvenance = {
   entity: { urn: string; entity_type: string };
   derivation_chain: Array<{
@@ -1162,6 +1201,12 @@ export interface RegistryService {
   createAgentProvenanceSignature(
     input: { agent_key: string; version: number } & RegistryProvenanceSignatureInput,
   ): Promise<CreateResult<RegistryProvenanceSignatureRecord>>;
+  createAgentReportSignature(
+    input: { agent_key: string; version: number } & RegistryReportSignatureInput,
+  ): Promise<CreateResult<RegistryReportSignatureRecord>>;
+  getPublicationReportSignatures(input: {
+    publication_urn: string;
+  }): Promise<RegistryReportSignatureVerification[]>;
   createAgentDraft(input: CreateAgentDraftInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
   validateAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
   prepareAgentPublication(input: AgentVersionOperationInput): Promise<RegistryPreparedPublication>;
@@ -1221,6 +1266,9 @@ export interface RegistryService {
   createSkillProvenanceSignature(
     input: { skill_key: string; version: number } & RegistryProvenanceSignatureInput,
   ): Promise<CreateResult<RegistryProvenanceSignatureRecord>>;
+  createSkillReportSignature(
+    input: { skill_key: string; version: number } & RegistryReportSignatureInput,
+  ): Promise<CreateResult<RegistryReportSignatureRecord>>;
 
   getArtifact(input: { sha256?: string; artifact_urn?: string }): Promise<RegistryArtifactDetails | null>;
   getArtifactBytes(input: { sha256?: string; artifact_urn?: string }): Promise<RegistryArtifactBytes | null>;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateKeyPairSync, sign as signBytes } from 'node:crypto';
 
-import { sha256Hex, verifyDetachedSignature, verifyEnvelopeSignatures, verifyProvenanceSignature } from '../src/clients/verify.js';
+import { sha256Hex, isTrustedKeyUsableAt, verifyDetachedSignature, verifyEnvelopeSignatures, verifyProvenanceSignature } from '../src/clients/verify.js';
 
 function ed25519() {
   const { publicKey, privateKey } = generateKeyPairSync('ed25519');
@@ -23,6 +23,24 @@ describe('registry-operator verification helpers', () => {
       verifyDetachedSignature({ algorithm: 'ed25519', publicKeyPem, message: '{"canonical":false}', signature }),
     ).toBe(false);
     expect(verifyDetachedSignature({ algorithm: 'ed25519', publicKeyPem, message, signature: 'raw' })).toBe(false);
+  });
+
+  it('mirrors the registry trusted-key resolver (status + validity window)', () => {
+    const now = '2026-11-17T00:00:00.000Z';
+    // Trusted with no window bounds: usable.
+    expect(isTrustedKeyUsableAt({ trust_status: 'trusted' }, now)).toBe(true);
+    // Revoked or otherwise untrusted: never usable, even inside the window.
+    expect(isTrustedKeyUsableAt({ trust_status: 'revoked', valid_from: '2026-01-01T00:00:00.000Z' }, now)).toBe(false);
+    expect(isTrustedKeyUsableAt({ trust_status: 'pending' }, now)).toBe(false);
+    expect(isTrustedKeyUsableAt({}, now)).toBe(false);
+    // Window bounds: valid_from inclusive, valid_to exclusive.
+    expect(isTrustedKeyUsableAt({ trust_status: 'trusted', valid_from: '2026-12-31T00:00:00.000Z' }, now)).toBe(false);
+    expect(isTrustedKeyUsableAt({ trust_status: 'trusted', valid_to: '2026-11-16T00:00:00.000Z' }, now)).toBe(false);
+    expect(isTrustedKeyUsableAt({ trust_status: 'trusted', valid_to: '2026-11-18T00:00:00.000Z' }, now)).toBe(true);
+    expect(isTrustedKeyUsableAt({ trust_status: 'trusted', valid_to: now }, now)).toBe(false);
+    expect(isTrustedKeyUsableAt({ trust_status: 'trusted', valid_from: now, valid_to: '2026-11-18T00:00:00.000Z' }, now)).toBe(true);
+    // Non-string bounds are ignored, matching the server's stringOrUndefined.
+    expect(isTrustedKeyUsableAt({ trust_status: 'trusted', valid_to: 123 as unknown as string }, now)).toBe(true);
   });
 
   it('classifies provenance signatures as valid, stale, or invalid', () => {

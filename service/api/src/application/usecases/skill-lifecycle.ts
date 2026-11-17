@@ -67,6 +67,28 @@ export class SkillLifecycleUseCase {
     return await this.registry.createSkillProvenanceSignature(input);
   }
 
+  async createReportSignature(input: {
+    skill_key: string;
+    version: number;
+    report_artifact_urn: string;
+    signer: string;
+    key_ref: string;
+    algorithm: string;
+    signature: string;
+  }) {
+    return await this.registry.createSkillReportSignature(input);
+  }
+
+  async getReportSignatures(input: { skill_key: string; version: number }) {
+    const version = await this.registry.getSkillVersion(input);
+    if (!version) return null;
+    return {
+      report_signatures: await this.registry.getPublicationReportSignatures({
+        publication_urn: version.skill_version.urn,
+      }),
+    };
+  }
+
   async attachAttestation(input: {
     publication_urn: string;
     signer: string;
