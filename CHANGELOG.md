@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.62](https://github.com/therandomsecurityguy/signet/compare/v0.1.61...v0.1.62) (2026-11-17)
+
+
+### Features
+
+* **registry:** transparency append intents for evidence artifacts (PR A) ([3b24280](https://github.com/therandomsecurityguy/signet/commit/3b24280d14a5ef0354c72ea37c3bcad6740de7ed))
+* **registry:** transparency append intents for evidence artifacts (PR A) ([76bdc6c](https://github.com/therandomsecurityguy/signet/commit/76bdc6c819151e97def3b86199c51d9667b84ff9))
+
 ## [0.1.61](https://github.com/therandomsecurityguy/signet/compare/v0.1.60...v0.1.61) (2026-11-17)
 
 
