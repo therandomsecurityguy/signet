@@ -86,7 +86,8 @@ const verification = await client.getSkillVerification('skill:example', 1);
 | GET | `/v1/agents/{agentKey}/active` | Resolve active version |
 | GET | `/v1/agents/{agentKey}/versions/{version}/publication-envelope` | Publication envelope |
 | GET | `/v1/agents/{agentKey}/versions/{version}/verification` | Publication verification |
-| GET | `/v1/agents/{agentKey}/versions/{version}/provenance` | PROV-O provenance |
+| GET | `/v1/agents/{agentKey}/versions/{version}/provenance` | PROV-O provenance (structured or `?format=jsonld`) |
+| POST | `/v1/agents/{agentKey}/versions/{version}/provenance/signatures` | Attach a detached provenance signature |
 | POST | `/v1/agents/{agentKey}/drafts` | Create draft version |
 | POST | `/v1/agents/{agentKey}/versions/{version}/signatures` | Attach detached signature |
 | POST | `/v1/agents/{agentKey}/versions/{version}/validate` | Validate version |
@@ -109,7 +110,8 @@ const verification = await client.getSkillVerification('skill:example', 1);
 | GET | `/v1/skills/{skillKey}/active` | Resolve active version |
 | GET | `/v1/skills/{skillKey}/versions/{version}/publication-envelope` | Publication envelope |
 | GET | `/v1/skills/{skillKey}/versions/{version}/verification` | Publication verification |
-| GET | `/v1/skills/{skillKey}/versions/{version}/provenance` | PROV-O provenance |
+| GET | `/v1/skills/{skillKey}/versions/{version}/provenance` | PROV-O provenance (structured or `?format=jsonld`) |
+| POST | `/v1/skills/{skillKey}/versions/{version}/provenance/signatures` | Attach a detached provenance signature |
 | POST | `/v1/skills/{skillKey}/drafts` | Create draft version |
 | POST | `/v1/skills/{skillKey}/versions/{version}/signatures` | Attach detached signature |
 | POST | `/v1/skills/{skillKey}/versions/{version}/validate` | Validate version |
@@ -148,6 +150,36 @@ Publication verification responses include frozen-envelope fields:
 `live_envelope_matches_frozen_artifact`. The envelope response exposes
 `publication_envelope_artifact_urn` and `publication_envelope_sha256`; see
 `docs/registry-model.md` for the freeze semantics.
+
+### Provenance evidence
+
+`GET .../versions/:v/provenance` returns the structured PROV view plus an
+`evidence` block: `canonical_rdf_sha256` (SHA-256 over the RDFC-1.0
+canonical N-Quads of the export) and `canonical_rdf_artifact_urn` (fetch the
+canonical bytes via `GET /v1/artifacts/{sha256}`). `?format=jsonld` serves
+the same triple list as a PROV-O JSON-LD document.
+
+Detached signatures over the canonical export are attached at
+`POST .../versions/:v/provenance/signatures` with
+`{ signer, key_ref, algorithm, signature, provenance_sha256? }`:
+
+- the key must resolve to a trusted, unexpired public key and the signature
+  must verify over the **current** canonical export; an explicit
+  `provenance_sha256` that is not current is rejected as stale
+  (`..._PROVENANCE_SIGNATURE_STALE`) — re-fetch and re-sign;
+- identical re-attach is idempotent; a different valid signature from the
+  same key over the same digest returns `409 ..._CONFLICT`;
+- reads re-verify every signature and return `provenance_signatures[]` rows
+  with `verdict: "valid" | "invalid" | "stale"` (`stale` = verified over an
+  earlier export that the trail has since outgrown; the signed export stays
+  retrievable at its digest), plus `all_provenance_signatures_verified`
+  (at least one signature, none invalid) and `current_provenance_signed`.
+
+Validation report artifacts (linked via `sg:validatedBy`) carry an `rdf`
+block: `format: "jsonld"`, a `sh:ValidationReport` document mapping each
+layer and `sh:ValidationResult` 1:1 (SHACL result vocabulary; layer
+metadata as `urn:sg:` literals), plus its own `canonical_rdf_sha256` and
+canonical artifact (RDFC-1.0 over the same triple list).
 
 ### Policy / ontology / vocabulary
 

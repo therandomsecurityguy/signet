@@ -92,6 +92,9 @@ Implemented now:
 - certification bound to registered ontology packages (`ONTOLOGY_PACKAGE_NOT_FOUND` when unbound)
 - PROV-O provenance: TASK records as `prov:Activity`, versions/artifacts as `prov:Entity`, `PROV_AGENT` records as `prov:Agent`, with `prov:wasDerivedFrom`, `prov:wasGeneratedBy`, `prov:used`, and `prov:wasAssociatedWith` edges written at lifecycle operations
 - provenance traversal and audit replay endpoints (`GET .../versions/:v/provenance`) plus the read-only `registry.get_provenance` MCP tool
+- canonical provenance export: deterministic PROV-O projection (one triple builder → canonical N-Quads + JSON-LD), RDFC-1.0 digest stored as a content-addressed artifact and carried on every provenance response (`evidence.canonical_rdf_sha256`), with `?format=jsonld` on the skill/agent provenance routes
+- detached provenance signatures (`POST .../provenance/signatures`, trusted keys; keyless deferred — needs prepared signed bytes): fail-closed attach over the current export (stale digests rejected, conflicting duplicates 409, identical re-attach idempotent); reads re-verify each signature as `valid`/`invalid`/`stale` (`stale` = signed before the trail grew, signed export still retrievable at its digest) with `all_provenance_signatures_verified` + `current_provenance_signed`; SDK `verifyProvenanceSignature` and `registry-operator verify provenance [--strict]` reproduce verdicts locally
+- validation reports as standardized RDF: report artifacts carry a `sh:ValidationReport` JSON-LD representation (SHACL result vocabulary 1:1, layer metadata as `urn:sg:` literals) with its own RDFC-1.0 canonical digest + artifact
 - GitHub Actions CI for service/api, service/mcp (including the cognitive layer), service/tessera-sidecar, client/registry-sdk, and client/registry-cli (typecheck, lint, tests), plus an OpenAPI spec/SDK type sync check and npm publish workflows for the SDK and CLI
 - canonical governance event JSON (JCS) and digests for all lifecycle operations, stored as immutable CAS artifacts
 - internal append-only Merkle log with RFC 6962 inclusion-proof generation and verifier replay (`/v1/governance-log*`)
@@ -111,6 +114,7 @@ Implemented now:
 
 Proposed next:
 - richer SHACL engine coverage beyond the executed Core constraint components (SHACL-SPARQL constraints, SHACL-AF rules)
+- signed validation reports riding the provenance-signature seam; transparency append intents for provenance exports, provenance signatures, and validation-report RDF
 - normative ontologies encoded as first-class RDF/OWL vocabularies
 - richer de facto ontology mining (runtime observations, corpus analysis)
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures over provenance graphs)

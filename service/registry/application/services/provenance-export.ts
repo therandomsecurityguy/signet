@@ -11,8 +11,8 @@
  *   the bijection), so a consumer can trust either representation;
  * - emission is fully sorted, and RDFC-1.0 canonicalization is order-stable,
  *   so the digest is byte-stable across runs and storage backends;
- * - the digest is the anchor future work signs (detached signatures over
- *   canonical RDF bind to `canonical_rdf_sha256`, PR 2).
+ * - detached provenance signatures bind to `canonical_rdf_sha256` (see the
+ *   provenance signature verification in the registry service).
  *
  * Vocabulary: PROV-O for the graph shape (prov:Entity/Activity/Agent,
  * wasDerivedFrom/wasGeneratedBy/used/wasAssociatedWith) plus the registry's
@@ -22,10 +22,18 @@
 
 import type { RegistryPublicationProvenance } from '../ports/registry-service.js';
 import { computeCanonicalRdf } from './rdf-projection.js';
-import { assertValidIri, entityTypeIri, literalTerm, SG_PROPERTY_PREFIX } from './sg-vocabulary.js';
+import {
+  dedupeAndSortTriples,
+  triplesToJsonLdGraph,
+  triplesToNQuads,
+  RDF_TYPE_IRI as RDF_TYPE,
+  type JsonLdGraphNode,
+  type RdfTriple,
+  type RdfTripleObject,
+} from './rdf-triples.js';
+import { entityTypeIri, SG_PROPERTY_PREFIX } from './sg-vocabulary.js';
 
 const PROV = 'http://www.w3.org/ns/prov#';
-const RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 
 /** The provenance view is the input; evidence/signature fields are computed here. */
 export type ProvenanceExportInput = Omit<
@@ -33,15 +41,8 @@ export type ProvenanceExportInput = Omit<
   'evidence' | 'provenance_signatures' | 'all_provenance_signatures_verified' | 'current_provenance_signed'
 >;
 
-export type ProvenanceTripleObject =
-  | { kind: 'iri'; value: string }
-  | { kind: 'literal'; value: string };
-
-export type ProvenanceTriple = {
-  subject: string;
-  predicate: string;
-  object: ProvenanceTripleObject;
-};
+export type ProvenanceTripleObject = RdfTripleObject;
+export type ProvenanceTriple = RdfTriple;
 
 /**
  * Deterministic PROV-O triple list for a provenance view. All collections
@@ -103,33 +104,12 @@ export function buildProvenanceTriples(provenance: ProvenanceExportInput): Prove
     }
   }
 
-  // RDF is a set: repeated statements (e.g. one agent associated with
-  // several activities re-asserts its type/name) collapse to one triple.
-  const deduped = [...new Map(triples.map((triple) => [
-    JSON.stringify([triple.subject, triple.predicate, triple.object.kind, triple.object.value]),
-    triple,
-  ])).values()];
-
-  return deduped.sort((left, right) => {
-    if (left.subject !== right.subject) return left.subject < right.subject ? -1 : 1;
-    if (left.predicate !== right.predicate) return left.predicate < right.predicate ? -1 : 1;
-    if (left.object.kind !== right.object.kind) return left.object.kind < right.object.kind ? -1 : 1;
-    if (left.object.value !== right.object.value) return left.object.value < right.object.value ? -1 : 1;
-    return 0;
-  });
+  return dedupeAndSortTriples(triples);
 }
 
 /** N-Quads emission for the triple list (sorted, guards IRIs, escaped literals). */
 export function provenanceTriplesToNQuads(triples: ProvenanceTriple[]): string[] {
-  return triples.map((triple) => {
-    assertValidIri(triple.subject, 'provenance subject');
-    assertValidIri(triple.predicate, 'provenance predicate');
-    const object =
-      triple.object.kind === 'iri'
-        ? (assertValidIri(triple.object.value, 'provenance object'), `<${triple.object.value}>`)
-        : literalTerm(triple.object.value);
-    return `<${triple.subject}> <${triple.predicate}> ${object} .`;
-  });
+  return triplesToNQuads(triples);
 }
 
 /** Canonicalize the provenance export with RDFC-1.0; the digest is the signature anchor. */
@@ -139,11 +119,7 @@ export async function canonicalizeProvenance(
   return await computeCanonicalRdf(provenanceTriplesToNQuads(buildProvenanceTriples(provenance)));
 }
 
-export type ProvenanceJsonLdNode = {
-  '@id': string;
-  '@type'?: string[];
-  [predicate: string]: unknown;
-};
+export type ProvenanceJsonLdNode = JsonLdGraphNode;
 
 export type ProvenanceJsonLd = {
   '@context': { prov: string; sg: string };
@@ -158,52 +134,11 @@ function compactPredicate(predicate: string): string {
 
 /**
  * JSON-LD representation derived from the same triple list as the canonical
- * form (bijection asserted by the equivalence test): `@type` carries the
- * rdf:type IRIs, other predicates are compacted where the context defines a
- * prefix, and object values are `@id`/`@value` objects. Nodes and value
- * lists are sorted for stable documents.
+ * form (bijection asserted by the equivalence test).
  */
 export function projectProvenanceToJsonLd(provenance: ProvenanceExportInput): ProvenanceJsonLd {
-  const triples = buildProvenanceTriples(provenance);
-  const typesBySubject = new Map<string, Set<string>>();
-  const predicatesBySubject = new Map<string, Map<string, Array<{ '@id': string } | { '@value': string }>>>();
-
-  for (const triple of triples) {
-    if (!predicatesBySubject.has(triple.subject)) {
-      predicatesBySubject.set(triple.subject, new Map());
-      typesBySubject.set(triple.subject, new Set());
-    }
-    if (triple.predicate === RDF_TYPE && triple.object.kind === 'iri') {
-      typesBySubject.get(triple.subject)?.add(triple.object.value);
-      continue;
-    }
-    const key = compactPredicate(triple.predicate);
-    const predicates = predicatesBySubject.get(triple.subject);
-    const entry = triple.object.kind === 'iri' ? { '@id': triple.object.value } : { '@value': triple.object.value };
-    const existing = predicates?.get(key);
-    if (existing) {
-      existing.push(entry);
-    } else {
-      predicates?.set(key, [entry]);
-    }
-  }
-
-  const graph: ProvenanceJsonLdNode[] = [...predicatesBySubject.keys()]
-    .sort((left, right) => left.localeCompare(right))
-    .map((subject) => {
-      const node: ProvenanceJsonLdNode = { '@id': subject };
-      const types = typesBySubject.get(subject);
-      if (types && types.size > 0) {
-        node['@type'] = [...types].sort();
-      }
-      const predicates = predicatesBySubject.get(subject);
-      if (predicates) {
-        for (const key of [...predicates.keys()].sort()) {
-          node[key] = predicates.get(key);
-        }
-      }
-      return node;
-    });
-
-  return { '@context': { prov: PROV, sg: 'urn:sg:' }, '@graph': graph };
+  return {
+    '@context': { prov: PROV, sg: 'urn:sg:' },
+    '@graph': triplesToJsonLdGraph(buildProvenanceTriples(provenance), compactPredicate),
+  };
 }
