@@ -33,6 +33,7 @@ import {
 import {
   SHACL_VALIDATOR_ID,
   resolveShaclEngine,
+  resolveTurtleShapesEngine,
   validatePublicationGraphWithShacl,
   validatePublicationGraphWithTurtleShapes,
 } from './shacl-publication-validation.js';
@@ -2945,6 +2946,7 @@ export class DefaultRegistryService implements RegistryService {
     let policyResolved = false;
     let policyShapesFormat: string | null = null;
     let policyShapesSha256: string | null = null;
+    let policyEngineId: string | null = null;
     const policyNode = await this.findPolicyPackageNode(policyVersion);
 
     if (policyNode) {
@@ -2956,10 +2958,14 @@ export class DefaultRegistryService implements RegistryService {
             JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)),
           );
           if (parsed.shapes_turtle) {
+            // SPARQL-feature policies run on the shacl-engine hybrid adapter;
+            // core-only policies stay on the default engine.
+            const policyEngine = await resolveTurtleShapesEngine(parsed.shapes_turtle, this.deps.shaclExecution);
             policyViolations = await validatePublicationGraphWithTurtleShapes(
               { graph: dataGraph, shapes_turtle: parsed.shapes_turtle },
-              shaclEngine,
+              policyEngine,
             );
+            policyEngineId = policyEngine.engine;
           } else if (parsed.document) {
             policyViolations = await validatePublicationGraphWithShacl(
               { graph: dataGraph, document: parsed.document },
@@ -2980,6 +2986,7 @@ export class DefaultRegistryService implements RegistryService {
       policy_package_resolved: policyResolved,
       ...(policyShapesFormat ? { shapes_format: policyShapesFormat } : {}),
       ...(policyShapesSha256 ? { shapes_sha256: policyShapesSha256 } : {}),
+      ...(policyEngineId ? { engine: policyEngineId } : {}),
       violations: policyViolations,
     });
 
