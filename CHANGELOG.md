@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.63](https://github.com/therandomsecurityguy/signet/compare/v0.1.62...v0.1.63) (2026-11-17)
+
+
+### Features
+
+* **registry:** signed validation reports + evidence transparency docs (PR B) ([983ebc9](https://github.com/therandomsecurityguy/signet/commit/983ebc9ef27f6246198c9828db70d36aa3198ed4))
+* **registry:** signed validation reports + evidence transparency docs (PR B) ([e2e746e](https://github.com/therandomsecurityguy/signet/commit/e2e746ee017bdd7f19a7268050743611af10bf71))
+
+
+### Bug Fixes
+
+* **cli:** enforce trusted-key status + validity window before using key pems ([c888ae9](https://github.com/therandomsecurityguy/signet/commit/c888ae947c73ba5438cccd206d3b0d661813d648))
+
 ## [0.1.62](https://github.com/therandomsecurityguy/signet/compare/v0.1.61...v0.1.62) (2026-11-17)
 
 
