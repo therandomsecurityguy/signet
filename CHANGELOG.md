@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.61](https://github.com/therandomsecurityguy/signet/compare/v0.1.60...v0.1.61) (2026-11-17)
+
+
+### Features
+
+* **registry:** validation reports as standardized RDF + docs pass ([4210651](https://github.com/therandomsecurityguy/signet/commit/4210651310883c6d9da4f65a14d9934955325dbb))
+* **registry:** validation reports as standardized RDF + docs pass (PR 3/3) ([d029cd0](https://github.com/therandomsecurityguy/signet/commit/d029cd0e28cbffa71482499260d30c5833a3a356))
+
 ## [0.1.60](https://github.com/therandomsecurityguy/signet/compare/v0.1.59...v0.1.60) (2026-11-16)
 
 

@@ -1,5 +1,5 @@
 {
-  ".": "0.1.60",
+  ".": "0.1.61",
   "client/registry-sdk": "0.1.4",
   "client/registry-cli": "0.1.4"
 }
