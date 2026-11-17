@@ -88,6 +88,8 @@ const verification = await client.getSkillVerification('skill:example', 1);
 | GET | `/v1/agents/{agentKey}/versions/{version}/verification` | Publication verification |
 | GET | `/v1/agents/{agentKey}/versions/{version}/provenance` | PROV-O provenance (structured or `?format=jsonld`) |
 | POST | `/v1/agents/{agentKey}/versions/{version}/provenance/signatures` | Attach a detached provenance signature |
+| GET | `/v1/agents/{agentKey}/versions/{version}/report-signatures` | Validation-report signatures, re-verified on read |
+| POST | `/v1/agents/{agentKey}/versions/{version}/report-signatures` | Attach a signature over a report's canonical RDF |
 | POST | `/v1/agents/{agentKey}/drafts` | Create draft version |
 | POST | `/v1/agents/{agentKey}/versions/{version}/signatures` | Attach detached signature |
 | POST | `/v1/agents/{agentKey}/versions/{version}/validate` | Validate version |
@@ -112,6 +114,8 @@ const verification = await client.getSkillVerification('skill:example', 1);
 | GET | `/v1/skills/{skillKey}/versions/{version}/verification` | Publication verification |
 | GET | `/v1/skills/{skillKey}/versions/{version}/provenance` | PROV-O provenance (structured or `?format=jsonld`) |
 | POST | `/v1/skills/{skillKey}/versions/{version}/provenance/signatures` | Attach a detached provenance signature |
+| GET | `/v1/skills/{skillKey}/versions/{version}/report-signatures` | Validation-report signatures, re-verified on read |
+| POST | `/v1/skills/{skillKey}/versions/{version}/report-signatures` | Attach a signature over a report's canonical RDF |
 | POST | `/v1/skills/{skillKey}/drafts` | Create draft version |
 | POST | `/v1/skills/{skillKey}/versions/{version}/signatures` | Attach detached signature |
 | POST | `/v1/skills/{skillKey}/versions/{version}/validate` | Validate version |
@@ -180,6 +184,18 @@ block: `format: "jsonld"`, a `sh:ValidationReport` document mapping each
 layer and `sh:ValidationResult` 1:1 (SHACL result vocabulary; layer
 metadata as `urn:sg:` literals), plus its own `canonical_rdf_sha256` and
 canonical artifact (RDFC-1.0 over the same triple list).
+
+Report signatures set `{ report_artifact_urn, signer, key_ref, algorithm,
+signature }` at `POST .../versions/:v/report-signatures`: the target must
+be one of the version's SHACL report artifacts, the key must be trusted
+and unexpired, and the signature must verify over the report's canonical
+N-Quads bytes (reports are immutable — verdicts are `valid`/`invalid`,
+never stale). `GET .../report-signatures` returns
+`report_signatures[]` rows re-verified on every read
+(`report_artifact_present`, `canonical_artifact_present`,
+`trusted_public_key_resolved`, `cryptographic_verification_passed`,
+`verdict`); `registry-operator verify report-signatures [--strict]`
+reproduces the verdicts locally.
 
 ### Policy / ontology / vocabulary
 

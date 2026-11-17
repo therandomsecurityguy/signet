@@ -459,6 +459,22 @@ export class HttpRegistryOperatorApiClient implements RegistryOperatorApiClient 
     );
   }
 
+  async getSkillReportSignatures(skillKey: string, version: number, apiToken?: string): Promise<Record<string, unknown>> {
+    return await this.fetchJson(
+      `/v1/skills/${encodeURIComponent(skillKey)}/versions/${version}/report-signatures`,
+      undefined,
+      apiToken,
+    );
+  }
+
+  async getAgentReportSignatures(agentKey: string, version: number, apiToken?: string): Promise<Record<string, unknown>> {
+    return await this.fetchJson(
+      `/v1/agents/${encodeURIComponent(agentKey)}/versions/${version}/report-signatures`,
+      undefined,
+      apiToken,
+    );
+  }
+
   async getAgentPublicationVerification(
     agentKey: string,
     version: number,

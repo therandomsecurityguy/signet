@@ -115,13 +115,16 @@ consumer:
   `registry-operator verify provenance (--skill|--agent) --version <n>
   [--strict]` re-checks the canonical provenance export and every detached
   provenance signature locally (transport digest + per-signature crypto;
-  `--strict` requires a signature over the current export), and
+  `--strict` requires a signature over the current export),
+  `registry-operator verify report-signatures (--skill|--agent) --version <n>
+  [--strict]` re-checks signatures over validation-report RDF locally, and
   `registry-operator verify artifact` checks bytes.
 - `verify mcp` re-hashes every artifact fetched through MCP instead of only
   checking tool success.
 - Validation reports carry a `sh:ValidationReport` JSON-LD representation
-  with its own RDFC-1.0 canonical digest + artifact, so validation evidence
-  is portable standard RDF alongside the JSON payload.
+  with its own RDFC-1.0 canonical digest + artifact, and are signable by
+  trusted keys over that canonical RDF (`GET|POST .../report-signatures`),
+  so validation evidence is portable, standard, and verifiable RDF.
 
 ## Operate
 

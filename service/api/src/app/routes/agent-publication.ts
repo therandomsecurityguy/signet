@@ -15,6 +15,10 @@ import {
 } from '../../contracts/publication/envelope.js';
 import { ErrorResponseSchema } from '../../contracts/error.js';
 import { ProvenanceJsonLdSchema, ProvenanceOutputSchema, CreateProvenanceSignatureInputSchema } from '../../contracts/provenance.js';
+import {
+  CreateReportSignatureInputSchema,
+  ReportSignaturesOutputSchema,
+} from '../../contracts/report-signatures.js';
 import { projectProvenanceToJsonLd } from '../../../../registry/application/services/provenance-export.js';
 import type { AppEnv } from '../server.js';
 import { auditApiWrite } from './audit.js';
@@ -100,6 +104,42 @@ const createAgentProvenanceSignatureRoute = createRoute({
     409: {
       content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Stale digest, untrusted key, invalid signature, or conflicting duplicate',
+    },
+    500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Internal error' },
+  },
+});
+
+const getAgentReportSignaturesRoute = createRoute({
+  method: 'get',
+  path: '/v1/agents/{agentKey}/versions/{version}/report-signatures',
+  request: { params: z.object({ agentKey: entityKeySchema, version: z.string() }) },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: ReportSignaturesOutputSchema } },
+      description: 'Validation-report signatures, re-verified on read (valid/invalid)',
+    },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid report signature request' },
+    404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Agent version not found' },
+  },
+});
+
+const createAgentReportSignatureRoute = createRoute({
+  method: 'post',
+  path: '/v1/agents/{agentKey}/versions/{version}/report-signatures',
+  request: {
+    params: z.object({ agentKey: entityKeySchema, version: z.string() }),
+    body: { content: { 'application/json': { schema: CreateReportSignatureInputSchema } } },
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.any() } },
+      description: 'Report signature attached (shape: { report_signature, created }; identical re-attach returns the existing record)',
+    },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid report signature payload' },
+    404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Agent version not found' },
+    409: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Invalid target report, untrusted key, invalid signature, or conflicting duplicate',
     },
     500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Internal error' },
   },
@@ -219,6 +259,50 @@ export function registerAgentPublicationRoutes(
         return { provenance_signature: created.value, created: created.created };
       },
       validationMessage: 'Invalid provenance signature payload.',
+    });
+  });
+
+  app.openapi(getAgentReportSignaturesRoute, async (c) => {
+    const agentKey = c.req.param('agentKey');
+    const version = parseVersion(c.req.param('version'));
+    if (!agentKey || !version) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid report signature request.' } }, 400);
+    }
+    const got = await deps.publication.getReportSignatures({ agent_key: agentKey, version });
+    if (!got) {
+      return c.json({ error: { code: 'AGENT_VERSION_NOT_FOUND', message: 'Agent version not found.' } }, 404);
+    }
+    return c.json(got, 200);
+  });
+
+  app.openapi(createAgentReportSignatureRoute, async (c) => {
+    const raw = await c.req.json().catch(() => undefined);
+    const parsed = CreateReportSignatureInputSchema.safeParse(raw);
+    const rawVersion = c.req.param('version');
+    const version = rawVersion ? parseVersion(rawVersion) : null;
+    const agentKey = c.req.param('agentKey');
+    return await handlePublicationWrite({
+      c,
+      deps,
+      raw,
+      parsedSuccess: parsed.success && Boolean(version) && Boolean(agentKey),
+      parsedData:
+        parsed.success && version && agentKey
+          ? { agent_key: agentKey, version, ...parsed.data }
+          : undefined,
+      action: async (data) => {
+        const created = await deps.publication.createReportSignature({
+          agent_key: data.agent_key,
+          version: data.version,
+          report_artifact_urn: data.report_artifact_urn,
+          signer: data.signer,
+          key_ref: data.key_ref,
+          algorithm: data.algorithm,
+          signature: data.signature,
+        });
+        return { report_signature: created.value, created: created.created };
+      },
+      validationMessage: 'Invalid report signature payload.',
     });
   });
 

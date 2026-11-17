@@ -18,6 +18,10 @@ import {
 } from '../../contracts/skills/lifecycle.js';
 import { ErrorResponseSchema } from '../../contracts/error.js';
 import { ProvenanceJsonLdSchema, ProvenanceOutputSchema, CreateProvenanceSignatureInputSchema } from '../../contracts/provenance.js';
+import {
+  CreateReportSignatureInputSchema,
+  ReportSignaturesOutputSchema,
+} from '../../contracts/report-signatures.js';
 import { projectProvenanceToJsonLd } from '../../../../registry/application/services/provenance-export.js';
 import {
   CreateDetachedSignatureInputSchema,
@@ -120,6 +124,42 @@ const createProvenanceSignatureRoute = createRoute({
     409: {
       content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Stale digest, untrusted key, invalid signature, or conflicting duplicate',
+    },
+    500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Internal error' },
+  },
+});
+
+const getReportSignaturesRoute = createRoute({
+  method: 'get',
+  path: '/v1/skills/{skillKey}/versions/{version}/report-signatures',
+  request: { params: z.object({ skillKey: entityKeySchema, version: z.string() }) },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: ReportSignaturesOutputSchema } },
+      description: 'Validation-report signatures, re-verified on read (valid/invalid)',
+    },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid report signature request' },
+    404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Skill version not found' },
+  },
+});
+
+const createReportSignatureRoute = createRoute({
+  method: 'post',
+  path: '/v1/skills/{skillKey}/versions/{version}/report-signatures',
+  request: {
+    params: z.object({ skillKey: entityKeySchema, version: z.string() }),
+    body: { content: { 'application/json': { schema: CreateReportSignatureInputSchema } } },
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.any() } },
+      description: 'Report signature attached (shape: { report_signature, created }; identical re-attach returns the existing record)',
+    },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid report signature payload' },
+    404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Skill version not found' },
+    409: {
+      content: { 'application/json': { schema: ErrorResponseSchema } },
+      description: 'Invalid target report, untrusted key, invalid signature, or conflicting duplicate',
     },
     500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Internal error' },
   },
@@ -412,6 +452,51 @@ export function registerSkillLifecycleRoutes(
         return { provenance_signature: created.value, created: created.created };
       },
       validationMessage: 'Invalid provenance signature payload.',
+      method: 'POST',
+    });
+  });
+
+  app.openapi(getReportSignaturesRoute, async (c) => {
+    const skillKey = c.req.param('skillKey');
+    const version = parseVersion(c.req.param('version'));
+    if (!skillKey || !version) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid report signature request.' } }, 400);
+    }
+    const got = await deps.lifecycle.getReportSignatures({ skill_key: skillKey, version });
+    if (!got) {
+      return c.json({ error: { code: 'SKILL_VERSION_NOT_FOUND', message: 'Skill version not found.' } }, 404);
+    }
+    return c.json(got, 200);
+  });
+
+  app.openapi(createReportSignatureRoute, async (c) => {
+    const raw = await c.req.json().catch(() => undefined);
+    const parsed = CreateReportSignatureInputSchema.safeParse(raw);
+    const rawVersion = c.req.param('version');
+    const version = rawVersion ? parseVersion(rawVersion) : null;
+    const skillKey = c.req.param('skillKey');
+    return await handleLifecycleWrite({
+      c,
+      deps,
+      raw,
+      parsedSuccess: parsed.success && Boolean(version) && Boolean(skillKey),
+      parsedData:
+        parsed.success && version && skillKey
+          ? { skill_key: skillKey, version, ...parsed.data }
+          : undefined,
+      action: async (data) => {
+        const created = await deps.lifecycle.createReportSignature({
+          skill_key: data.skill_key,
+          version: data.version,
+          report_artifact_urn: data.report_artifact_urn,
+          signer: data.signer,
+          key_ref: data.key_ref,
+          algorithm: data.algorithm,
+          signature: data.signature,
+        });
+        return { report_signature: created.value, created: created.created };
+      },
+      validationMessage: 'Invalid report signature payload.',
       method: 'POST',
     });
   });

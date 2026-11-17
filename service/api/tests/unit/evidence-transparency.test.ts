@@ -128,31 +128,54 @@ describe('evidence transparency intents', () => {
       (artifact) => artifact.role === 'validation_report' && typeof artifact.sha256 === 'string',
     );
     let reportRdfSha: string | undefined;
+    let reportArtifactUrn: string | undefined;
     for (const ref of reportRefs) {
       const payload = (await (await app.request(`/v1/artifacts/${ref.sha256}`)).json()) as {
         payload?: { validator?: string; rdf?: { canonical_rdf_sha256?: string } };
       };
       if (payload.payload?.validator === 'shacl-v1' && typeof payload.payload.rdf?.canonical_rdf_sha256 === 'string') {
         reportRdfSha = payload.payload.rdf.canonical_rdf_sha256;
+        reportArtifactUrn = ref.artifact_urn;
         break;
       }
     }
     expect(reportRdfSha).toMatch(/^[0-9a-f]{64}$/);
 
+    // A signature over the report's canonical RDF stages its own intent.
+    const reportCanonical = await (await app.request(`/v1/artifacts/${reportRdfSha}`)).text();
+    const reportAttach = await app.request(`${versionPath}/report-signatures`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        report_artifact_urn: reportArtifactUrn,
+        signer: 'auditor',
+        key_ref: 'evt://keys/auditor',
+        algorithm: 'ed25519',
+        signature: signBase64(privateKey, reportCanonical),
+      }),
+    });
+    expect(reportAttach.status).toBe(200);
+    const reportSignatureArtifactUrn = ((await reportAttach.json()) as {
+      report_signature: { artifact_urn: string };
+    }).report_signature.artifact_urn;
+
     // Every evidence artifact node carries a staged append intent.
     const signatureNode = await deps.graph.getNode(signatureArtifactUrn);
     const exportNode = await deps.graph.getNode(`urn:sg:artifact:sha256:${provenanceSha256}`);
     const reportRdfNode = await deps.graph.getNode(`urn:sg:artifact:sha256:${reportRdfSha}`);
+    const reportSignatureNode = await deps.graph.getNode(reportSignatureArtifactUrn);
     const requestIds = [
       signatureNode?.properties['transparency_append_request_id'],
       exportNode?.properties['transparency_append_request_id'],
       reportRdfNode?.properties['transparency_append_request_id'],
+      reportSignatureNode?.properties['transparency_append_request_id'],
     ];
     for (const requestId of requestIds) {
       expect(typeof requestId).toBe('string');
     }
     expect(exportNode?.properties['governance_role']).toBe('provenance_export');
     expect(reportRdfNode?.properties['governance_role']).toBe('validation_report_rdf');
+    expect(reportSignatureNode?.properties['governance_role']).toBe('validation_report_signature');
 
     // Reconciliation discovers and verifies all three intent families
     // against the native companion log.

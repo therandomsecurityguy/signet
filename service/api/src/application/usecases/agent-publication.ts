@@ -91,4 +91,26 @@ export class AgentPublicationUseCase {
   }) {
     return await this.registry.createAgentProvenanceSignature(input);
   }
+
+  async createReportSignature(input: {
+    agent_key: string;
+    version: number;
+    report_artifact_urn: string;
+    signer: string;
+    key_ref: string;
+    algorithm: string;
+    signature: string;
+  }) {
+    return await this.registry.createAgentReportSignature(input);
+  }
+
+  async getReportSignatures(input: { agent_key: string; version: number }) {
+    const version = await this.registry.getAgentVersion(input);
+    if (!version) return null;
+    return {
+      report_signatures: await this.registry.getPublicationReportSignatures({
+        publication_urn: version.agent_version.urn,
+      }),
+    };
+  }
 }

@@ -1462,6 +1462,176 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agents/{agentKey}/versions/{version}/report-signatures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    agentKey: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Validation-report signatures, re-verified on read (valid/invalid) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            report_signatures: {
+                                artifact_urn: string;
+                                signer: string;
+                                key_ref: string;
+                                algorithm: string;
+                                signed_at: string;
+                                report_artifact_urn: string;
+                                report_canonical_rdf_sha256: string;
+                                report_artifact_present: boolean;
+                                canonical_artifact_present: boolean;
+                                trusted_public_key_resolved: boolean;
+                                cryptographic_verification_passed: boolean;
+                                /** @enum {string} */
+                                verdict: "valid" | "invalid";
+                            }[];
+                        };
+                    };
+                };
+                /** @description Invalid report signature request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Agent version not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    agentKey: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        report_artifact_urn: string;
+                        signer: string;
+                        key_ref: string;
+                        algorithm: string;
+                        signature: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Report signature attached (shape: { report_signature, created }; identical re-attach returns the existing record) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Invalid report signature payload */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Agent version not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Invalid target report, untrusted key, invalid signature, or conflicting duplicate */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agents/{agentKey}/versions/{version}/signatures": {
         parameters: {
             query?: never;
@@ -6613,6 +6783,176 @@ export interface paths {
                     };
                 };
                 /** @description Stale digest, untrusted key, invalid signature, or conflicting duplicate */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/skills/{skillKey}/versions/{version}/report-signatures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    skillKey: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Validation-report signatures, re-verified on read (valid/invalid) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            report_signatures: {
+                                artifact_urn: string;
+                                signer: string;
+                                key_ref: string;
+                                algorithm: string;
+                                signed_at: string;
+                                report_artifact_urn: string;
+                                report_canonical_rdf_sha256: string;
+                                report_artifact_present: boolean;
+                                canonical_artifact_present: boolean;
+                                trusted_public_key_resolved: boolean;
+                                cryptographic_verification_passed: boolean;
+                                /** @enum {string} */
+                                verdict: "valid" | "invalid";
+                            }[];
+                        };
+                    };
+                };
+                /** @description Invalid report signature request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Skill version not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    skillKey: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        report_artifact_urn: string;
+                        signer: string;
+                        key_ref: string;
+                        algorithm: string;
+                        signature: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Report signature attached (shape: { report_signature, created }; identical re-attach returns the existing record) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Invalid report signature payload */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Skill version not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Invalid target report, untrusted key, invalid signature, or conflicting duplicate */
                 409: {
                     headers: {
                         [name: string]: unknown;
