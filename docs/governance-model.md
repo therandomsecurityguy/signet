@@ -197,8 +197,9 @@ Examples:
 Current implementation:
 - ontology packages are registered as versioned CAS artifacts in two kinds: `registry_shape` (lifecycle/evidence vocabulary, governance evidence only) and `skill_area` (domain concepts executed against claims)
 - versions declare `capability_claims` at draft time; validation requires every claim to bind to a known concept in the resolved skill-area ontology and rejects disjoint concept combinations
-- unmapped claims fail normative validation and are recorded as de facto vocabulary candidates in the validation report (mining/promotion workflow remains future work)
-- ontology packages currently use a JSON document format; first-class RDF/OWL vocabularies remain future work
+- unmapped claims fail normative validation and are recorded as de facto vocabulary candidates in the validation report; human-reviewed promotion appends the term to a new ontology version (richer mining remains future work; promotion into authored OWL ontologies is not supported yet)
+- two authoring formats: legacy JSON documents (byte-frozen envelopes) and **authored OWL Turtle** (`ontology_format: "owl-turtle"` with an explicit `ontology_kind`) projected totally onto the same document shape — `owl:Class`, `rdfs:subClassOf` between declared classes, `owl:disjointWith`, `rdfs:label`, optional `urn:sg:property:concept-id`; registration refuses everything outside the subset (`owl:equivalentClass`, unions/intersections/restrictions, `owl:imports`, `owl:AllDisjointClasses`, `skos:*`, external superclasses) so a normative ontology is never silently narrowed
+- every ontology package (both formats) carries an RDFC-1.0 canonical semantic projection with a format-independent digest and CAS artifact, recorded on details and in the validation report's ontology layer (`ontology_format`, `ontology_sha256`, `ontology_canonical_rdf_sha256`)
 
 #### 4. LLM-based validation
 

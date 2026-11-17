@@ -148,7 +148,11 @@ Validation (five layers):
   `validator: shacl-v1`, engine id, and per-layer shapes fingerprints)
   stored in the CAS and linked via `sg:validatedBy`
 - dual ontology packages (`registry_shape` / `skill_area`) as versioned
-  CAS artifacts (`POST /v1/ontology-packages`)
+  CAS artifacts (`POST /v1/ontology-packages`) in two authoring formats:
+  legacy JSON documents and authored OWL Turtle (`ontology_format:
+  "owl-turtle"`, a totally-projected subset with registration-time
+  refusals); every package carries an RDFC-1.0 canonical semantic
+  projection (format-independent digest + artifact)
 - ontology validation of `capability_claims`: concept binding, disjoint
   combination rejection, de facto candidate recording
 - advisory LLM validation (model-agnostic port, deterministic heuristic
@@ -230,9 +234,10 @@ Storage and operations:
 - GitHub Actions CI for service/api, service/mcp, and tessera-sidecar
 
 Proposed next (not implemented yet):
-- richer SHACL engine coverage (SHACL-SPARQL constraints, SHACL-AF rules)
-  beyond the executed Core components
-- normative ontologies encoded as first-class RDF/OWL vocabularies
+- SHACL-AF rules, functions, and node expressions (needs an inference-stage
+  design), and SHACL-SPARQL custom constraint components
+- de-facto term promotion into authored OWL ontologies; ontology
+  vocabularies exposed to SHACL shapes
 - richer de facto ontology mining (runtime observations, corpus analysis)
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures over
   provenance graphs)
@@ -497,7 +502,7 @@ Current implementation status (incremental):
 - `service/api/`: lifecycle-oriented management plane for skills **and** agents with full parity (draft/validate/publish/promote/deprecate/certify/revoke/archive/active-version resolution).
 - `service/api/`: the certification state machine now covers `draft`/`validated`/`rejected`/`published`/`certified`/`deprecated`/`revoked`/`archived` with deterministic draft rejection, supersession guards, and policy/ontology-bound certification.
 - `service/api/`: policy packages are first-class versioned artifacts (`POST /v1/policy-packages`) in legacy JSON and authored W3C SHACL Turtle formats; draft validation executes W3C SHACL Core for the built-in graph shape and policy shapes, stores machine-readable violation reports in the CAS, and links them via `sg:validatedBy`.
-- `service/api/`: dual ontology packages (`registry_shape` / `skill_area`) are versioned artifacts (`POST /v1/ontology-packages`); draft validation checks `capability_claims` bind to known skill-area concepts, rejects disjoint combinations, records de facto candidates, and binds certification to registered ontology packages.
+- `service/api/`: dual ontology packages (`registry_shape` / `skill_area`) are versioned artifacts (`POST /v1/ontology-packages`) in legacy JSON and authored OWL Turtle formats, each carrying a format-independent canonical semantic digest; draft validation checks `capability_claims` bind to known skill-area concepts, rejects disjoint combinations, records de facto candidates, and binds certification to registered ontology packages.
 - `service/api/`: advisory LLM validation runs as a fourth, always-non-blocking layer with scorecard evidence artifacts; human review records decisions as `review_evidence` artifacts with policy-driven gating and a pending-review queue.
 - `service/api/`: semantic compiler ingestion (`POST /v1/compile/skill`) normalizes markdown and tool manifests into typed proposals, with a de facto vocabulary store and human-reviewed promotion.
 - `service/registry` and `service/api` now expose the first time-aware object slice (commits, refs, tags, workspaces, manifests, retention roots, GC jobs) with a first public draft-workspace operation and a durable, non-destructive GC job execution seam.

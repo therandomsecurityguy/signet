@@ -3358,6 +3358,10 @@ export interface paths {
                                 ontology_version: string;
                                 /** @enum {string} */
                                 ontology_kind: "registry_shape" | "skill_area";
+                                /** @enum {string} */
+                                ontology_format: "legacy-json-v1" | "owl-turtle";
+                                canonical_rdf_sha256: string;
+                                canonical_rdf_artifact_urn: string;
                                 created_by: string;
                                 created_at: string;
                                 description?: string;
@@ -3396,6 +3400,10 @@ export interface paths {
                         ontology_version: string;
                         author: string;
                         ontology?: unknown;
+                        /** @enum {string} */
+                        ontology_format?: "owl-turtle";
+                        /** @enum {string} */
+                        ontology_kind?: "registry_shape" | "skill_area";
                         description?: string;
                     };
                 };
@@ -3513,6 +3521,10 @@ export interface paths {
                             ontology_version: string;
                             /** @enum {string} */
                             ontology_kind: "registry_shape" | "skill_area";
+                            /** @enum {string} */
+                            ontology_format: "legacy-json-v1" | "owl-turtle";
+                            canonical_rdf_sha256: string;
+                            canonical_rdf_artifact_urn: string;
                             created_by: string;
                             created_at: string;
                             description?: string;

@@ -8136,6 +8136,19 @@
                               "skill_area"
                             ]
                           },
+                          "ontology_format": {
+                            "type": "string",
+                            "enum": [
+                              "legacy-json-v1",
+                              "owl-turtle"
+                            ]
+                          },
+                          "canonical_rdf_sha256": {
+                            "type": "string"
+                          },
+                          "canonical_rdf_artifact_urn": {
+                            "type": "string"
+                          },
                           "created_by": {
                             "type": "string"
                           },
@@ -8154,6 +8167,9 @@
                           "sha256",
                           "ontology_version",
                           "ontology_kind",
+                          "ontology_format",
+                          "canonical_rdf_sha256",
+                          "canonical_rdf_artifact_urn",
                           "created_by",
                           "created_at"
                         ]
@@ -8218,6 +8234,19 @@
                   },
                   "ontology": {
                     "nullable": true
+                  },
+                  "ontology_format": {
+                    "type": "string",
+                    "enum": [
+                      "owl-turtle"
+                    ]
+                  },
+                  "ontology_kind": {
+                    "type": "string",
+                    "enum": [
+                      "registry_shape",
+                      "skill_area"
+                    ]
                   },
                   "description": {
                     "type": "string",
@@ -8413,6 +8442,19 @@
                         "skill_area"
                       ]
                     },
+                    "ontology_format": {
+                      "type": "string",
+                      "enum": [
+                        "legacy-json-v1",
+                        "owl-turtle"
+                      ]
+                    },
+                    "canonical_rdf_sha256": {
+                      "type": "string"
+                    },
+                    "canonical_rdf_artifact_urn": {
+                      "type": "string"
+                    },
                     "created_by": {
                       "type": "string"
                     },
@@ -8431,6 +8473,9 @@
                     "sha256",
                     "ontology_version",
                     "ontology_kind",
+                    "ontology_format",
+                    "canonical_rdf_sha256",
+                    "canonical_rdf_artifact_urn",
                     "created_by",
                     "created_at"
                   ]
