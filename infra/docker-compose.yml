@@ -154,6 +154,22 @@ services:
       - tessera-runtime
     restart: unless-stopped
 
+  shacl-runtime:
+    build:
+      context: ..
+      dockerfile: service/shacl-runtime/infra/Dockerfile
+    image: signet/shacl-runtime:dev
+    container_name: signet-shacl-runtime
+    profiles:
+      - shacl-af
+    env_file:
+      - ../service/shacl-runtime/infra/.env
+    ports:
+      - "${SHACL_RUNTIME_PORT:-3300}:3300"
+    networks:
+      - agents_registry_net
+    restart: unless-stopped
+
   tessera-db:
     image: mysql:8.4
     container_name: signet-tessera-db
