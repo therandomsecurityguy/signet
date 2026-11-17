@@ -21,7 +21,7 @@ import {
 } from './types.js';
 import { HttpRegistryOperatorApiClient, RegistryOperatorApiError } from './clients/api.js';
 import { RegistryOperatorMcpClient } from './clients/mcp.js';
-import { sha256Hex, verifyEnvelopeSignatures, verifyProvenanceSignature } from './clients/verify.js';
+import { sha256Hex, isTrustedKeyUsableAt, verifyEnvelopeSignatures, verifyProvenanceSignature } from './clients/verify.js';
 import {
   buildTransparencySampleGraphSpec,
   readTransparencySampleGraphSpec,
@@ -577,6 +577,40 @@ async function runVerifyMcp(env: Env, args: Record<string, string | boolean | st
 // Non-strict mode passes for a publication with no signatures (vacuous
 // validity); --strict additionally requires the server verdict, at least one
 // valid signature, and a matching frozen-envelope artifact when present.
+/**
+ * Resolve trusted signing keys to their PEMs (stored as CAS artifacts),
+ * mirroring the registry's resolver: the key must be `trusted` and inside
+ * its validity window before its PEM is used. Revoked/expired/not-yet-valid
+ * keys stay absent so local verdicts match the server's
+ * `trusted_public_key_resolved` semantics (a revoked key's signatures must
+ * read as invalid, not verified).
+ */
+async function loadTrustedPublicKeyPems(
+  api: HttpRegistryOperatorApiClient,
+  keyRefs: Iterable<string>,
+  apiToken: string | undefined,
+): Promise<Map<string, string>> {
+  const publicKeys = new Map<string, string>();
+  const now = new Date().toISOString();
+  for (const keyRef of new Set(keyRefs)) {
+    if (!keyRef) continue;
+    try {
+      const key = await api.getPublicKey(keyRef, apiToken);
+      const publicKey = key['public_key'] as { properties?: Record<string, unknown> } | undefined;
+      const properties = publicKey?.properties;
+      if (!properties || !isTrustedKeyUsableAt(properties, now)) continue;
+      const artifacts = Array.isArray(key['artifacts']) ? (key['artifacts'] as Array<{ artifact_urn?: string }>) : [];
+      const sha = parseArtifactUrnSha256(artifacts[0]?.artifact_urn);
+      if (!sha) continue;
+      const { bytes } = await api.getArtifactBytes(sha, apiToken);
+      publicKeys.set(keyRef, new TextDecoder().decode(bytes));
+    } catch {
+      // Unresolvable or untrusted keys stay absent; their signatures fail verification.
+    }
+  }
+  return publicKeys;
+}
+
 async function runVerifyPublication(env: Env, args: Record<string, string | boolean | string[] | undefined>) {
   const skillKey = asString(args.skill);
   const agentKey = asString(args.agent);
@@ -609,25 +643,18 @@ async function runVerifyPublication(env: Env, args: Record<string, string | bool
       }>)
     : [];
 
-  // Resolve every trusted signing key to its PEM (stored as a CAS artifact).
-  // Keyless signatures carry no registered key: their trust policy lives with
-  // the registry, so their verdict is taken from the server verification.
-  const publicKeys = new Map<string, string>();
-  for (const keyRef of new Set(
-    signatures.filter((signature) => !signature.keyless).map((signature) => signature.key_ref).filter(Boolean),
-  )) {
-    if (!keyRef) continue;
-    try {
-      const key = await api.getPublicKey(keyRef, apiToken);
-      const artifacts = Array.isArray(key['artifacts']) ? (key['artifacts'] as Array<{ artifact_urn?: string }>) : [];
-      const sha = parseArtifactUrnSha256(artifacts[0]?.artifact_urn);
-      if (!sha) continue;
-      const { bytes } = await api.getArtifactBytes(sha, apiToken);
-      publicKeys.set(keyRef, new TextDecoder().decode(bytes));
-    } catch {
-      // Unresolvable keys stay absent; their signatures fail verification.
-    }
-  }
+  // Resolve every trusted signing key to its PEM, enforcing the same trust
+  // status + validity window as the registry. Keyless signatures carry no
+  // registered key: their trust policy lives with the registry, so their
+  // verdict is taken from the server verification.
+  const publicKeys = await loadTrustedPublicKeyPems(
+    api,
+    signatures
+      .filter((signature) => !signature.keyless)
+      .map((signature) => signature.key_ref)
+      .filter((keyRef): keyRef is string => Boolean(keyRef)),
+    apiToken,
+  );
 
   const clientVerdict = verifyEnvelopeSignatures({
     envelope: {
@@ -800,21 +827,13 @@ async function runVerifyProvenance(env: Env, args: Record<string, string | boole
       }>)
     : [];
 
-  // Resolve every trusted signing key to its PEM (stored as a CAS artifact).
-  const publicKeys = new Map<string, string>();
-  for (const keyRef of new Set(servedSignatures.map((row) => row.key_ref).filter(Boolean))) {
-    if (!keyRef) continue;
-    try {
-      const key = await api.getPublicKey(keyRef, apiToken);
-      const artifacts = Array.isArray(key['artifacts']) ? (key['artifacts'] as Array<{ artifact_urn?: string }>) : [];
-      const sha = parseArtifactUrnSha256(artifacts[0]?.artifact_urn);
-      if (!sha) continue;
-      const { bytes } = await api.getArtifactBytes(sha, apiToken);
-      publicKeys.set(keyRef, new TextDecoder().decode(bytes));
-    } catch {
-      // Unresolvable keys stay absent; their signatures fail verification.
-    }
-  }
+  // Resolve every trusted signing key to its PEM, enforcing the same trust
+  // status + validity window as the registry.
+  const publicKeys = await loadTrustedPublicKeyPems(
+    api,
+    servedSignatures.map((row) => row.key_ref).filter((keyRef): keyRef is string => Boolean(keyRef)),
+    apiToken,
+  );
 
   // Reproduce each verdict locally: fetch the stored signature record, the
   // canonical artifact it binds, and check the crypto against the key.
@@ -917,21 +936,13 @@ async function runVerifyReportSignatures(env: Env, args: Record<string, string |
       }>)
     : [];
 
-  // Resolve every trusted signing key to its PEM (stored as a CAS artifact).
-  const publicKeys = new Map<string, string>();
-  for (const keyRef of new Set(rows.map((row) => row.key_ref).filter(Boolean))) {
-    if (!keyRef) continue;
-    try {
-      const key = await api.getPublicKey(keyRef, apiToken);
-      const artifacts = Array.isArray(key['artifacts']) ? (key['artifacts'] as Array<{ artifact_urn?: string }>) : [];
-      const sha = parseArtifactUrnSha256(artifacts[0]?.artifact_urn);
-      if (!sha) continue;
-      const { bytes } = await api.getArtifactBytes(sha, apiToken);
-      publicKeys.set(keyRef, new TextDecoder().decode(bytes));
-    } catch {
-      // Unresolvable keys stay absent; their signatures fail verification.
-    }
-  }
+  // Resolve every trusted signing key to its PEM, enforcing the same trust
+  // status + validity window as the registry.
+  const publicKeys = await loadTrustedPublicKeyPems(
+    api,
+    rows.map((row) => row.key_ref).filter((keyRef): keyRef is string => Boolean(keyRef)),
+    apiToken,
+  );
 
   // Reproduce each verdict locally: the stored signature record, the target
   // report (must still declare the signed digest), and the canonical RDF

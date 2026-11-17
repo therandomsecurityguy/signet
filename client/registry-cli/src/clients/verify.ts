@@ -14,10 +14,26 @@ function parseSignatureBytes(signature: string): Buffer {
   throw new Error('Signature must use a supported encoding prefix such as base64: or hex:.');
 }
 
+/**
+ * Mirrors the registry's trusted-key resolver: a key is usable only when its
+ * status is `trusted` and the current time is inside its validity window
+ * (`valid_from` inclusive, `valid_to` exclusive; absent bounds are
+ * unlimited). Revoked/expired/not-yet-valid keys must stay out of local
+ * verification so CLI verdicts match the server's
+ * `trusted_public_key_resolved` semantics.
+ */
+export function isTrustedKeyUsableAt(properties: Record<string, unknown>, nowIso: string): boolean {
+  if (properties['trust_status'] !== 'trusted') return false;
+  const validFrom = typeof properties['valid_from'] === 'string' ? properties['valid_from'] : undefined;
+  const validTo = typeof properties['valid_to'] === 'string' ? properties['valid_to'] : undefined;
+  if (validFrom && nowIso < validFrom) return false;
+  if (validTo && nowIso >= validTo) return false;
+  return true;
+}
+
 // Mirrors the algorithms accepted by the registry core so operator verification
 // reproduces the server verdict locally.
-export function verifyDetachedSignature(input: {
-  algorithm: string;
+export function verifyDetachedSignature(input: {  algorithm: string;
   publicKeyPem: string;
   message: string | Uint8Array;
   signature: string;
