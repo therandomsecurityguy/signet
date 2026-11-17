@@ -122,7 +122,7 @@ describe('evidence transparency intents', () => {
     // advisory LLM evidence artifact (and placeholders), so locate the SHACL
     // report by its payload instead of positional order.
     const versionBody = (await (await app.request(versionPath)).json()) as {
-      governance_artifacts: Array<{ role: string; sha256?: string }>;
+      governance_artifacts: Array<{ role: string; sha256?: string; artifact_urn: string }>;
     };
     const reportRefs = versionBody.governance_artifacts.filter(
       (artifact) => artifact.role === 'validation_report' && typeof artifact.sha256 === 'string',
