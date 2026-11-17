@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.64](https://github.com/therandomsecurityguy/signet/compare/v0.1.63...v0.1.64) (2026-11-17)
+
+
+### Features
+
+* **registry:** SPARQL constraints and SPARQL-based targets (SHACL-SPARQL) ([a8832b5](https://github.com/therandomsecurityguy/signet/commit/a8832b5a508748c08589f47748aa850ede870a40))
+
 ## [0.1.63](https://github.com/therandomsecurityguy/signet/compare/v0.1.62...v0.1.63) (2026-11-17)
 
 
