@@ -3118,6 +3118,36 @@ export class DefaultRegistryService implements RegistryService {
     });
     await this.attachGovernanceArtifacts(input.version_urn, [reportArtifact]);
 
+    // Transparency: the report's canonical RDF artifact gets a lightweight
+    // node + version edge (sg:hasValidationReportRdf) + a best-effort append
+    // intent, so reconciliation covers report RDF the same way it covers the
+    // report JSON (via sg:validatedBy). Deliberately outside the envelope
+    // governance refs: frozen-envelope bytes stay untouched.
+    const reportRdfArtifactNodeUrn = artifactUrn(reportExport.sha256);
+    await this.deps.graph.upsertNode({
+      urn: reportRdfArtifactNodeUrn,
+      entity_type: 'ARTIFACT',
+      properties: {
+        sha256: reportExport.sha256,
+        governance_role: 'validation_report_rdf',
+        publication_urn: input.version_urn,
+      },
+    });
+    await this.deps.graph.upsertEdge({
+      from_urn: input.version_urn,
+      to_urn: reportRdfArtifactNodeUrn,
+      predicate: 'sg:hasValidationReportRdf',
+      properties: {},
+    });
+    await this.attachGovernanceArtifactAppendIntent({
+      artifact_urn: reportRdfArtifactNodeUrn,
+      role: 'validation_report_rdf',
+      logical_key: input.logical_key,
+      publication_urn: input.version_urn,
+      sha256: reportExport.sha256,
+      payload: { report_artifact_urn: reportArtifact.artifact_urn },
+    });
+
     // LLM evidence artifact: scorecards, prompt, rationale, and
     // confidence, stored in the CAS and linked via sg:validatedBy.
     let llmEvidenceArtifactUrn: string | null = null;
@@ -6119,11 +6149,37 @@ export class DefaultRegistryService implements RegistryService {
     for (const artifact of details.governance_artifacts) {
       if (artifact.transparency_append_intent) intents.push(artifact.transparency_append_intent);
     }
+    // Evidence artifacts outside the envelope refs: provenance signatures
+    // (plus the export each signature binds, found via provenance_sha256) and
+    // validation-report RDF artifacts.
+    const provenanceSignatureEdges = await this.deps.graph.listEdgesFrom(
+      input.publication_urn,
+      'sg:hasProvenanceSignature',
+    );
+    for (const edge of provenanceSignatureEdges) {
+      const node = await this.deps.graph.getNode(edge.to_urn);
+      if (!node) continue;
+      const signatureIntent = readTransparencyAppendIntentFromProperties(node.properties);
+      if (signatureIntent) intents.push(signatureIntent);
+      const provenanceSha = stringOrUndefined(node.properties['provenance_sha256']);
+      if (provenanceSha && /^[0-9a-f]{64}$/.test(provenanceSha)) {
+        const exportNode = await this.deps.graph.getNode(artifactUrn(provenanceSha));
+        const exportIntent = exportNode ? readTransparencyAppendIntentFromProperties(exportNode.properties) : null;
+        if (exportIntent) intents.push(exportIntent);
+      }
+    }
+    const reportRdfEdges = await this.deps.graph.listEdgesFrom(input.publication_urn, 'sg:hasValidationReportRdf');
+    for (const edge of reportRdfEdges) {
+      const node = await this.deps.graph.getNode(edge.to_urn);
+      const intent = node ? readTransparencyAppendIntentFromProperties(node.properties) : null;
+      if (intent) intents.push(intent);
+    }
+    const uniqueIntents = [...new Map(intents.map((intent) => [intent.request_id, intent])).values()];
 
     const reconciledAt = nowIso();
     const keyHint = keyHintForPublicKeyPem(reconciler.public_key_pem);
     const outcomes: import('../ports/registry-service.js').RegistryTransparencyReconciliationOutcome[] = [];
-    for (const intent of intents) {
+    for (const intent of uniqueIntents) {
       const base = {
         source_type: intent.source_type,
         request_id: intent.request_id,
@@ -6629,7 +6685,14 @@ export class DefaultRegistryService implements RegistryService {
 
   private async attachGovernanceArtifactAppendIntent(input: {
     artifact_urn: string;
-    role: 'policy_package' | 'validation_report' | 'certification_evidence' | 'review_evidence';
+    role:
+      | 'policy_package'
+      | 'validation_report'
+      | 'certification_evidence'
+      | 'review_evidence'
+      | 'provenance_signature'
+      | 'provenance_export'
+      | 'validation_report_rdf';
     logical_key: string;
     publication_urn: string;
     sha256: string;
@@ -6893,6 +6956,43 @@ export class DefaultRegistryService implements RegistryService {
       predicate: 'sg:hasProvenanceSignature',
       properties: {},
     });
+
+    // Transparency: stage the signature record AND the signed export digest
+    // through the sidecar (best-effort, like lifecycle events). The export
+    // artifact gets a lightweight node so reconciliation can find its intent
+    // via this signature's provenance_sha256.
+    await this.attachGovernanceArtifactAppendIntent({
+      artifact_urn: artifactNodeUrn,
+      role: 'provenance_signature',
+      logical_key: input.logical_key,
+      publication_urn: input.publication_urn,
+      sha256: artifact.sha256,
+      payload: {
+        publication_urn: input.publication_urn,
+        provenance_sha256,
+        signer: input.signature.signer,
+        key_ref: input.signature.key_ref,
+      },
+    });
+    const exportArtifactNodeUrn = artifactUrn(provenance_sha256);
+    await this.deps.graph.upsertNode({
+      urn: exportArtifactNodeUrn,
+      entity_type: 'ARTIFACT',
+      properties: {
+        sha256: provenance_sha256,
+        governance_role: 'provenance_export',
+        publication_urn: input.publication_urn,
+      },
+    });
+    await this.attachGovernanceArtifactAppendIntent({
+      artifact_urn: exportArtifactNodeUrn,
+      role: 'provenance_export',
+      logical_key: input.logical_key,
+      publication_urn: input.publication_urn,
+      sha256: provenance_sha256,
+      payload: { publication_urn: input.publication_urn },
+    });
+
     const node = await this.deps.graph.getNode(artifactNodeUrn);
     if (!node) {
       throw new RegistryCoreError(
