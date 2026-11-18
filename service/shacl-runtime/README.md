@@ -22,11 +22,15 @@ severity, message?, value? }] }` with **raw IRIs** (the registry adapter
 normalizes) and deterministic ordering. Errors are structured:
 
 - `400 SHAPES_PARSE_ERROR` / `400 DATA_PARSE_ERROR` / `400 VALIDATION_ERROR`
+- `400 FEDERATED_QUERY_REJECTED` (any `SERVICE` clause in a SPARQL-bearing
+  literal; see Hardening notes)
 - `401 AUTH_UNAUTHORIZED` (only when `SHACL_RUNTIME_TOKEN` is set)
 - `413 PAYLOAD_TOO_LARGE`
 - `422 VALIDATION_FAILURE` (pyshacl reported a spec-level failure)
+- `503 SHACL_RUNTIME_BUSY` (workers + queue at capacity; retry shortly)
 - `504 VALIDATION_TIMEOUT` (A worker thread keeps running after a timeout —
-  Python cannot cancel it; concurrency is capped by `MAX_CONCURRENCY`.)
+  Python cannot cancel it; it still holds its capacity slot and concurrency
+  is bounded by `MAX_CONCURRENCY + QUEUE_LIMIT`.)
 
 `GET /healthz` reports ok + engine id.
 
@@ -35,10 +39,34 @@ normalizes) and deterministic ordering. Errors are structured:
 | Env | Default | Notes |
 |---|---|---|
 | `HOST` / `PORT` | `0.0.0.0` / `3300` | |
-| `SHACL_RUNTIME_TOKEN` | *(empty = open)* | Bearer required on `/v1/validate` when set; the registry presents the same value |
+| `SHACL_RUNTIME_TOKEN` | *(empty = open)* | Bearer required on `/v1/validate` when set; compared constant-time; the registry presents the same value. **Deployments must set it.** |
 | `VALIDATE_TIMEOUT_SECONDS` | `30` | Per-request wall clock for the response; unbounded rule fixpoints are documented, not statically bounded |
+| `REQUEST_TIMEOUT_SECONDS` | `15` | Per-connection socket timeout (slow or stalled clients are dropped) |
 | `MAX_BODY_BYTES` | `2000000` | |
 | `MAX_CONCURRENCY` | `4` | Validation worker threads |
+| `QUEUE_LIMIT` | `32` | Pending requests before `503 SHACL_RUNTIME_BUSY` |
+
+## Hardening notes
+
+- **Federated queries are rejected everywhere.** pyshacl refuses `SERVICE`
+  in `sh:sparql` constraints, but probe-testing showed a `sh:SPARQLRule`
+  CONSTRUCT with `SERVICE` is EXECUTED — the sidecar performs the outbound
+  request (SSRF). The runtime therefore scans every SPARQL-bearing literal
+  (`sh:select`, `sh:construct`, `sh:ask`, `sh:update` — constraints,
+  targets, rules, functions, validators) and rejects `SERVICE` before
+  execution, on both raw and comment-stripped text (the stripper alone can
+  be evaded by a `#` inside a string; over-rejection fails closed). The
+  registry refuses `SERVICE` at policy registration as well.
+- **No RDF-driven code execution**: pyshacl does not execute `sh:js` or any
+  language-extension hooks; only SPARQL runs.
+- **Resource isolation is bounded, not absolute**: timeouts bound the
+  response, not the worker (Python cannot cancel threads); runaway work
+  holds capacity slots and is capped by `MAX_CONCURRENCY + QUEUE_LIMIT`.
+  Hard cancellation/isolation would require subprocess execution with
+  rlimits — tracked as a follow-up.
+- **Deployment**: run cluster-internal only (no ingress), with
+  `SHACL_RUNTIME_TOKEN` set from a secret; the compose profile publishes a
+  host port for local development, where the default is open.
 
 ## Run
 

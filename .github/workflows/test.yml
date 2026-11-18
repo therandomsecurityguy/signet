@@ -214,7 +214,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version-file: service/shacl-runtime/.python-version
 
@@ -226,7 +226,7 @@ jobs:
         working-directory: service/shacl-runtime
 
       - name: Vulnerability audit
-        run: python -m pip_audit -r service/shacl-runtime/requirements.txt
+        run: python -m pip_audit -r service/shacl-runtime/requirements.txt -r service/shacl-runtime/requirements-dev.txt
 
   registry-sdk:
     name: client/registry-sdk (typed read-first SDK)

@@ -15,6 +15,7 @@ import urllib.request
 
 import pytest
 
+import server as server_module
 from server import Config, create_server
 
 AF_SHAPES = """
@@ -116,8 +117,10 @@ def service(request):
         {
             "SHACL_RUNTIME_TOKEN": overrides.get("token", ""),
             "VALIDATE_TIMEOUT_SECONDS": str(overrides.get("timeout", 30)),
+            "REQUEST_TIMEOUT_SECONDS": str(overrides.get("request_timeout", 15)),
             "MAX_BODY_BYTES": str(overrides.get("max_body", 2_000_000)),
-            "MAX_CONCURRENCY": "4",
+            "MAX_CONCURRENCY": str(overrides.get("max_concurrency", 4)),
+            "QUEUE_LIMIT": str(overrides.get("queue_limit", 32)),
         }
     )
     server = create_server(config, host="127.0.0.1", port=0)
@@ -256,3 +259,90 @@ def test_validation_timeout(service):
     status, body = validate(service[0], TODO_DATA + tags, heavy_shapes)
     assert status == 504
     assert body["error"]["code"] == "VALIDATION_TIMEOUT"
+
+
+RULE_SERVICE_SHAPES = """
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+<urn:sg:shape:ssrf> a sh:NodeShape ;
+    sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:construct \"\"\"
+            CONSTRUCT { ?this <urn:sg:property:x> ?o } WHERE {
+                SERVICE <http://169.254.169.254/latest/meta-data/> { ?s ?p ?o }
+            }
+        \"\"\" ;
+    ] .
+"""
+
+
+def test_federated_queries_are_rejected(service):
+    # pyshacl blocks SERVICE in sh:sparql constraints but EXECUTES it from
+    # sh:SPARQLRule constructs; the runtime rejects it everywhere.
+    status, body = validate(service[0], TODO_DATA, RULE_SERVICE_SHAPES)
+    assert status == 400
+    assert body["error"]["code"] == "FEDERATED_QUERY_REJECTED"
+
+    constraint_service = """
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+<urn:sg:shape:svc> a sh:NodeShape ;
+    sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;
+    sh:sparql [
+        sh:select "SELECT $this WHERE { SERVICE <http://127.0.0.1:9/> { ?s ?p ?o } }" ;
+    ] .
+"""
+    status, body = validate(service[0], TODO_DATA, constraint_service)
+    assert status == 400
+    assert body["error"]["code"] == "FEDERATED_QUERY_REJECTED"
+
+    # Evasion attempt: a '#' inside a string literal would defeat a
+    # comment-stripping-only scan; the dual scan still catches it.
+    evasion = """
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+<urn:sg:shape:evade> a sh:NodeShape ;
+    sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;
+    sh:sparql [
+        sh:select "SELECT $this WHERE { FILTER(STRSTARTS(\\"x#y\\", \\"x\\")) SERVICE <http://127.0.0.1:9/> { ?s ?p ?o } }" ;
+    ] .
+"""
+    status, body = validate(service[0], TODO_DATA, evasion)
+    assert status == 400
+    assert body["error"]["code"] == "FEDERATED_QUERY_REJECTED"
+
+    # Benign mentions outside SPARQL-bearing literals are not scanned.
+    benign = """
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+<urn:sg:shape:benign> a sh:NodeShape ;
+    sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;
+    sh:property [ sh:path <urn:sg:property:license> ; sh:minCount 1 ; sh:message "run a service check" ] .
+"""
+    status, body = validate(service[0], TODO_DATA, benign)
+    assert status == 200
+    assert body["results"][0]["message"] == "run a service check"
+
+
+@pytest.mark.parametrize("service", [{"max_concurrency": 1, "queue_limit": 0}], indirect=True)
+def test_busy_when_at_capacity(service, monkeypatch):
+    started = threading.Event()
+    release = threading.Event()
+
+    def fake_validate(data: str, shapes: str):  # noqa: ARG001 - contract stub
+        started.set()
+        release.wait(10)
+        return True, []
+
+    monkeypatch.setattr(server_module, "validate_payload", fake_validate)
+    base_url = service[0]
+    outcome: dict[str, tuple[int, dict]] = {}
+
+    worker = threading.Thread(target=lambda: outcome.setdefault("first", validate(base_url, TODO_DATA, CORE_SHAPES)))
+    worker.start()
+    assert started.wait(5), "the first validation should occupy the only slot"
+
+    status, body = validate(base_url, TODO_DATA, CORE_SHAPES)
+    assert status == 503
+    assert body["error"]["code"] == "SHACL_RUNTIME_BUSY"
+
+    release.set()
+    worker.join(10)
+    assert outcome["first"][0] == 200
