@@ -8,15 +8,22 @@ implements. The registry selects this runtime per shapes document and sends
 PREPARED shapes only (targeting rewritten, sh:pattern stripped and executed
 by the registry's RE2 layer), so this service never evaluates sh:pattern.
 
+Execution model: every validation runs in a worker SUBPROCESS with rlimits
+(memory best-effort per platform, CPU backstop, no files, bounded fds);
+timeouts hard-kill the worker, so no runaway work lingers or holds capacity.
+The HTTP process never executes pyshacl itself.
+
 Contract (matched by the registry's pyshacl sidecar adapter):
 - POST /v1/validate  { data_nquads, shapes_turtle }
     -> 200 { conforms, results: [{focusNode, path?, sourceConstraintComponent,
              severity, message?, value?}] }  (raw IRIs; deterministic order)
-    -> 400 SHAPES_PARSE_ERROR / DATA_PARSE_ERROR
+    -> 400 SHAPES_PARSE_ERROR / DATA_PARSE_ERROR / FEDERATED_QUERY_REJECTED
     -> 413 PAYLOAD_TOO_LARGE
     -> 422 VALIDATION_FAILURE   (pyshacl reported a spec-level failure)
-    -> 504 VALIDATION_TIMEOUT   (the worker keeps running; concurrency-capped)
-- GET /healthz       -> { ok, engine }
+    -> 500 VALIDATION_ABORTED   (worker died mid-validation: crash or rlimit)
+    -> 504 VALIDATION_TIMEOUT   (the worker was terminated; capacity released)
+    -> 507 RESOURCE_LIMIT       (validation exceeded the memory limit)
+- GET /healthz       -> { ok, engine, service_version, workers }
 
 Advanced features are always enabled (advanced=True): without it pyshacl
 silently skips rules and functions, which would read as "conforms".
@@ -27,40 +34,67 @@ Configuration (env):
   token; unset = open (local development), matching the Tessera sidecar
   pattern.
 - VALIDATE_TIMEOUT_SECONDS (default 30), MAX_BODY_BYTES (default 2_000_000),
-  MAX_CONCURRENCY (default 4).
+  MAX_CONCURRENCY (default 4), QUEUE_LIMIT (default 32)
+- Worker limits: MAX_MEMORY_MB (default 1024; enforced on Linux, best-effort
+  where the kernel rejects RLIMIT_AS), MAX_CPU_SECONDS (default 300, hard
+  backstop), MAX_NOFILE (default 64).
 """
 
 from __future__ import annotations
 
 import hmac
 import json
+import multiprocessing
 import os
-import re
 import sys
 import threading
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeoutError
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
-import pyshacl
-from rdflib import Graph, URIRef
-from rdflib.namespace import SH
+from engine import ENGINE_ID, PayloadError, ValidationFailureError
+from worker import WorkerLimits, child_main
 
-SERVICE_VERSION = "0.1.0"
-ENGINE_ID = f"pyshacl@{pyshacl.__version__}"
+SERVICE_VERSION = "0.2.0"
+
+# Extra wall-clock allowance over the validation timeout for worker spawn and
+# transfer; the child-side poll is the authoritative timeout.
+SPAWN_GRACE_SECONDS = 10.0
+
+# Retire a worker once it has consumed this fraction of its CPU backstop, so
+# long-lived workers cannot accumulate to the RLIMIT_CPU kill mid-request.
+CHILD_RETIRE_CPU_FRACTION = 0.5
+
+PAYLOAD_ERROR_CODES = frozenset({"SHAPES_PARSE_ERROR", "DATA_PARSE_ERROR", "FEDERATED_QUERY_REJECTED"})
 
 
-class ValidationFailureError(Exception):
-    """pyshacl reported a SHACL spec-level failure (not non-conformance)."""
+class ValidationTimeoutError(Exception):
+    """The worker exceeded the validation timeout and was killed."""
 
 
-class PayloadError(Exception):
-    def __init__(self, code: str, message: str) -> None:
-        super().__init__(message)
-        self.code = code
+class ValidationAbortedError(Exception):
+    """The worker died mid-validation (crash, rlimit kill, protocol EOF)."""
+
+
+class ResourceLimitError(Exception):
+    """The worker hit the memory limit while validating."""
+
+
+def _multiprocessing_context() -> multiprocessing.context.BaseContext:
+    """Forkserver with engine/worker preloaded (child spawn ~5ms), else spawn.
+
+    Forkserver is safe to start from the threaded HTTP process (unlike fork)
+    and preloading pays the pyshacl import once per process, not per worker.
+    """
+    try:
+        context = multiprocessing.get_context("forkserver")
+        context.set_forkserver_preload(["engine", "worker"])
+        return context
+    except (ValueError, AttributeError):  # pragma: no cover - platform fallback
+        return multiprocessing.get_context("spawn")
 
 
 @dataclass(frozen=True)
@@ -73,6 +107,9 @@ class Config:
     max_body_bytes: int
     max_concurrency: int
     queue_limit: int
+    max_memory_mb: int
+    max_cpu_seconds: int
+    max_nofile: int
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> "Config":
@@ -87,6 +124,9 @@ class Config:
             max_body_bytes=int(source.get("MAX_BODY_BYTES", "2000000")),
             max_concurrency=int(source.get("MAX_CONCURRENCY", "4")),
             queue_limit=int(source.get("QUEUE_LIMIT", "32")),
+            max_memory_mb=int(source.get("MAX_MEMORY_MB", "1024")),
+            max_cpu_seconds=int(source.get("MAX_CPU_SECONDS", "300")),
+            max_nofile=int(source.get("MAX_NOFILE", "64")),
         )
         # Fail fast on nonsensical caps instead of running with them.
         for field_name in (
@@ -94,6 +134,9 @@ class Config:
             "request_timeout_seconds",
             "max_body_bytes",
             "max_concurrency",
+            "max_memory_mb",
+            "max_cpu_seconds",
+            "max_nofile",
         ):
             if getattr(config, field_name) <= 0:
                 raise ValueError(f"{field_name} must be positive, got {getattr(config, field_name)}")
@@ -102,103 +145,176 @@ class Config:
         return config
 
 
-def _sort_key(row: dict[str, Any]) -> str:
-    return json.dumps(
-        [
-            row.get("focusNode") or "",
-            row.get("path") or "",
-            row.get("sourceConstraintComponent") or "",
-            row.get("message") or "",
-            row.get("value") or "",
-        ]
-    )
+@dataclass
+class _WorkerHandle:
+    process: Any
+    conn: Any
+    busy: bool = field(default=False)
 
 
-def _first_message(report: Graph, result: Any) -> str | None:
-    messages = [str(obj) for obj in report.objects(result, SH.resultMessage)]
-    if not messages:
-        return None
-    # rdflib iteration order is not guaranteed; pick deterministically.
-    return sorted(messages)[0]
+class WorkerPool:
+    """Bounded pool of worker subprocesses, one validation at a time each.
 
-
-def _extract_results(report: Graph) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for result in report.objects(None, SH.result):
-        focus = report.value(result, SH.focusNode)
-        path = report.value(result, SH.resultPath)
-        component = report.value(result, SH.sourceConstraintComponent)
-        severity = report.value(result, SH.resultSeverity)
-        value = report.value(result, SH.value)
-        rows.append(
-            {
-                "focusNode": str(focus) if focus is not None else "",
-                "path": str(path) if isinstance(path, URIRef) else None,
-                "sourceConstraintComponent": str(component) if component is not None else "",
-                "severity": str(severity) if severity is not None else "",
-                "message": _first_message(report, result),
-                "value": str(value) if value is not None else None,
-            }
-        )
-    rows.sort(key=_sort_key)
-    return rows
-
-
-SPARQL_QUERY_PREDICATES = (SH.select, SH.construct, SH.ask, SH.update)
-
-
-def reject_federated_queries(shapes_graph: Graph) -> None:
-    """SSRF guard.
-
-    pyshacl blocks SERVICE in sh:sparql constraints but EXECUTES it from
-    sh:SPARQLRule constructs (probe-proven: an outbound connection is made).
-    The runtime must never perform outbound requests, so every
-    SPARQL-bearing literal (select/construct/ask/update — covering
-    constraints, targets, rules, functions, and validators) is scanned for
-    the SERVICE keyword before execution.
-
-    The scan runs on BOTH the raw text and a comment-stripped variant: the
-    stripper alone can be evaded with a '#' inside a string literal on the
-    same line, and the raw scan alone would reject innocuous comment
-    mentions. Over-rejection fails closed, which is acceptable here.
+    The executor thread count equals the pool capacity, so a checkout always
+    finds or creates a handle; busy handles are owned exclusively by their
+    request until it returns, times out (kill), or aborts (drop).
     """
-    for predicate in SPARQL_QUERY_PREDICATES:
-        for literal in shapes_graph.objects(None, predicate):
-            text = str(literal)
-            without_comments = re.sub(r"#[^\n]*", "", text)
-            if re.search(r"(?i)\bservice\b", text) or re.search(r"(?i)\bservice\b", without_comments):
-                raise PayloadError(
-                    "FEDERATED_QUERY_REJECTED",
-                    "SPARQL SERVICE (federated queries) is not supported: the runtime must never perform outbound requests.",
-                )
+
+    def __init__(self, config: Config) -> None:
+        self._config = config
+        self._context = _multiprocessing_context()
+        self._lock = threading.Lock()
+        self._handles: list[_WorkerHandle] = []
+        self._killed = 0
+        self._aborted = 0
+
+    def _worker_limits(self) -> WorkerLimits:
+        return WorkerLimits(
+            memory_mb=self._config.max_memory_mb,
+            cpu_seconds=self._config.max_cpu_seconds,
+            nofile=self._config.max_nofile,
+        )
+
+    def _spawn_handle(self) -> _WorkerHandle:
+        parent_conn, child_conn = self._context.Pipe()
+        process = self._context.Process(
+            target=child_main, args=(child_conn, self._worker_limits()), daemon=True
+        )
+        try:
+            process.start()
+        except Exception:
+            parent_conn.close()
+            child_conn.close()
+            raise
+        child_conn.close()
+        return _WorkerHandle(process=process, conn=parent_conn)
+
+    def _create_handle(self) -> _WorkerHandle:
+        try:
+            return self._spawn_handle()
+        except Exception:  # noqa: BLE001 - one fallback, then fail closed
+            if self._context.get_start_method() != "forkserver":
+                raise
+            # Forkserver can be unavailable in constrained environments; fall
+            # back to spawn once (slower worker start, same isolation).
+            self._context = multiprocessing.get_context("spawn")
+            return self._spawn_handle()
+
+    def _checkout(self) -> _WorkerHandle:
+        with self._lock:
+            for handle in list(self._handles):
+                if handle.busy:
+                    continue
+                if not handle.process.is_alive():
+                    self._drop_locked(handle, aborted=True)
+                    continue
+                handle.busy = True
+                return handle
+            if len(self._handles) >= self._config.max_concurrency:
+                # Unreachable while executor size == pool capacity; fail closed.
+                raise ValidationAbortedError("validation pool saturated")
+            try:
+                handle = self._create_handle()
+            except Exception as err:  # noqa: BLE001 - fail closed per request
+                raise ValidationAbortedError(f"worker could not be started: {err}") from err
+            handle.busy = True
+            self._handles.append(handle)
+            return handle
+
+    def _drop_locked(self, handle: _WorkerHandle, *, aborted: bool) -> None:
+        if handle in self._handles:
+            self._handles.remove(handle)
+        try:
+            handle.conn.close()
+        except OSError:
+            pass
+        if aborted:
+            self._aborted += 1
+
+    def _kill(self, handle: _WorkerHandle, *, timeout_kill: bool, aborted: bool = False) -> None:
+        with self._lock:
+            if timeout_kill:
+                self._killed += 1
+            if aborted:
+                self._aborted += 1
+            handle.process.kill()
+            handle.process.join(timeout=5)
+            self._drop_locked(handle, aborted=False)
+
+    def run_validation(self, data_nquads: str, shapes_turtle: str) -> tuple[bool, list[dict[str, Any]]]:
+        handle = self._checkout()
+        try:
+            try:
+                handle.conn.send({"data_nquads": data_nquads, "shapes_turtle": shapes_turtle})
+                if not handle.conn.poll(self._config.validate_timeout_seconds):
+                    raise ValidationTimeoutError(
+                        "Validation exceeded the configured timeout and was terminated."
+                    )
+                result = handle.conn.recv()
+            except ValidationTimeoutError:
+                self._kill(handle, timeout_kill=True)
+                raise
+            except (EOFError, OSError, ValueError) as err:
+                self._kill(handle, timeout_kill=False, aborted=True)
+                raise ValidationAbortedError(
+                    f"validation worker terminated unexpectedly: {err or 'connection closed'}"
+                ) from err
+        finally:
+            handle.busy = False
+
+        cpu_seconds = float(result.get("cpu_seconds") or 0.0)
+        if cpu_seconds >= self._config.max_cpu_seconds * CHILD_RETIRE_CPU_FRACTION:
+            # Recycle before the cumulative RLIMIT_CPU can kill mid-request.
+            self._kill(handle, timeout_kill=False)
+
+        if result.get("ok") is True:
+            return bool(result["conforms"]), list(result["results"])
+        code = str(result.get("code") or "INTERNAL_ERROR")
+        message = str(result.get("message") or "validation failed")
+        if code in PAYLOAD_ERROR_CODES:
+            raise PayloadError(code, message)
+        if code == "VALIDATION_FAILURE":
+            raise ValidationFailureError(message)
+        if code == "RESOURCE_LIMIT":
+            # Recycle: the worker's heap state after a memory-limit event is
+            # unknown; the next request gets a fresh process.
+            self._kill(handle, timeout_kill=False)
+            raise ResourceLimitError(message)
+        raise RuntimeError(message)
+
+    def stats(self) -> dict[str, int]:
+        with self._lock:
+            alive = sum(1 for handle in self._handles if handle.process.is_alive())
+            return {
+                "size": self._config.max_concurrency,
+                "alive": alive,
+                "killed": self._killed,
+                "aborted": self._aborted,
+            }
+
+    def close(self) -> None:
+        with self._lock:
+            handles = list(self._handles)
+            self._handles.clear()
+        for handle in handles:
+            try:
+                handle.process.kill()
+                handle.process.join(timeout=5)
+            except Exception:  # noqa: BLE001 - best-effort teardown
+                pass
+            try:
+                handle.conn.close()
+            except OSError:
+                pass
 
 
-def validate_payload(data_nquads: str, shapes_turtle: str) -> tuple[bool, list[dict[str, Any]]]:
-    try:
-        shapes_graph = Graph().parse(data=shapes_turtle, format="turtle")
-    except Exception as err:  # noqa: BLE001 - surfaced as a structured 400
-        raise PayloadError("SHAPES_PARSE_ERROR", f"Shapes Turtle failed to parse: {err}") from err
-    reject_federated_queries(shapes_graph)
-    try:
-        data_graph = Graph().parse(data=data_nquads, format="nquads")
-    except Exception as err:  # noqa: BLE001 - surfaced as a structured 400
-        raise PayloadError("DATA_PARSE_ERROR", f"Data N-Quads failed to parse: {err}") from err
-
-    conforms, report, _ = pyshacl.validate(
-        data_graph=data_graph,
-        shacl_graph=shapes_graph,
-        # EXPLICIT: without advanced=True pyshacl skips rules and functions.
-        advanced=True,
-    )
-    if type(report).__name__ == "ValidationFailure":
-        raise ValidationFailureError(str(report))
-    return bool(conforms), _extract_results(report)
-
-
-def make_handler(config: Config, executor: ThreadPoolExecutor) -> type[BaseHTTPRequestHandler]:
+def make_handler(
+    config: Config, executor: ThreadPoolExecutor, pool: WorkerPool
+) -> type[BaseHTTPRequestHandler]:
     # Bounded in-flight work: max_concurrency workers plus a finite queue.
     # Slots are released when the FUTURE completes (not when the response is
-    # written), so a timed-out worker still counts against capacity.
+    # written); a timed-out validation completes at the kill, so no runaway
+    # work holds capacity.
     slots = threading.BoundedSemaphore(config.max_concurrency + config.queue_limit)
 
     class Handler(BaseHTTPRequestHandler):
@@ -232,7 +348,15 @@ def make_handler(config: Config, executor: ThreadPoolExecutor) -> type[BaseHTTPR
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib naming
             if self.path == "/healthz":
-                self._send_json(200, {"ok": True, "engine": ENGINE_ID, "service_version": SERVICE_VERSION})
+                self._send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "engine": ENGINE_ID,
+                        "service_version": SERVICE_VERSION,
+                        "workers": pool.stats(),
+                    },
+                )
                 return
             self._error(404, "NOT_FOUND", "Unknown path.")
 
@@ -265,16 +389,20 @@ def make_handler(config: Config, executor: ThreadPoolExecutor) -> type[BaseHTTPR
             if not slots.acquire(blocking=False):
                 self._error(503, "SHACL_RUNTIME_BUSY", "The runtime is at capacity; retry shortly.")
                 return
-            future = executor.submit(validate_payload, parsed["data_nquads"], parsed["shapes_turtle"])
+            future = executor.submit(pool.run_validation, parsed["data_nquads"], parsed["shapes_turtle"])
             future.add_done_callback(lambda _future: slots.release())
             try:
-                conforms, results = future.result(timeout=config.validate_timeout_seconds)
-            except FuturesTimeoutError:
-                # The worker thread keeps running (Python cannot cancel it);
-                # it still holds its capacity slot until it finishes, and the
-                # caller fails closed. Hard cancellation needs subprocess
-                # isolation (documented follow-up).
+                conforms, results = future.result(
+                    timeout=config.validate_timeout_seconds + SPAWN_GRACE_SECONDS
+                )
+            except (FuturesTimeoutError, ValidationTimeoutError):
                 self._error(504, "VALIDATION_TIMEOUT", "Validation exceeded the configured timeout.")
+                return
+            except ValidationAbortedError as err:
+                self._error(500, "VALIDATION_ABORTED", str(err))
+                return
+            except ResourceLimitError as err:
+                self._error(507, "RESOURCE_LIMIT", str(err))
                 return
             except PayloadError as err:
                 self._error(400, err.code, str(err))
@@ -301,10 +429,31 @@ class QuietThreadingHTTPServer(ThreadingHTTPServer):
         )
 
 
+class RuntimeServer(QuietThreadingHTTPServer):
+    """HTTP server owning the worker pool + executor lifetime."""
+
+    def __init__(
+        self,
+        address: tuple[str, int],
+        handler: type[BaseHTTPRequestHandler],
+        pool: WorkerPool,
+        executor: ThreadPoolExecutor,
+    ) -> None:
+        self.validation_pool = pool
+        self.validation_executor = executor
+        super().__init__(address, handler)
+
+    def server_close(self) -> None:
+        self.validation_pool.close()
+        self.validation_executor.shutdown(wait=False, cancel_futures=True)
+        super().server_close()
+
+
 def create_server(config: Config, host: str | None = None, port: int | None = None) -> ThreadingHTTPServer:
+    pool = WorkerPool(config)
     executor = ThreadPoolExecutor(max_workers=config.max_concurrency, thread_name_prefix="validate")
-    handler = make_handler(config, executor)
-    return QuietThreadingHTTPServer((host or config.host, port if port is not None else config.port), handler)
+    handler = make_handler(config, executor, pool)
+    return RuntimeServer((host or config.host, port if port is not None else config.port), handler, pool, executor)
 
 
 def main() -> None:
@@ -329,6 +478,8 @@ def main() -> None:
         thread.join()
     except KeyboardInterrupt:
         server.shutdown()
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":
