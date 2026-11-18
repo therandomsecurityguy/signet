@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.68](https://github.com/therandomsecurityguy/signet/compare/v0.1.67...v0.1.68) (2026-11-18)
+
+
+### Features
+
+* **shacl-runtime:** subprocess isolation with rlimits and hard cancellation ([8c3a8d6](https://github.com/therandomsecurityguy/signet/commit/8c3a8d6c651ec43b8f8ba567ddfc9b8c4b91309c))
+* **shacl-runtime:** subprocess isolation with rlimits and hard cancellation ([165c8cd](https://github.com/therandomsecurityguy/signet/commit/165c8cd40c14556a13d85e06f3328ee05f86a445))
+
 ## [0.1.67](https://github.com/therandomsecurityguy/signet/compare/v0.1.66...v0.1.67) (2026-11-18)
 
 
