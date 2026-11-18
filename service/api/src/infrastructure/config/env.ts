@@ -72,6 +72,11 @@ const EnvSchema = z.object({
   KEYLESS_REKOR_PUBLIC_KEY: z.string().optional(),
   KEYLESS_REKOR_LOG_ID: z.string().optional(),
   TRANSPARENCY_APPEND_LOG_ID: z.string().optional(),
+  // Optional SHACL-AF runtime sidecar (service/shacl-runtime): executes
+  // rules, SPARQL functions, and custom constraint components. Policies
+  // using those constructs fail closed validation without it.
+  SHACL_RUNTIME_URL: z.string().url().optional(),
+  SHACL_RUNTIME_TOKEN: z.string().optional(),
   // PEM content of the native companion log's checkpoint key; enables
   // transparency reconciliation when set alongside TESSERA_SIDECAR_URL and
   // TRANSPARENCY_APPEND_LOG_ID.

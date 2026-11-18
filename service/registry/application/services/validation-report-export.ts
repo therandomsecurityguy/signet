@@ -65,9 +65,45 @@ function isIriLike(value: string): boolean {
   return /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value);
 }
 
-function isShaclComponentNaming(value: string): boolean {
-  return /^[A-Za-z]+ConstraintComponent$/.test(value);
-}
+/**
+ * SHACL component names that map onto sh: IRIs in report exports. Custom
+ * component IRIs (and anything unrecognized) are deliberately NOT coerced
+ * into the sh: vocabulary — they are emitted as urn:sg: literals, plus as
+ * IRIs when they are IRI-like (they already are), so consumers can resolve
+ * the authored component.
+ */
+const KNOWN_SHACL_COMPONENT_NAMES = new Set([
+  'MinCountConstraintComponent',
+  'MaxCountConstraintComponent',
+  'DatatypeConstraintComponent',
+  'NodeKindConstraintComponent',
+  'ClassConstraintComponent',
+  'InConstraintComponent',
+  'PatternConstraintComponent',
+  'LanguageInConstraintComponent',
+  'MinLengthConstraintComponent',
+  'MaxLengthConstraintComponent',
+  'UniqueLangConstraintComponent',
+  'EqualsConstraintComponent',
+  'DisjointConstraintComponent',
+  'LessThanConstraintComponent',
+  'LessThanOrEqualsConstraintComponent',
+  'MinExclusiveConstraintComponent',
+  'MinInclusiveConstraintComponent',
+  'MaxExclusiveConstraintComponent',
+  'MaxInclusiveConstraintComponent',
+  'NodeConstraintComponent',
+  'PropertyConstraintComponent',
+  'QualifiedMinCountConstraintComponent',
+  'QualifiedMaxCountConstraintComponent',
+  'AndConstraintComponent',
+  'OrConstraintComponent',
+  'NotConstraintComponent',
+  'XoneConstraintComponent',
+  'ClosedConstraintComponent',
+  'HasValueConstraintComponent',
+  'SPARQLConstraintComponent',
+]);
 
 export function buildValidationReportTriples(input: ValidationReportExportInput): RdfTriple[] {
   const triples: RdfTriple[] = [];
@@ -117,7 +153,7 @@ export function buildValidationReportTriples(input: ValidationReportExportInput)
         object: iri(`${SH}${violation.severity}`),
       });
       triples.push({ subject: resultIri, predicate: `${SH}resultMessage`, object: literal(violation.message) });
-      if (isShaclComponentNaming(violation.sourceConstraintComponent)) {
+      if (KNOWN_SHACL_COMPONENT_NAMES.has(violation.sourceConstraintComponent)) {
         triples.push({
           subject: resultIri,
           predicate: `${SH}sourceConstraintComponent`,
@@ -125,6 +161,13 @@ export function buildValidationReportTriples(input: ValidationReportExportInput)
         });
       } else {
         triples.push(property(resultIri, 'source_constraint_component', violation.sourceConstraintComponent));
+        if (isIriLike(violation.sourceConstraintComponent)) {
+          triples.push({
+            subject: resultIri,
+            predicate: `${SG_PROPERTY_PREFIX}source_constraint_component`,
+            object: iri(violation.sourceConstraintComponent),
+          });
+        }
       }
       if (violation.resultPath) {
         triples.push(property(resultIri, 'result_path', violation.resultPath));

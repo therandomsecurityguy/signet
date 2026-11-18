@@ -142,6 +142,30 @@ describe('validation report export', () => {
     expect(nquads).not.toContain('capability_claims');
   });
 
+  it('passes custom component IRIs through without coercing them into the SHACL vocabulary', async () => {
+    const { nquads } = await canonicalizeValidationReport(
+      report({
+        layers: [
+          {
+            layer: 'policy',
+            violations: [
+              violation({
+                sourceConstraintComponent: 'urn:example:TagsComponent',
+                message: 'custom component fired',
+              }),
+            ],
+          },
+        ],
+      }),
+    );
+    // The authored IRI is carried as a literal and as an IRI on the
+    // registry's predicate — never as sh:urn:example:TagsComponent.
+    expect(nquads).toContain('<urn:sg:property:source_constraint_component> "urn:example:TagsComponent" .');
+    expect(nquads).toContain('<urn:sg:property:source_constraint_component> <urn:example:TagsComponent> .');
+    expect(nquads).not.toContain('http://www.w3.org/ns/shacl#urn%3Aexample');
+    expect(nquads).not.toContain('http://www.w3.org/ns/shacl#urn:example');
+  });
+
   it('encodes a conforming report with no results', async () => {
     const { nquads } = await canonicalizeValidationReport(
       report({ conforms: true, layers: [{ layer: 'graph_shape', violations: [] }] }),

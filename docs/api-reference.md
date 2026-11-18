@@ -263,14 +263,42 @@ Authored policies may additionally use SPARQL features, executed on the
   version-to-version lineage targets sharing the entity type) are never
   validated incidentally.
 
+Authored policies may also use SHACL-AF features, executed by the
+optional SHACL-AF runtime sidecar (`service/shacl-runtime`; configure
+`SHACL_RUNTIME_URL` / `SHACL_RUNTIME_TOKEN` on `service/api`, or
+`shaclRuntime.enabled` in `charts/signet`):
+
+- **Rules** (`sh:rule`): `sh:TripleRule` and `sh:SPARQLRule` with
+  `sh:construct` (`$this` binds the focus node; `sh:prefixes` resolution
+  as above).
+- **SPARQL functions** (`sh:function`): `sh:SPARQLFunction` with
+  `sh:select`; parameter `sh:path` IRIs must end in a derivable local
+  name (contain `#` or `/`).
+- **Custom constraint components** (`sh:ConstraintComponent`): parameter
+  declarations with fragment/path IRIs; validators must be
+  `sh:SPARQLSelectValidator` (via `sh:propertyValidator` /
+  `sh:nodeValidator`) or `sh:SPARQLAskValidator` (generic
+  `sh:validator`).
+
+Shapes documents using these constructs are detected per document and
+routed to the runtime (pyshacl, `advanced=True`) with PREPARED shapes
+only: targeting is rewritten to the validated focus nodes and
+`sh:pattern` is stripped (RE2 remains the regex owner), and the runtime
+re-scans queries, refusing `SERVICE`/`REGEX(` as defense in depth.
+Without a configured runtime — or when it errors — those policies fail
+closed validation with a `ShaclRuntimeConstraintComponent` violation;
+they are never silently skipped. Validation report policy layers record
+`pyshacl@…+shacl-runtime` for AF layers.
+
 Registration rejects: property-shape `sh:sparql` (the engine evaluates
 those outside the W3C prebinding model — put the constraint on the node
 shape and traverse in the query), `REGEX(` inside SPARQL (backtracking
 XPath regex; the RE2-backed `sh:pattern` remains the regex path), and
-`sh:rule` / `sh:function` / `sh:js` (not executed by the engine — a policy
+`sh:js` and node expressions (`sh:expression`) (not executed — a policy
 is never accepted with features that would be silently ignored).
 Validation report policy layers record the engine that ran them
-(`rdf-validate-shacl@…` or `shacl-engine@…+sparql`).
+(`rdf-validate-shacl@…`, `shacl-engine@…+sparql`, or
+`pyshacl@…+shacl-runtime`).
 
 Example (legacy JSON document, gates inside the document):
 

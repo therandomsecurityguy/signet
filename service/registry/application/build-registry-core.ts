@@ -36,6 +36,11 @@ export type RegistryCoreConfig = {
   // Shared bearer token presented to the Tessera sidecar on append and
   // reconciliation calls when the sidecar enforces auth.
   transparency_append_token?: string;
+  // Optional SHACL-AF runtime sidecar (service/shacl-runtime): executes
+  // rules, SPARQL functions, and custom constraint components. Authored
+  // policies using those constructs fail closed without it.
+  shacl_runtime_url?: string;
+  shacl_runtime_token?: string;
   // Keyless (sigstore) signature trust policy: PEM files for trusted roots
   // plus allowed OIDC issuers and subject patterns.
   keyless?: import('./services/keyless-verification.js').KeylessTrustPolicy;
@@ -87,6 +92,14 @@ export function buildRegistryCore(cfg: RegistryCoreConfig) {
     cas,
     llmValidator,
     ...(cfg.keyless ? { keyless: cfg.keyless } : {}),
+    ...(cfg.shacl_runtime_url
+      ? {
+          shaclRuntime: {
+            url: cfg.shacl_runtime_url,
+            ...(cfg.shacl_runtime_token ? { token: cfg.shacl_runtime_token } : {}),
+          },
+        }
+      : {}),
     ...(transparencyReconciler ? { transparencyReconciler } : {}),
     ...(transparencyAppendUrl && transparencyAppendLogId
       ? {

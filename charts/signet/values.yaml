@@ -123,6 +123,18 @@ tesseraSidecar:
   logPublicKeyPem: ""
   env: {}
 
+# Optional SHACL-AF runtime sidecar (service/shacl-runtime): executes SHACL
+# rules, SPARQL functions, and custom SPARQL-based constraint components —
+# the advanced features no in-process engine implements. Policies using those
+# constructs fail closed validation when this runtime is disabled.
+shaclRuntime:
+  enabled: false
+  image:
+    repository: signet/shacl-runtime
+    digest: ""
+  port: 3300
+  env: {}
+
 # In-cluster watchdog for the tessera-sidecar (probes /healthz + /v1/config
 # and publishes Signet/Watchdog/SidecarHealthy for the Terraform alarm).
 # Enable together with signet-data's sidecar_watchdog_enabled.
@@ -214,6 +226,10 @@ secrets:
   # (TESSERA_SIDECAR_AUTH_TOKEN). Empty keeps the sidecar unauthenticated for
   # local dev only; set it in every deployment (prefer supplying via ESO).
   tesseraSidecarAuthToken: ""
+  # Shared bearer token for registry <-> SHACL-AF runtime calls
+  # (SHACL_RUNTIME_TOKEN). Empty keeps the runtime unauthenticated for local
+  # dev only; set it in every deployment (prefer supplying via ESO).
+  shaclRuntimeToken: ""
   external:
     enabled: false
     # When true, the chart renders a namespace-scoped SecretStore backed by AWS

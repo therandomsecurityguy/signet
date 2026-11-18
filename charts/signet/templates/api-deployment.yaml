@@ -116,6 +116,18 @@ spec:
                   name: {{ .Values.secrets.name }}
                   key: tessera-sidecar-auth-token
                   optional: true
+            {{- if .Values.shaclRuntime.enabled }}
+            # SHACL-AF runtime sidecar: executes rules, SPARQL functions, and
+            # custom constraint components for policy shapes that need them.
+            - name: SHACL_RUNTIME_URL
+              value: http://{{ include "signet.fullname" . }}-shacl-runtime:{{ .Values.shaclRuntime.port }}
+            - name: SHACL_RUNTIME_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: shacl-runtime-token
+                  optional: true
+            {{- end }}
             {{- if not (hasKey .Values.api.env "DATABASE_URL") }}
             - name: DATABASE_URL
               valueFrom:
