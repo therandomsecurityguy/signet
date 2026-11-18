@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.67](https://github.com/therandomsecurityguy/signet/compare/v0.1.66...v0.1.67) (2026-11-18)
+
+
+### Features
+
+* **registry:** execute SHACL-AF policies via the pyshacl runtime sidecar ([06180f7](https://github.com/therandomsecurityguy/signet/commit/06180f7a25c3b6b92085bcc2ebb0c03924bdc7ce))
+
 ## [0.1.66](https://github.com/therandomsecurityguy/signet/compare/v0.1.65...v0.1.66) (2026-11-18)
 
 
