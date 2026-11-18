@@ -158,6 +158,7 @@ Primary purpose:
 
 Current responsibilities:
 - validate PREPARED shapes and N-Quads datasets on `POST /v1/validate` (pyshacl, `advanced=True`) and return deterministic, spec-shaped results
+- run every validation in an rlimit-bounded worker subprocess with hard-kill timeouts (forkserver-preloaded workers; `/healthz` reports worker stats)
 - refuse federated queries (`SERVICE`) and `REGEX(` as defense in depth (the registry's RE2 layer owns regex)
 
 Important boundaries:

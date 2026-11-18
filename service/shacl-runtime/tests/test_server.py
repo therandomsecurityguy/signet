@@ -9,6 +9,7 @@ service contract (auth, limits, structured errors, determinism, timeout).
 from __future__ import annotations
 
 import json
+import sys
 import threading
 import urllib.error
 import urllib.request
@@ -109,6 +110,27 @@ CORE_SHAPES = """
     sh:property [ sh:path <urn:sg:property:license> ; sh:minCount 1 ; sh:message "license missing" ] .
 """
 
+CARTESIAN_RULE_SHAPES = """
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+<urn:sg:shape:heavy> a sh:NodeShape ;
+    sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        sh:construct \"\"\"
+            CONSTRUCT { ?a <urn:sg:property:pair> ?b } WHERE {
+                ?this <urn:sg:property:tags> ?a .
+                ?this <urn:sg:property:tags> ?b .
+            }
+        \"\"\" ;
+    ] .
+"""
+
+
+def _tag_triples(count: int) -> str:
+    return "".join(
+        f'<urn:sg:skill-version:demo@v1> <urn:sg:property:tags> "tag-{index}" .\n' for index in range(count)
+    )
+
 
 @pytest.fixture()
 def service(request):
@@ -121,6 +143,9 @@ def service(request):
             "MAX_BODY_BYTES": str(overrides.get("max_body", 2_000_000)),
             "MAX_CONCURRENCY": str(overrides.get("max_concurrency", 4)),
             "QUEUE_LIMIT": str(overrides.get("queue_limit", 32)),
+            "MAX_MEMORY_MB": str(overrides.get("memory", 1024)),
+            "MAX_CPU_SECONDS": str(overrides.get("cpu", 300)),
+            "MAX_NOFILE": str(overrides.get("nofile", 64)),
         }
     )
     server = create_server(config, host="127.0.0.1", port=0)
@@ -155,6 +180,9 @@ def test_healthz(service):
     assert status == 200
     assert body["ok"] is True
     assert body["engine"].startswith("pyshacl@")
+    assert body["workers"]["size"] == service[1].max_concurrency
+    assert body["workers"]["killed"] == 0
+    assert body["workers"]["aborted"] == 0
 
 
 def test_core_validation(service):
@@ -237,28 +265,20 @@ def test_payload_limits(service):
     assert body["error"]["code"] == "PAYLOAD_TOO_LARGE"
 
 
-@pytest.mark.parametrize("service", [{"timeout": 0.002}], indirect=True)
-def test_validation_timeout(service):
-    tags = "".join(
-        f'<urn:sg:skill-version:demo@v1> <urn:sg:property:tags> "tag-{index}" .\n' for index in range(300)
-    )
-    heavy_shapes = """
-@prefix sh: <http://www.w3.org/ns/shacl#> .
-<urn:sg:shape:heavy> a sh:NodeShape ;
-    sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;
-    sh:rule [
-        a sh:SPARQLRule ;
-        sh:construct \"\"\"
-            CONSTRUCT { ?a <urn:sg:property:pair> ?b } WHERE {
-                ?this <urn:sg:property:tags> ?a .
-                ?this <urn:sg:property:tags> ?b .
-            }
-        \"\"\" ;
-    ] .
-"""
-    status, body = validate(service[0], TODO_DATA + tags, heavy_shapes)
+@pytest.mark.parametrize("service", [{"timeout": 0.25}], indirect=True)
+def test_validation_timeout_hard_kills_worker(service):
+    status, body = validate(service[0], TODO_DATA + _tag_triples(300), CARTESIAN_RULE_SHAPES)
     assert status == 504
     assert body["error"]["code"] == "VALIDATION_TIMEOUT"
+
+    # Hard cancellation, not abandonment: the worker was killed (accounted in
+    # /healthz) and the pool recycles — capacity is usable immediately, with a
+    # fresh worker that completes a normal validation.
+    workers = call(service[0], "/healthz")[1]["workers"]
+    assert workers["killed"] >= 1
+    status, body = validate(service[0], TODO_DATA, CORE_SHAPES)
+    assert status == 200
+    assert body["conforms"] is False
 
 
 RULE_SERVICE_SHAPES = """
@@ -326,12 +346,12 @@ def test_busy_when_at_capacity(service, monkeypatch):
     started = threading.Event()
     release = threading.Event()
 
-    def fake_validate(data: str, shapes: str):  # noqa: ARG001 - contract stub
+    def fake_run_validation(self, data: str, shapes: str):  # noqa: ARG001 - contract stub
         started.set()
         release.wait(10)
         return True, []
 
-    monkeypatch.setattr(server_module, "validate_payload", fake_validate)
+    monkeypatch.setattr(server_module.WorkerPool, "run_validation", fake_run_validation)
     base_url = service[0]
     outcome: dict[str, tuple[int, dict]] = {}
 
@@ -346,3 +366,21 @@ def test_busy_when_at_capacity(service, monkeypatch):
     release.set()
     worker.join(10)
     assert outcome["first"][0] == 200
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="RLIMIT_AS is only enforced on Linux")
+@pytest.mark.parametrize("service", [{"memory": 128}], indirect=True)
+def test_memory_limit_fails_closed_and_recycles_worker(service):
+    # Baseline python:3.15 + pyshacl is ~54MB VmSize; 600 tags with the
+    # cartesian rule need hundreds of MB, so the 128MB cap trips well before
+    # the (default) timeout while the follow-up tiny validation still fits.
+    status, body = validate(service[0], TODO_DATA + _tag_triples(600), CARTESIAN_RULE_SHAPES)
+    assert status in {500, 507}
+    assert body["error"]["code"] in {"RESOURCE_LIMIT", "VALIDATION_ABORTED"}
+
+    # The service stays healthy and the pool recycles to a fresh worker.
+    workers = call(service[0], "/healthz")[1]["workers"]
+    assert workers["size"] == service[1].max_concurrency
+    status, body = validate(service[0], TODO_DATA, CORE_SHAPES)
+    assert status == 200
+    assert body["conforms"] is False
