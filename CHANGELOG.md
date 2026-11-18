@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.66](https://github.com/therandomsecurityguy/signet/compare/v0.1.65...v0.1.66) (2026-11-18)
+
+
+### Features
+
+* **shacl-runtime:** SHACL-AF runtime sidecar (pyshacl advanced features) ([3f1edb5](https://github.com/therandomsecurityguy/signet/commit/3f1edb5df1ca5b0144c38a86ac09a1704bacd43b))
+* **shacl-runtime:** SHACL-AF runtime sidecar (pyshacl advanced features) ([47aac6c](https://github.com/therandomsecurityguy/signet/commit/47aac6c181357806863d81f0b8155b6b24b950d9))
+
+
+### Bug Fixes
+
+* **shacl-runtime:** harden against SSRF, slowloris, queue exhaustion + dev-dep audit ([650eb26](https://github.com/therandomsecurityguy/signet/commit/650eb2626020baef063902d3fdcbc003d0f122b4))
+
 ## [0.1.65](https://github.com/therandomsecurityguy/signet/compare/v0.1.64...v0.1.65) (2026-11-17)
 
 
