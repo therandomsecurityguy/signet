@@ -7,6 +7,7 @@ This document explains the intended roles of the services under `service/` in **
 - `service/registry`
 - `service/api`
 - `service/webapp`
+- `service/shacl-runtime` (optional companion)
 
 ### Canonical boundaries
 - `service/registry`
@@ -151,8 +152,25 @@ Current runtime status:
 - defaults to a persistent local graph file for API metadata writes
 - currently keeps ontology access/auth as a separate companion concern rather than a unified identity surface
 
-### Relationship between services
+### `service/shacl-runtime` (optional companion)
+Primary purpose:
+- execute authored SHACL shapes with advanced features — SHACL-AF rules, SPARQL functions, and custom SPARQL-based constraint components — that no in-process engine implements
 
+Current responsibilities:
+- validate PREPARED shapes and N-Quads datasets on `POST /v1/validate` (pyshacl, `advanced=True`) and return deterministic, spec-shaped results
+- refuse federated queries (`SERVICE`) and `REGEX(` as defense in depth (the registry's RE2 layer owns regex)
+
+Important boundaries:
+- optional: when it is not configured, the registry fails closed on policies using SHACL-AF constructs — never a silent conform
+- receives prepared shapes only (targeting rewritten to focus nodes, `sh:pattern` stripped)
+- not a write plane: it evaluates and reports, nothing else
+
+Current runtime status:
+- runnable locally via `infra/docker-compose.yml` (profile `shacl-af`)
+- deployable from `charts/signet` via the `shaclRuntime` option
+- wired into `service/api` through `SHACL_RUNTIME_URL` / `SHACL_RUNTIME_TOKEN`
+
+### Relationship between services
 ```mermaid
 flowchart LR
   Humans[HumansAndWebapp]

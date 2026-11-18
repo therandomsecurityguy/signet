@@ -1,0 +1,77 @@
+{{- if .Values.shaclRuntime.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "signet.fullname" . }}-shacl-runtime
+  labels:
+    {{- include "signet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: shacl-runtime
+spec:
+  replicas: {{ .Values.shaclRuntime.replicas | default .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "signet.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: shacl-runtime
+  template:
+    metadata:
+      labels:
+        {{- include "signet.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: shacl-runtime
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: shacl-runtime
+          image: {{ include "signet.image" (dict "repository" .Values.shaclRuntime.image.repository "tag" .Values.shaclRuntime.image.tag "digest" .Values.shaclRuntime.image.digest "registry" .Values.image.registry "Chart" .Chart) }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.shaclRuntime.port }}
+          env:
+            - name: PORT
+              value: {{ .Values.shaclRuntime.port | quote }}
+            # Shared bearer token for /v1/validate calls; when empty the
+            # runtime stays open for local development only.
+            - name: SHACL_RUNTIME_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: shacl-runtime-token
+                  optional: true
+            {{- range $k, $v := .Values.shaclRuntime.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+{{- end }}

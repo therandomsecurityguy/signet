@@ -143,7 +143,11 @@ Validation (five layers):
   formats
 - W3C SHACL Core execution (`rdf-validate-shacl`, in-process) over
   derived RDF with focus-scoped targeting and RE2-backed pattern
-  execution (ReDoS-safe by construction)
+  execution (ReDoS-safe by construction); SPARQL constraints/targets run
+  on a hybrid `shacl-engine` adapter, and SHACL-AF rules, SPARQL
+  functions, and custom SPARQL-based constraint components execute on an
+  optional pyshacl runtime sidecar (`service/shacl-runtime`) that
+  receives prepared shapes only — those policies fail closed without it
 - machine-readable violation reports (SHACL result vocabulary; recorded
   `validator: shacl-v1`, engine id, and per-layer shapes fingerprints)
   stored in the CAS and linked via `sg:validatedBy`
@@ -231,11 +235,13 @@ Storage and operations:
 - time-aware object slice: commits, refs, tags, workspaces, manifests,
   retention roots
 - durable, non-destructive GC job execution seam
-- GitHub Actions CI for service/api, service/mcp, and tessera-sidecar
+- GitHub Actions CI for service/api, service/mcp, shacl-runtime, and
+  tessera-sidecar
 
 Proposed next (not implemented yet):
-- SHACL-AF rules, functions, and node expressions (needs an inference-stage
-  design), and SHACL-SPARQL custom constraint components
+- SHACL node expressions and `sh:js` (refused at registration; no
+  execution semantics implemented), and an in-process SHACL-AF engine
+  (graph mutation needs an inference-stage design)
 - de-facto term promotion into authored OWL ontologies; ontology
   vocabularies exposed to SHACL shapes
 - richer de facto ontology mining (runtime observations, corpus analysis)
@@ -574,6 +580,7 @@ Signet is designed to be available to every agent workflow. The current surfaces
 - `service/mcp/README.md`
 - `service/api/README.md`
 - `service/registry/README.md`
+- `service/shacl-runtime/README.md`
 - `service/tessera-sidecar/README.md`
 - `service/tessera-runtime/README.md`
 - `service/webapp/README.md`

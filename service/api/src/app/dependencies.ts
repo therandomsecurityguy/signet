@@ -92,6 +92,8 @@ export function buildAppDependencies(env: Env) {
     ...(env.REGISTRY_S3_SESSION_TOKEN ? { s3_session_token: env.REGISTRY_S3_SESSION_TOKEN } : {}),
     ...(env.TESSERA_SIDECAR_URL ? { transparency_append_url: env.TESSERA_SIDECAR_URL } : {}),
     ...(env.TESSERA_SIDECAR_AUTH_TOKEN ? { transparency_append_token: env.TESSERA_SIDECAR_AUTH_TOKEN } : {}),
+    ...(env.SHACL_RUNTIME_URL ? { shacl_runtime_url: env.SHACL_RUNTIME_URL } : {}),
+    ...(env.SHACL_RUNTIME_TOKEN ? { shacl_runtime_token: env.SHACL_RUNTIME_TOKEN } : {}),
     ...(env.KEYLESS_TRUSTED_ROOTS && env.KEYLESS_ALLOWED_ISSUERS && env.KEYLESS_ALLOWED_SUBJECTS
       ? {
           keyless: {

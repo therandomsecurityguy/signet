@@ -26,6 +26,7 @@ One Secrets Manager secret per key, under `<secret_prefix>/` (default
 | `api-key-pepper` | `api-key-pepper` | api, mcp |
 | `tessera-log-private-key` | `tessera-log-private-key` | tessera-sidecar |
 | `tessera-sidecar-auth-token` | `tessera-sidecar-auth-token` | api, tessera-sidecar |
+| `shacl-runtime-token` | `shacl-runtime-token` | api, shacl-runtime |
 
 S3 artifact access uses **IRSA**, not static keys: the release ServiceAccount's
 role (from the `signet-data` module) grants the artifact-bucket policy, and the
@@ -39,7 +40,7 @@ AWS SDK picks up the web-identity credentials automatically. There are no
   by the `signet-data` module.
 - **Operator-seeded** (never in Terraform state, never in Helm values):
   `okta-client-secret`, `tessera-log-private-key`,
-  `tessera-sidecar-auth-token`.
+  `tessera-sidecar-auth-token`, `shacl-runtime-token`.
 
 ## Seeding operator secrets
 
@@ -76,6 +77,22 @@ aws secretsmanager put-secret-value \
 The k8s env is `optional: true` so pods start before the key is seeded — but
 the sidecar then rejects `/v1/*` with `SIDECAR_AUTH_NOT_CONFIGURED` until the
 token (or the explicit local-development opt-out) is configured.
+
+The optional SHACL-AF runtime sidecar (`shaclRuntime.enabled`) reads the same
+pattern: seed `shacl-runtime-token` and the api presents it on `/v1/validate`
+calls (the runtime stays open when the token is unset — local development
+only):
+
+```bash
+aws secretsmanager put-secret-value \
+  --secret-id signet-prod/runtime/shacl-runtime-token \
+  --secret-string "$(openssl rand -hex 32)"
+```
+
+Without `shaclRuntime.enabled` there is no `SHACL_RUNTIME_URL` on the api,
+and policies using SHACL-AF rules, SPARQL functions, or custom SPARQL-based
+constraint components fail closed validation with an explicit runtime
+violation.
 
 The matching checkpoint **public** key is not a secret. Set
 `tesseraSidecar.logPublicKeyPem` to its PEM content (derive from the seeded

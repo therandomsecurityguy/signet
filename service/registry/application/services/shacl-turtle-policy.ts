@@ -41,41 +41,71 @@ const DECLARE_PREFIX = `${SHACL_NS}prefix`;
 const DECLARE_NAMESPACE = `${SHACL_NS}namespace`;
 const PROPERTY = `${SHACL_NS}property`;
 const TARGET = `${SHACL_NS}target`;
+const CONSTRUCT = `${SHACL_NS}construct`;
+const ASK = `${SHACL_NS}ask`;
+const RULE = `${SHACL_NS}rule`;
+const FUNCTION = `${SHACL_NS}function`;
+const PARAMETER = `${SHACL_NS}parameter`;
+const CONSTRAINT_COMPONENT = `${SHACL_NS}ConstraintComponent`;
+const NODE_VALIDATOR = `${SHACL_NS}nodeValidator`;
+const PROPERTY_VALIDATOR = `${SHACL_NS}propertyValidator`;
+const VALIDATOR = `${SHACL_NS}validator`;
+const TRIPLE_RULE = `${SHACL_NS}TripleRule`;
+const SPARQL_RULE = `${SHACL_NS}SPARQLRule`;
+const SPARQL_FUNCTION = `${SHACL_NS}SPARQLFunction`;
+const SPARQL_SELECT_VALIDATOR = `${SHACL_NS}SPARQLSelectValidator`;
+const SPARQL_ASK_VALIDATOR = `${SHACL_NS}SPARQLAskValidator`;
+const RDF_TYPE_PREDICATE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 const ANY_URI = 'http://www.w3.org/2001/XMLSchema#anyURI';
 
 /**
- * SHACL-AF features this engine does not execute. Silent non-execution
- * would read as "conforms" — never acceptable for a governance gate — so
- * these are rejected at registration with an explicit reason.
+ * Features that nothing executes. `sh:rule`, `sh:function`, and custom
+ * constraint components are executed by the SHACL-AF runtime sidecar
+ * (registration accepts them; validation fails closed when no runtime is
+ * configured) — but JS-based features and node expressions stay refused:
+ * silent non-execution would read as "conforms", never acceptable for a
+ * governance gate.
  */
 const UNEXECUTED_FEATURES: Array<{ predicate: string; label: string }> = [
-  { predicate: `${SHACL_NS}rule`, label: 'sh:rule (SHACL-AF rules)' },
-  { predicate: `${SHACL_NS}function`, label: 'sh:function (SHACL-AF functions)' },
   { predicate: `${SHACL_NS}js`, label: 'sh:js (JavaScript-based constraints)' },
+  { predicate: `${SHACL_NS}expression`, label: 'sh:expression (SHACL-AF node expressions)' },
 ];
 
-function assertSparqlSelectSafe(selectText: string, context: string): void {
+function assertSparqlTextSafe(selectText: string, context: string): void {
   if (selectText.trim().length === 0) {
-    throw new TurtlePolicyError(`${context} sh:select must be a non-empty string.`);
+    throw new TurtlePolicyError(`${context} SPARQL must be a non-empty string.`);
   }
-  // The SPARQL-capable engine evaluates REGEX() with a backtracking XPath
-  // regex — the same ReDoS class deliberately banned from sh:pattern (which
-  // stays RE2-owned). Regex work belongs in sh:pattern.
+  // The SPARQL engines (in-process and the pyshacl runtime) execute REGEX()
+  // with a backtracking regex — the same ReDoS class deliberately banned
+  // from sh:pattern (which stays RE2-owned). Regex work belongs in
+  // sh:pattern.
   if (/REGEX\s*\(/i.test(selectText)) {
     throw new TurtlePolicyError(
-      `${context} uses REGEX() in SPARQL: the engine executes it with a backtracking regex (ReDoS-unsafe). Use the RE2-backed sh:pattern constraint for regex checks.`,
+      `${context} uses REGEX() in SPARQL: the engines execute it with a backtracking regex (ReDoS-unsafe). Use the RE2-backed sh:pattern constraint for regex checks.`,
+    );
+  }
+  // pyshacl refuses SERVICE in sh:sparql constraints but EXECUTES it from
+  // sh:SPARQLRule constructs (probe-proven outbound request = SSRF); the
+  // runtime rejects it before execution, and registration refuses it so a
+  // registered policy can never rely on federation.
+  const withoutComments = selectText.replace(/#[^\n]*/g, '');
+  if (/\bservice\b/i.test(selectText) || /\bservice\b/i.test(withoutComments)) {
+    throw new TurtlePolicyError(
+      `${context} uses SPARQL SERVICE (federated queries): not supported — validation must never perform outbound requests.`,
     );
   }
 }
 
 function validateSparqlBlock(store: Store, block: Term, context: string): void {
-  const selects = store.getQuads(block, SELECT, null, null);
-  const selectQuads = selects.filter((quad) => quad.object.termType === 'Literal');
-  if (selectQuads.length === 0) {
-    throw new TurtlePolicyError(`${context} requires a sh:select string.`);
+  const queryPredicates = [SELECT, CONSTRUCT, ASK];
+  const queryQuads = queryPredicates.flatMap((predicate) =>
+    store.getQuads(block, predicate, null, null).filter((quad) => quad.object.termType === 'Literal'),
+  );
+  if (queryQuads.length === 0) {
+    throw new TurtlePolicyError(`${context} requires a sh:select, sh:construct, or sh:ask string.`);
   }
-  for (const selectQuad of selectQuads) {
-    assertSparqlSelectSafe(selectQuad.object.value, context);
+  for (const queryQuad of queryQuads) {
+    assertSparqlTextSafe(queryQuad.object.value, context);
   }
   for (const prefixesQuad of store.getQuads(block, PREFIXES, null, null)) {
     const declarations = store.getQuads(prefixesQuad.object, DECLARE, null, null);
@@ -96,6 +126,92 @@ function validateSparqlBlock(store: Store, block: Term, context: string): void {
           `${context} sh:declare entries need a sh:prefix string and an xsd:anyURI sh:namespace.`,
         );
       }
+    }
+  }
+}
+
+function typeOf(store: Store, node: Term): string[] {
+  return store.getQuads(node, RDF_TYPE_PREDICATE, null, null).map((quad) => quad.object.value);
+}
+
+/** pyshacl derives parameter/function variable names from the sh:path local
+ * name; fragment- or path-derived IRIs are required. */
+function validateParameterPaths(store: Store): void {
+  for (const parameterQuad of store.getQuads(null, PARAMETER, null, null)) {
+    const paths = store.getQuads(parameterQuad.object, PATH, null, null);
+    if (paths.length !== 1 || paths[0]?.object.termType !== 'NamedNode') {
+      throw new TurtlePolicyError(
+        'SHACL-AF sh:parameter nodes must declare exactly one IRI sh:path.',
+      );
+    }
+    const pathIri = paths[0].object.value;
+    if (!pathIri.includes('#') && !pathIri.includes('/')) {
+      throw new TurtlePolicyError(
+        `SHACL-AF sh:parameter path ${pathIri} must be localname-derivable (contain a '#' fragment or a '/' segment); the runtime derives variable names from it.`,
+      );
+    }
+  }
+}
+
+function validateRules(store: Store): void {
+  for (const ruleQuad of store.getQuads(null, RULE, null, null)) {
+    const ruleTypes = typeOf(store, ruleQuad.object);
+    const isTripleRule = ruleTypes.includes(TRIPLE_RULE);
+    const isSparqlRule = ruleTypes.includes(SPARQL_RULE);
+    if (!isTripleRule && !isSparqlRule) {
+      throw new TurtlePolicyError(
+        `Rule on shape ${ruleQuad.subject.value} must be a sh:TripleRule or sh:SPARQLRule (JS rules are not executed).`,
+      );
+    }
+    if (isSparqlRule) {
+      validateSparqlBlock(store, ruleQuad.object, `Rule on shape ${ruleQuad.subject.value}`);
+    }
+  }
+}
+
+function validateFunctions(store: Store): void {
+  for (const functionQuad of store.getQuads(null, FUNCTION, null, null)) {
+    if (!typeOf(store, functionQuad.object).includes(SPARQL_FUNCTION)) {
+      throw new TurtlePolicyError(
+        `Function ${functionQuad.object.value} must be typed sh:SPARQLFunction.`,
+      );
+    }
+    validateSparqlBlock(store, functionQuad.object, `Function ${functionQuad.object.value}`);
+  }
+}
+
+function validateConstraintComponents(store: Store): void {
+  for (const componentQuad of store.getQuads(null, RDF_TYPE_PREDICATE, CONSTRAINT_COMPONENT, null)) {
+    const component = componentQuad.subject;
+    if (store.getQuads(component, PARAMETER, null, null).length === 0) {
+      throw new TurtlePolicyError(
+        `Constraint component ${component.value} must declare at least one sh:parameter.`,
+      );
+    }
+    for (const validatorPredicate of [NODE_VALIDATOR, PROPERTY_VALIDATOR]) {
+      for (const validatorQuad of store.getQuads(component, validatorPredicate, null, null)) {
+        const validatorTypes = typeOf(store, validatorQuad.object);
+        if (!validatorTypes.includes(SPARQL_SELECT_VALIDATOR) && !validatorTypes.includes(SPARQL_ASK_VALIDATOR)) {
+          throw new TurtlePolicyError(
+            `Validator on component ${component.value} must be a sh:SPARQLSelectValidator or sh:SPARQLAskValidator.`,
+          );
+        }
+        validateSparqlBlock(
+          store,
+          validatorQuad.object,
+          `Validator on component ${component.value}`,
+        );
+      }
+    }
+    for (const validatorQuad of store.getQuads(component, VALIDATOR, null, null)) {
+      const validatorTypes = typeOf(store, validatorQuad.object);
+      const hasAsk = store.getQuads(validatorQuad.object, ASK, null, null).length > 0;
+      if (!validatorTypes.includes(SPARQL_ASK_VALIDATOR) || !hasAsk) {
+        throw new TurtlePolicyError(
+          `Generic sh:validator on component ${component.value} must be a sh:SPARQLAskValidator with sh:ask (the runtime refuses generic SELECT validators).`,
+        );
+      }
+      validateSparqlBlock(store, validatorQuad.object, `Validator on component ${component.value}`);
     }
   }
 }
@@ -122,15 +238,24 @@ export function parseTurtlePolicyShapes(turtle: string): ParsedTurtlePolicy {
     );
   }
 
-  // SHACL-AF features that the engine would silently ignore: reject them
-  // explicitly rather than letting a policy read as "conforms" unexecuted.
+  // Features that nothing executes: rejected explicitly rather than letting
+  // a policy read as "conforms" unexecuted.
   for (const feature of UNEXECUTED_FEATURES) {
     if (store.getQuads(null, feature.predicate, null, null).length > 0) {
       throw new TurtlePolicyError(
-        `Policy shapes must not use ${feature.label}: the registry's SHACL engine does not execute it and it would be silently ignored (a governance gate must never pass unexecuted).`,
+        `Policy shapes must not use ${feature.label}: no configured engine executes it and it would be silently ignored (a governance gate must never pass unexecuted).`,
       );
     }
   }
+
+  // SHACL-AF constructs (rules, SPARQL functions, custom constraint
+  // components) are executed by the SHACL-AF runtime sidecar; registration
+  // validates their structure and SPARQL safety so a registered policy can
+  // never rely on silently-ignored semantics.
+  validateParameterPaths(store);
+  validateRules(store);
+  validateFunctions(store);
+  validateConstraintComponents(store);
 
   // Property shapes are the objects of sh:property: their SPARQL semantics
   // in the registry's SPARQL-capable engine differ from the W3C prebinding
@@ -150,7 +275,7 @@ export function parseTurtlePolicyShapes(turtle: string): ParsedTurtlePolicy {
       );
     }
     for (const selectQuad of selects) {
-      assertSparqlSelectSafe(selectQuad.object.value, `Shape ${quad.subject.value} sh:target`);
+      assertSparqlTextSafe(selectQuad.object.value, `Shape ${quad.subject.value} sh:target`);
     }
   }
 
@@ -186,7 +311,14 @@ export function parseTurtlePolicyShapes(turtle: string): ParsedTurtlePolicy {
     validateSparqlBlock(store, quad.object, `Shape ${quad.subject.value} sh:sparql`);
   }
 
+  // Simple sg-vocabulary paths for shape constraints; SHACL-AF parameter
+  // nodes carry their own predicate IRIs and are validated separately
+  // (localname-derivable rule), so they are exempt here.
+  const parameterNodes = new Set(
+    store.getQuads(null, PARAMETER, null, null).map((quad) => quad.object.value),
+  );
   for (const quad of store.getQuads(null, PATH, null, null)) {
+    if (parameterNodes.has(quad.subject.value)) continue;
     const target = quad.object;
     const valid =
       target.termType === 'NamedNode' &&

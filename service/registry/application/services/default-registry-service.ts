@@ -32,11 +32,14 @@ import {
 } from './shacl-like-validator.js';
 import {
   SHACL_VALIDATOR_ID,
+  ShaclRuntimeRequiredError,
   resolveShaclEngine,
   resolveTurtleShapesEngine,
+  turtleShapesRequireShaclRuntime,
   validatePublicationGraphWithShacl,
   validatePublicationGraphWithTurtleShapes,
 } from './shacl-publication-validation.js';
+import { createPyshaclRuntimeEngine } from './pyshacl-runtime-engine.js';
 import type { ShaclExecutionPort } from './shacl-execution-port.js';
 import { BUILTIN_GRAPH_SHAPE_SHA256, BUILTIN_GRAPH_SHAPE_TURTLE } from './builtin-graph-shape.js';
 import { parsePolicyPackageEnvelope } from './policy-package-envelope.js';
@@ -130,6 +133,13 @@ export class DefaultRegistryService implements RegistryService {
        * validation orchestration.
        */
       shaclExecution?: ShaclExecutionPort;
+      /**
+       * Optional SHACL-AF runtime sidecar (service/shacl-runtime). Authored
+       * policies that use SHACL-AF constructs (rules, SPARQL functions,
+       * custom constraint components) require it and FAIL CLOSED without
+       * it — validation never silently skips unexecuted semantics.
+       */
+      shaclRuntime?: { url: string; token?: string };
     },
   ) {}
 
@@ -3038,14 +3048,43 @@ export class DefaultRegistryService implements RegistryService {
             JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)),
           );
           if (parsed.shapes_turtle) {
-            // SPARQL-feature policies run on the shacl-engine hybrid adapter;
-            // core-only policies stay on the default engine.
-            const policyEngine = await resolveTurtleShapesEngine(parsed.shapes_turtle, this.deps.shaclExecution);
-            policyViolations = await validatePublicationGraphWithTurtleShapes(
-              { graph: dataGraph, shapes_turtle: parsed.shapes_turtle },
-              policyEngine,
-            );
-            policyEngineId = policyEngine.engine;
+            if (turtleShapesRequireShaclRuntime(parsed.shapes_turtle)) {
+              // SHACL-AF: only the runtime sidecar executes rules/functions/
+              // custom components. Without a configured runtime (or when it
+              // errors), validation FAILS CLOSED with an explicit violation
+              // instead of passing unexecuted semantics.
+              if (this.deps.shaclRuntime) {
+                const runtimeEngine = createPyshaclRuntimeEngine(this.deps.shaclRuntime);
+                policyEngineId = runtimeEngine.engine;
+                try {
+                  policyViolations = await validatePublicationGraphWithTurtleShapes(
+                    { graph: dataGraph, shapes_turtle: parsed.shapes_turtle },
+                    runtimeEngine,
+                  );
+                } catch (err) {
+                  policyViolations = [
+                    this.shaclRuntimeFailureViolation(policyVersion, input.version_urn, err),
+                  ];
+                }
+              } else {
+                policyViolations = [
+                  this.shaclRuntimeFailureViolation(
+                    policyVersion,
+                    input.version_urn,
+                    new ShaclRuntimeRequiredError(),
+                  ),
+                ];
+              }
+            } else {
+              // SPARQL-feature policies run on the shacl-engine hybrid
+              // adapter; core-only policies stay on the default engine.
+              const policyEngine = await resolveTurtleShapesEngine(parsed.shapes_turtle, this.deps.shaclExecution);
+              policyViolations = await validatePublicationGraphWithTurtleShapes(
+                { graph: dataGraph, shapes_turtle: parsed.shapes_turtle },
+                policyEngine,
+              );
+              policyEngineId = policyEngine.engine;
+            }
           } else if (parsed.document) {
             policyViolations = await validatePublicationGraphWithShacl(
               { graph: dataGraph, document: parsed.document },
@@ -7447,6 +7486,29 @@ export class DefaultRegistryService implements RegistryService {
     publication_urn: string;
   }): Promise<import('../ports/registry-service.js').RegistryReportSignatureVerification[]> {
     return await this.buildReportSignatureChecks(input.publication_urn);
+  }
+
+  /** Fail-closed violation for SHACL-AF policies whose runtime is missing
+   * or failed: validation must never pass semantics that did not execute. */
+  private shaclRuntimeFailureViolation(
+    policyVersion: string,
+    focusUrn: string,
+    err: unknown,
+  ): ValidationViolation {
+    const reason =
+      err instanceof ShaclRuntimeRequiredError
+        ? 'the runtime is not configured (set SHACL_RUNTIME_URL)'
+        : err instanceof Error
+          ? err.message
+          : String(err);
+    return {
+      focusNode: focusUrn,
+      resultPath: 'policy_version',
+      sourceConstraintComponent: 'ShaclRuntimeConstraintComponent',
+      sourceShape: `policy:${policyVersion}`,
+      message: `policy ${policyVersion} requires the SHACL-AF runtime: ${reason}`,
+      severity: 'Violation',
+    };
   }
 
   async getPublicationProvenance(input: { publication_urn: string }): Promise<import('../ports/registry-service.js').RegistryPublicationProvenance | null> {

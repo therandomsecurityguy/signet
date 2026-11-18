@@ -268,4 +268,58 @@ spec:
         - protocol: TCP
           port: {{ .Values.webapp.port }}
     {{- end }}
+{{- if .Values.shaclRuntime.enabled }}
+---
+# The SHACL-AF runtime sidecar only receives prepared shapes from the api; it
+# needs DNS and nothing else outbound.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "signet.fullname" . }}-shacl-runtime-egress
+  labels:
+    {{- include "signet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: shacl-runtime
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "signet.componentSelectorLabels" (dict "root" . "component" "shacl-runtime") | nindent 6 }}
+  policyTypes:
+    - Egress
+  egress:
+    # DNS.
+    - to:
+        - namespaceSelector:
+            {{- toYaml .Values.networkPolicies.dns.namespaceSelector | nindent 12 }}
+          podSelector:
+            {{- toYaml .Values.networkPolicies.dns.podSelector | nindent 12 }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# Only the management API calls the SHACL-AF runtime (prepared shapes in,
+# deterministic verdicts out); enforced together with SHACL_RUNTIME_TOKEN.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "signet.fullname" . }}-shacl-runtime-ingress
+  labels:
+    {{- include "signet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: shacl-runtime
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "signet.componentSelectorLabels" (dict "root" . "component" "shacl-runtime") | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "signet.componentSelectorLabels" (dict "root" . "component" "api") | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.shaclRuntime.port }}
+{{- end }}
 {{- end }}

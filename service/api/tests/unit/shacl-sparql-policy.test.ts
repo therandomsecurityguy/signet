@@ -103,8 +103,8 @@ describe('authored Turtle policy registration (SPARQL conventions)', () => {
     ).toThrow(/REGEX\(\) in SPARQL/);
   });
 
-  it('rejects SHACL-AF features the engine would silently ignore', () => {
-    for (const feature of ['sh:rule', 'sh:function', 'sh:js']) {
+  it('rejects SHACL-AF features that nothing executes (JS, node expressions)', () => {
+    for (const feature of ['sh:js', 'sh:expression']) {
       expect(() =>
         parseTurtlePolicyShapes(`@prefix sh: <http://www.w3.org/ns/shacl#> .
 <urn:s> a sh:NodeShape ; sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;

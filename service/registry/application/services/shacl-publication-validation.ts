@@ -51,6 +51,60 @@ export const SHACL_VALIDATOR_ID = 'shacl-v1';
 
 const SHACL_NS = 'http://www.w3.org/ns/shacl#';
 
+/**
+ * Thrown when authored shapes use SHACL-AF constructs and no runtime engine
+ * was provided. SHACL-AF features must NEVER silently downgrade to the
+ * in-process engines, which ignore rules/functions/components — the
+ * registry maps this to a fail-closed validation violation.
+ */
+export class ShaclRuntimeRequiredError extends Error {
+  constructor() {
+    super('SHACL-AF constructs require the SHACL-AF runtime sidecar; configure SHACL_RUNTIME_URL.');
+    this.name = 'ShaclRuntimeRequiredError';
+  }
+}
+
+/** Predicates that (on their own) indicate SHACL-AF execution is required. */
+const AF_PREDICATES = new Set([
+  `${SHACL_NS}rule`,
+  `${SHACL_NS}function`,
+  `${SHACL_NS}parameter`,
+  `${SHACL_NS}nodeValidator`,
+  `${SHACL_NS}propertyValidator`,
+  `${SHACL_NS}validator`,
+  `${SHACL_NS}expression`,
+  `${SHACL_NS}js`,
+]);
+
+/**
+ * Detect SHACL-AF usage in an authored shapes document: rule/function/
+ * component declarations and validator attachments, plus plain USAGE of a
+ * declared custom constraint parameter (the declaration and the usage live
+ * in the same document per registration conventions).
+ */
+export function turtleShapesRequireShaclRuntime(shapesTurtle: string): boolean {
+  let store: Store;
+  try {
+    store = new Store(new Parser({ format: 'text/turtle' }).parse(shapesTurtle));
+  } catch {
+    return false; // unparseable shapes fail later in preparation
+  }
+
+  const parameterPredicates = new Set<string>();
+  for (const parameterQuad of store.getQuads(null, `${SHACL_NS}parameter`, null, null)) {
+    for (const pathQuad of store.getQuads(parameterQuad.object, `${SHACL_NS}path`, null, null)) {
+      parameterPredicates.add(pathQuad.object.value);
+    }
+  }
+
+  for (const quad of store.getQuads(null, null, null, null)) {
+    if (AF_PREDICATES.has(quad.predicate.value) || parameterPredicates.has(quad.predicate.value)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const RDF_TYPE_IRI = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
 
 let defaultEngine: ShaclExecutionPort | undefined;
@@ -402,6 +456,12 @@ export async function validatePublicationGraphWithTurtleShapes(
     focus_urn: input.graph.focus_urn,
     entity_type: input.graph.entity_type,
   });
+  // SHACL-AF constructs execute ONLY on the runtime sidecar: without an
+  // injected/configured engine they must never silently downgrade to the
+  // in-process engines (which would ignore them and let violations pass).
+  if (!engine && turtleShapesRequireShaclRuntime(input.shapes_turtle)) {
+    throw new ShaclRuntimeRequiredError();
+  }
   // SPARQL-feature shapes need shacl-engine (with its SPARQL plugin loaded);
   // everything else stays on the default rdf-validate-shacl engine. An
   // injected engine (tests/deployments) always wins.
