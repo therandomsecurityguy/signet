@@ -45,8 +45,11 @@ npm run build              # build from the reviewed source
 npm pack --ignore-scripts  # artifact == exactly what you inspected
 tar -tzf signet-registry-sdk-0.1.1.tgz | sort
 npm publish ./signet-registry-sdk-0.1.1.tgz --access public --ignore-scripts
-npm view @signet-registry/sdk@0.1.1 dist.integrity   # must equal the local
-npm pack --json --ignore-scripts                        # integrity of the tarball
+# Verify the registry serves your artifact. Compare the *uncompressed*
+# tarball content: gzip bytes are not reproducible across packing runtimes
+# (Node's bundled zlib compresses differently per Node version).
+curl -sL "$(npm view @signet-registry/sdk@0.1.1 dist.tarball)" -o published.tgz
+cmp <(gzip -dc published.tgz) <(gzip -dc signet-registry-sdk-0.1.1.tgz)
 git worktree remove /tmp/signet-publish
 ```
 
@@ -67,7 +70,9 @@ GitHub Actions):
 - Workflow filename: `publish-registry-sdk.yml` / `publish-registry-cli.yml`
 - Environment name: *(blank — the workflows do not use a GitHub environment)*
 - Allowed actions: **check "Allow npm publish"** (new configurations default
-  to stage-only, which rejects plain `npm publish`)
+  to stage-only; under stage-only, `npm publish` does not fail — it stages
+  the version and the registry never sees it until approved, see
+  Troubleshooting)
 
 A fresh configuration must complete its first OIDC publish **within 2 days**
 or it expires. After the first OIDC publish is verified, set each package's
@@ -92,8 +97,12 @@ release PR from sweeping in pre-automation history):
    GitHub release. Those are App-authored (RELEASE_APP secrets), so the tag
    push triggers `publish-registry-sdk.yml` — OIDC publish, no manual step.
 4. Verify the registry got the exact build: rebuild + pack from the tagged
-   commit and compare `npm pack --json --ignore-scripts` integrity with
-   `npm view <pkg>@<version> dist.integrity`.
+   commit, download the published tarball
+   (`npm view <pkg>@<version> dist.tarball`), and compare the
+   **uncompressed** tarball content —
+   `cmp <(gzip -dc published.tgz) <(gzip -dc local-pack.tgz)`. Tarball-byte
+   `dist.integrity` equality is only reproducible when the packing runtimes
+   (Node/zlib) match, so compare content, not gzip bytes.
 
 Fallback (release-please unavailable): bump the version in
 `client/registry-sdk/package.json` / `client/registry-cli/package.json`,
@@ -121,10 +130,18 @@ version (re-running a `workflow_dispatch` without a bump fails safely).
   OIDC publish: the package's trusted-publisher configuration is missing,
   mismatched, or expired — a fresh configuration expires if its first OIDC
   publish does not land within 2 days (and first publishes are
-  maintainer-performed, see One-time bootstrap). Re-create the trusted
-  publisher (workflow filename must match exactly, "Allow npm publish"
-  checked), then re-run the publish workflow on the tag:
-  `gh workflow run publish-registry-cli.yml --ref registry-cli-vX.Y.Z`.
+  maintainer-performed, see One-time bootstrap). An expired entry cannot be
+  re-armed; delete it and create a new one (workflow filename must match
+  exactly, "Allow npm publish" checked), then re-run the publish workflow on
+  the tag: `gh workflow run publish-registry-cli.yml --ref registry-cli-vX.Y.Z`.
+- Publish "succeeds" (`+ <pkg>@<version>`) but `npm view <pkg>@<version>`
+  says `version not found` and the packument's `modified` time has not
+  moved: the version went to **staged publishing** because the trusted
+  publisher's Allowed actions are stage-only (plain `npm publish` stages
+  silently — it does not fail). Clear it with `npm login`, `npm stage list
+  <pkg>`, then `npm stage approve <stage-id>` to publish it as built or
+  `npm stage reject <stage-id>` to discard; then edit the configuration to
+  check "Allow npm publish" so future releases go live directly.
 - After a failed publish, re-running is safe via `workflow_dispatch` on the
   commit whose `package.json` holds the unpublished version — no new tag
   needed.
