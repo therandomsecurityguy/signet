@@ -158,7 +158,9 @@ Validation (five layers):
   refusals); every package carries an RDFC-1.0 canonical semantic
   projection (format-independent digest + artifact)
 - ontology validation of `capability_claims`: concept binding, disjoint
-  combination rejection, de facto candidate recording
+  combination rejection, de facto candidate recording; bound ontologies
+  are also exposed to SHACL execution (claim concept IRIs + subclass
+  taxonomy) so policies can use `sh:class` with hierarchy semantics
 - advisory LLM validation (model-agnostic port, deterministic heuristic
   default, HTTP model seam) emitting scorecard/prompt/confidence evidence
 - human review workflow: review decisions as first-class
@@ -226,7 +228,9 @@ Ingestion and vocabulary:
 - semantic compiler ingestion: markdown frontmatter and tool manifests
   compile to normalized capability claims at `POST /v1/compile/skill`
 - de facto vocabulary store with human-reviewed promotion into new
-  normative ontology versions (`/v1/de-facto-terms*`)
+  normative ontology versions (`/v1/de-facto-terms*`), within the source's
+  authoring format — authored-OWL sources promote into new authored-OWL
+  versions via the deterministic writer
 
 Storage and operations:
 - content-addressed artifact storage (filesystem or S3)
@@ -242,8 +246,9 @@ Proposed next (not implemented yet):
 - SHACL node expressions and `sh:js` (refused at registration; no
   execution semantics implemented), and an in-process SHACL-AF engine
   (graph mutation needs an inference-stage design)
-- de-facto term promotion into authored OWL ontologies; ontology
-  vocabularies exposed to SHACL shapes
+- cross-format de-facto promotion (legacy JSON source → authored OWL
+  target) and subclass-aware claim binding semantics, richer de facto
+  ontology mining
 - richer de facto ontology mining (runtime observations, corpus analysis)
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures over
   provenance graphs)

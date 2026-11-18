@@ -45,6 +45,7 @@ import { translateShapeDocument } from './shacl-shape-translation.js';
 import type { ShaclExecutionPort } from './shacl-execution-port.js';
 import { createRdfValidateShaclEngine } from './rdf-validate-shacl-engine.js';
 import { createShaclEngineSparqlAdapter } from './shacl-engine-sparql-engine.js';
+import { ontologyConceptIri } from './ontology-projection.js';
 
 /** Recorded in validation report artifacts. */
 export const SHACL_VALIDATOR_ID = 'shacl-v1';
@@ -106,6 +107,8 @@ export function turtleShapesRequireShaclRuntime(shapesTurtle: string): boolean {
 }
 
 const RDF_TYPE_IRI = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type';
+const RDFS_SUBCLASS_OF_IRI = 'http://www.w3.org/2000/01/rdf-schema#subClassOf';
+const CAPABILITY_CLAIM_CONCEPTS_KEY = 'capability_claim_concepts';
 
 let defaultEngine: ShaclExecutionPort | undefined;
 
@@ -183,6 +186,44 @@ export function buildValidationDatasetNQuads(graph: ValidationDataGraph): string
   const edges = [...graph.edges].sort((left, right) =>
     left.predicate === right.predicate ? left.to_urn.localeCompare(right.to_urn) : left.predicate.localeCompare(right.predicate),
   );
+
+  // Ontology vocabulary exposure (only when a skill-area ontology is bound;
+  // without one the dataset stays byte-identical to the legacy encoding):
+  // - each capability claim that binds to a known concept is ALSO emitted
+  //   as a concept IRI under urn:sg:property:capability_claim_concepts, so
+  //   authored policies can constrain claims with sh:class
+  // - each concept is typed as itself (a SHACL instance of itself) and its
+  //   declared parents are linked with rdfs:subClassOf, so sh:class checks
+  //   resolve through the taxonomy ("SHACL instance" accounts for
+  //   rdfs:subClassOf in the data graph)
+  // The literal capability_claims values are untouched: count/in constraints
+  // written before this change cannot regress.
+  if (graph.ontology) {
+    const known = new Set(graph.ontology.concepts.map((concept) => concept.id));
+    const claimValues = graph.properties['capability_claims'];
+    const claims = Array.isArray(claimValues)
+      ? claimValues.filter((value): value is string => typeof value === 'string')
+      : typeof claimValues === 'string'
+        ? [claimValues]
+        : [];
+    const exposureLines = new Set<string>();
+    for (const claim of [...claims].sort()) {
+      if (known.has(claim)) {
+        exposureLines.add(
+          `${subject} <${propertyIri(CAPABILITY_CLAIM_CONCEPTS_KEY)}> <${ontologyConceptIri(claim)}> .`,
+        );
+      }
+    }
+    for (const concept of [...graph.ontology.concepts].sort((left, right) => left.id.localeCompare(right.id))) {
+      const iri = ontologyConceptIri(concept.id);
+      exposureLines.add(`<${iri}> <${RDF_TYPE_IRI}> <${iri}> .`);
+      for (const parent of [...(concept.parents ?? [])].sort()) {
+        exposureLines.add(`<${iri}> <${RDFS_SUBCLASS_OF_IRI}> <${ontologyConceptIri(parent)}> .`);
+      }
+    }
+    lines.push(...[...exposureLines].sort());
+  }
+
   const typeLines = new Set<string>();
   for (const edge of edges) {
     assertValidIri(edge.to_urn, `edge target (${edge.predicate})`);

@@ -94,6 +94,12 @@ export type ValidationDataGraph = {
   entity_type: string;
   properties: Record<string, unknown>;
   edges: Array<{ predicate: string; to_urn: string; to_entity_type?: string }>;
+  /**
+   * Resolved normative skill-area ontology for this version, when bound.
+   * Exposed to SHACL execution (concept IRIs for bound claims + subclass
+   * taxonomy); absent = the legacy dataset, byte-identical.
+   */
+  ontology?: import('./ontology-validator.js').OntologyDocument;
 };
 
 export class ShapeDocumentError extends Error {

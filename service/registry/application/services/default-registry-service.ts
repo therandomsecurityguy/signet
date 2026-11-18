@@ -46,6 +46,7 @@ import { parsePolicyPackageEnvelope } from './policy-package-envelope.js';
 import { canonicalizeProvenance } from './provenance-export.js';
 import { canonicalizeOntologyDocument } from './ontology-projection.js';
 import { parseOwlOntologyTurtle } from './owl-ontology.js';
+import { serializeOwlOntologyTurtle } from './owl-ontology-writer.js';
 import {
   canonicalizeValidationReport,
   projectValidationReportToJsonLd,
@@ -2987,6 +2988,70 @@ export class DefaultRegistryService implements RegistryService {
     return { task, result: details };
   }
 
+  /**
+   * Resolve the bound normative skill-area ontology package for a version:
+   * the parsed document (both authoring formats), report metadata, and the
+   * package node urn. Resolution failures degrade to "not resolved"
+   * (validation proceeds without ontology layers), matching legacy behavior.
+   */
+  private async resolveSkillAreaOntology(ontologyVersion: string | undefined): Promise<{
+    version: string | null;
+    document: OntologyDocument | null;
+    format: string | null;
+    sha256: string | null;
+    canonical_rdf_sha256: string | null;
+    node_urn: string | null;
+  }> {
+    const empty = {
+      version: ontologyVersion ?? null,
+      document: null,
+      format: null,
+      sha256: null,
+      canonical_rdf_sha256: null,
+      node_urn: null,
+    };
+    if (!ontologyVersion) return empty;
+    const node = await this.findOntologyPackageNode(ontologyVersion);
+    if (!node || node.properties['ontology_kind'] !== 'skill_area') return empty;
+    const sha = stringOrUndefined(node.properties['sha256']);
+    const stored = sha ? await this.deps.cas.getBySha256(sha) : null;
+    if (!stored) return empty;
+    try {
+      const envelope = JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)) as {
+        ontology?: unknown;
+        ontology_format?: unknown;
+        ontology_kind?: unknown;
+      };
+      let document: OntologyDocument;
+      let format: string;
+      if (envelope.ontology_format === 'owl-turtle' && typeof envelope.ontology === 'string') {
+        const projected = parseOwlOntologyTurtle(envelope.ontology);
+        document = {
+          kind: envelope.ontology_kind === 'registry_shape' ? 'registry_shape' : 'skill_area',
+          concepts: projected.concepts,
+          disjoint: projected.disjoint,
+        };
+        format = 'owl-turtle';
+      } else {
+        document = parseOntologyDocument(envelope.ontology);
+        format = 'legacy-json-v1';
+      }
+      const canonicalRdfSha256 =
+        stringOrUndefined(node.properties['canonical_rdf_sha256']) ??
+        (await canonicalizeOntologyDocument(document)).sha256;
+      return {
+        version: ontologyVersion,
+        document,
+        format,
+        sha256: sha ?? null,
+        canonical_rdf_sha256: canonicalRdfSha256,
+        node_urn: node.urn,
+      };
+    } catch {
+      return empty;
+    }
+  }
+
   private async runPublicationValidation(input: {
     entity_type: 'SKILL_VERSION' | 'AGENT_VERSION';
     logical_key: string;
@@ -3003,11 +3068,18 @@ export class DefaultRegistryService implements RegistryService {
         ...(target ? { to_entity_type: target.entity_type as string } : {}),
       });
     }
+    // Resolve the bound skill-area ontology up front: it feeds BOTH the
+    // SHACL dataset (concept IRIs + subclass taxonomy for ontology-aware
+    // shapes) and the ontology validation layer below.
+    const ontology = await this.resolveSkillAreaOntology(
+      stringOrUndefined(input.properties['ontology_version']),
+    );
     const dataGraph = {
       focus_urn: input.version_urn,
       entity_type: input.entity_type,
       properties: input.properties,
       edges: dataEdges,
+      ...(ontology.document ? { ontology: ontology.document } : {}),
     };
 
     // Layer 1: built-in graph-shape validation (structural rules), authored
@@ -3112,69 +3184,28 @@ export class DefaultRegistryService implements RegistryService {
     // Layer 3: ontology validation. Capability claims must bind to known
     // concepts in the resolved normative skill-area ontology; unmapped
     // claims are recorded as de facto vocabulary candidates.
-    const ontologyVersion = stringOrUndefined(input.properties['ontology_version']);
     const claims = Array.isArray(input.properties['capability_claims'])
       ? (input.properties['capability_claims'] as unknown[]).filter((claim): claim is string => typeof claim === 'string')
       : [];
     let ontologyViolations: ValidationViolation[] = [];
     let deFactoCandidates: string[] = [];
-    let ontologyDocument: OntologyDocument | null = null;
-    let ontologyFormat: string | null = null;
-    let ontologySha256: string | null = null;
-    let ontologyCanonicalRdfSha256: string | null = null;
-    let ontologyNode = null;
-    if (ontologyVersion) {
-      ontologyNode = await this.findOntologyPackageNode(ontologyVersion);
-      if (ontologyNode && ontologyNode.properties['ontology_kind'] === 'skill_area') {
-        const sha = stringOrUndefined(ontologyNode.properties['sha256']);
-        const stored = sha ? await this.deps.cas.getBySha256(sha) : null;
-        if (stored) {
-          try {
-            const envelope = JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)) as {
-              ontology?: unknown;
-              ontology_format?: unknown;
-              ontology_kind?: unknown;
-            };
-            if (envelope.ontology_format === 'owl-turtle' && typeof envelope.ontology === 'string') {
-              const projected = parseOwlOntologyTurtle(envelope.ontology);
-              ontologyDocument = {
-                kind: envelope.ontology_kind === 'registry_shape' ? 'registry_shape' : 'skill_area',
-                concepts: projected.concepts,
-                disjoint: projected.disjoint,
-              };
-              ontologyFormat = 'owl-turtle';
-            } else {
-              ontologyDocument = parseOntologyDocument(envelope.ontology);
-              ontologyFormat = 'legacy-json-v1';
-            }
-            const result = validateCapabilityClaims({
-              focus_urn: input.version_urn,
-              claims,
-              document: ontologyDocument,
-              ontology_version: ontologyVersion,
-            });
-            ontologyViolations = result.violations;
-            deFactoCandidates = result.de_facto_candidates;
-            ontologySha256 = sha ?? null;
-            ontologyCanonicalRdfSha256 =
-              stringOrUndefined(ontologyNode.properties['canonical_rdf_sha256']) ??
-              (await canonicalizeOntologyDocument(ontologyDocument)).sha256;
-          } catch {
-            ontologyDocument = null;
-            ontologyFormat = null;
-            ontologySha256 = null;
-            ontologyCanonicalRdfSha256 = null;
-          }
-        }
-      }
+    if (ontology.version && ontology.document) {
+      const result = validateCapabilityClaims({
+        focus_urn: input.version_urn,
+        claims,
+        document: ontology.document,
+        ontology_version: ontology.version,
+      });
+      ontologyViolations = result.violations;
+      deFactoCandidates = result.de_facto_candidates;
     }
     layers.push({
       layer: 'ontology',
-      ontology_version: ontologyVersion ?? null,
-      ontology_package_resolved: Boolean(ontologyDocument),
-      ...(ontologyFormat ? { ontology_format: ontologyFormat } : {}),
-      ...(ontologySha256 ? { ontology_sha256: ontologySha256 } : {}),
-      ...(ontologyCanonicalRdfSha256 ? { ontology_canonical_rdf_sha256: ontologyCanonicalRdfSha256 } : {}),
+      ontology_version: ontology.version,
+      ontology_package_resolved: Boolean(ontology.document),
+      ...(ontology.format ? { ontology_format: ontology.format } : {}),
+      ...(ontology.sha256 ? { ontology_sha256: ontology.sha256 } : {}),
+      ...(ontology.canonical_rdf_sha256 ? { ontology_canonical_rdf_sha256: ontology.canonical_rdf_sha256 } : {}),
       capability_claims: claims,
       de_facto_candidates: deFactoCandidates,
       violations: ontologyViolations,
@@ -3201,7 +3232,7 @@ export class DefaultRegistryService implements RegistryService {
         examples: Array.isArray(input.properties['examples'])
           ? (input.properties['examples'] as unknown[]).filter((item): item is string => typeof item === 'string')
           : [],
-        known_concepts: ontologyDocument ? ontologyDocument.concepts.map((concept) => concept.id) : [],
+        known_concepts: ontology.document ? ontology.document.concepts.map((concept) => concept.id) : [],
       });
     }
     const llmWarnings: ValidationViolation[] = (llmResult?.warnings ?? []).map((warning) => ({
@@ -3325,7 +3356,7 @@ export class DefaultRegistryService implements RegistryService {
 
     const used_urns = [
       ...(policyNode ? [policyNode.urn] : []),
-      ...(ontologyNode ? [ontologyNode.urn] : []),
+      ...(ontology.node_urn ? [ontology.node_urn] : []),
       reportArtifact.artifact_urn,
       ...(llmEvidenceArtifactUrn ? [llmEvidenceArtifactUrn] : []),
     ];
@@ -6584,34 +6615,67 @@ export class DefaultRegistryService implements RegistryService {
       if (!sourceNode || sourceNode.properties['ontology_kind'] !== 'skill_area') {
         throw new RegistryCoreError('ONTOLOGY_PACKAGE_NOT_FOUND', `Skill-area ontology package not found: ${input.source_ontology_version}`);
       }
-      if (sourceNode.properties['ontology_format'] === 'owl-turtle') {
-        throw new RegistryCoreError(
-          'DEFACTO_TERM_PROMOTE_INVALID',
-          'Promotion from authored OWL ontologies is not supported yet; promote into a legacy JSON skill-area ontology package.',
-        );
-      }
       const sha = stringOrUndefined(sourceNode.properties['sha256']);
       const stored = sha ? await this.deps.cas.getBySha256(sha) : null;
       if (!stored) {
         throw new RegistryCoreError('ONTOLOGY_PACKAGE_NOT_FOUND', `Ontology package content not found: ${input.source_ontology_version}`);
       }
-      const parsed = JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)) as { ontology?: unknown };
-      const document = parseOntologyDocument(parsed.ontology);
-      if (document.concepts.some((concept) => concept.id === input.term)) {
-        throw new RegistryCoreError('DEFACTO_TERM_PROMOTE_CONFLICT', `Term already exists in ontology: ${input.term}`);
-      }
-      await this.createOntologyPackage({
-        ontology_version: input.target_ontology_version,
-        author: input.author,
-        ontology: {
+      const envelope = JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)) as {
+        ontology?: unknown;
+        ontology_format?: unknown;
+        ontology_kind?: unknown;
+      };
+      const description = stringOrUndefined(sourceNode.properties['description']);
+      if (envelope.ontology_format === 'owl-turtle' && typeof envelope.ontology === 'string') {
+        // Within-format promotion: the target is a NEW version of the same
+        // authored-OWL package; existing class IRIs are preserved, and the
+        // promoted term is published under urn:sg:concept:{id}. The writer's
+        // round-trip guard refuses terms the v1 subset cannot represent.
+        const projected = parseOwlOntologyTurtle(envelope.ontology);
+        const document: OntologyDocument = {
           kind: 'skill_area',
-          concepts: [...document.concepts, { id: input.term }],
-          disjoint: document.disjoint,
-        },
-        ...(stringOrUndefined(sourceNode.properties['description'])
-          ? { description: String(sourceNode.properties['description']) }
-          : {}),
-      });
+          concepts: projected.concepts,
+          disjoint: projected.disjoint,
+        };
+        if (document.concepts.some((concept) => concept.id === input.term)) {
+          throw new RegistryCoreError('DEFACTO_TERM_PROMOTE_CONFLICT', `Term already exists in ontology: ${input.term}`);
+        }
+        let turtle: string;
+        try {
+          turtle = serializeOwlOntologyTurtle(
+            { ...document, concepts: [...document.concepts, { id: input.term }] },
+            projected.iri_by_id,
+          );
+        } catch (err) {
+          throw new RegistryCoreError(
+            'DEFACTO_TERM_PROMOTE_INVALID',
+            `Term cannot be promoted into an authored OWL ontology: ${err instanceof Error ? err.message : 'unknown error'}`,
+          );
+        }
+        await this.createOntologyPackage({
+          ontology_version: input.target_ontology_version,
+          author: input.author,
+          ontology_format: 'owl-turtle',
+          ontology_kind: 'skill_area',
+          ontology: turtle,
+          ...(description ? { description } : {}),
+        });
+      } else {
+        const document = parseOntologyDocument(envelope.ontology);
+        if (document.concepts.some((concept) => concept.id === input.term)) {
+          throw new RegistryCoreError('DEFACTO_TERM_PROMOTE_CONFLICT', `Term already exists in ontology: ${input.term}`);
+        }
+        await this.createOntologyPackage({
+          ontology_version: input.target_ontology_version,
+          author: input.author,
+          ontology: {
+            kind: 'skill_area',
+            concepts: [...document.concepts, { id: input.term }],
+            disjoint: document.disjoint,
+          },
+          ...(description ? { description } : {}),
+        });
+      }
       await this.deps.graph.upsertNode({
         urn,
         entity_type: 'DEFACTO_TERM',

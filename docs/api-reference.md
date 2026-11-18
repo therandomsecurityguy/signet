@@ -290,6 +290,30 @@ closed validation with a `ShaclRuntimeConstraintComponent` violation;
 they are never silently skipped. Validation report policy layers record
 `pyshacl@…+shacl-runtime` for AF layers.
 
+When a skill-area ontology is bound to the version (`ontology_version`),
+authored policies may also express **ontology-aware constraints**: every
+capability claim that binds to a known concept is additionally emitted as
+a concept IRI under `urn:sg:property:capability_claim_concepts`, and
+every `urn:sg:concept:{id}` is typed as itself with `rdfs:subClassOf`
+edges to its declared parents. `sh:class` over these IRIs follows the
+ontology hierarchy — a claim on a subclass satisfies a constraint on its
+parent:
+
+```turtle
+<urn:policy:analysis-family> a sh:NodeShape ;
+    sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;
+    sh:property [
+        sh:path <urn:sg:property:capability_claim_concepts> ;
+        sh:class <urn:sg:concept:analysis> ;
+        sh:message "claims must be within the analysis family" ;
+    ] .
+```
+
+The literal `capability_claims` values are untouched (count/in
+constraints written against them keep their exact semantics), and
+unbound claims are not exposed — they already fail the ontology binding
+layer.
+
 Registration rejects: property-shape `sh:sparql` (the engine evaluates
 those outside the W3C prebinding model — put the constraint on the node
 shape and traverse in the query), `REGEX(` inside SPARQL (backtracking

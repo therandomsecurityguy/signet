@@ -318,6 +318,40 @@ describe('validation dataset encoding', () => {
     const lines = buildValidationDatasetNQuads(graph({ properties: { nested: { a: 1 } } }));
     expect(lines.some((line) => line.includes('urn:sg:datatype:json'))).toBe(true);
   });
+
+  it('exposes bound claims as concept IRIs plus the subclass taxonomy when an ontology is bound', () => {
+    const lines = buildValidationDatasetNQuads(
+      graph({
+        properties: { capability_claims: ['transform', 'mystery'] },
+        ontology: {
+          kind: 'skill_area',
+          concepts: [{ id: 'analysis' }, { id: 'report' }, { id: 'transform', parents: ['analysis'] }],
+          disjoint: [],
+        },
+      }),
+    );
+    const subject = '<urn:sg:skill-version:skill:demo@v1>';
+    // Bound claims are re-exposed as concept IRIs; unbound claims are not.
+    expect(lines).toContain(`${subject} <urn:sg:property:capability_claim_concepts> <urn:sg:concept:transform> .`);
+    expect(
+      lines.some((line) => line.includes('capability_claim_concepts') && line.includes('mystery')),
+    ).toBe(false);
+    // Taxonomy: every concept is a SHACL instance of itself and declares its parents.
+    expect(lines).toContain(
+      '<urn:sg:concept:transform> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <urn:sg:concept:transform> .',
+    );
+    expect(lines).toContain(
+      '<urn:sg:concept:transform> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <urn:sg:concept:analysis> .',
+    );
+  });
+
+  it('keeps the dataset free of ontology exposure when no ontology is bound', () => {
+    const lines = buildValidationDatasetNQuads(
+      graph({ properties: { capability_claims: ['transform'] } }),
+    );
+    expect(lines.some((line) => line.includes('capability_claim_concepts'))).toBe(false);
+    expect(lines.some((line) => line.includes('urn:sg:concept:'))).toBe(false);
+  });
 });
 
 describe('engine boundary guarantees', () => {
