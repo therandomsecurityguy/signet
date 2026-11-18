@@ -204,6 +204,30 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
         working-directory: service/tessera-runtime
 
+  shacl-runtime:
+    name: service/shacl-runtime (SHACL-AF runtime)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version-file: service/shacl-runtime/.python-version
+
+      - name: Install dependencies (hash-pinned)
+        run: python -m pip install --require-hashes -r service/shacl-runtime/requirements.txt -r service/shacl-runtime/requirements-dev.txt
+
+      - name: Test
+        run: python -m pytest tests -q
+        working-directory: service/shacl-runtime
+
+      - name: Vulnerability audit
+        run: python -m pip_audit -r service/shacl-runtime/requirements.txt -r service/shacl-runtime/requirements-dev.txt
+
   registry-sdk:
     name: client/registry-sdk (typed read-first SDK)
     runs-on: ubuntu-latest

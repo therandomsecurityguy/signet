@@ -46,3 +46,8 @@ data/demo/
 
 # Demo-video recordings and webapp-local runtime state.
 service/webapp/knowledge-manager/data/
+
+# Python (service/shacl-runtime).
+__pycache__/
+.pytest_cache/
+service/shacl-runtime/.venv/
