@@ -68,7 +68,7 @@ Today the project also provides a real first transparency/governance trust layer
 - observed checkpoints, disagreement evidence, and split-view-style detection surfaces
 - witness gossip events and timeline-style provenance views
 - signed-note checkpoint ingestion that preserves raw note bytes while normalizing the checkpoint, with fail-closed transparency-dev spec key-identity binding (Ed25519 name-bound key hash) alongside the legacy SPKI-hint format; the native sidecar emits spec notes in note mode (fixture-verified against golang's note library)
-- fuller multi-signature parsing plus stronger observation/gossip provenance; witness cosignature (waxing) and tessera tile-file layout compatibility remain open
+- fuller multi-signature parsing plus stronger observation/gossip provenance; waxing-style witness cosignatures on signed notes are verified against attached witnesses with fail-closed handling and distinct-witness quorum counting (tessera tile-file layout compatibility remains open)
 
 Human value:
 - operators can inspect why a checkpoint is trusted, not only whether it is trusted

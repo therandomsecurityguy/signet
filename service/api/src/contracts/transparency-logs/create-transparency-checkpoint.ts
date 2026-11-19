@@ -74,6 +74,7 @@ export const TransparencyLogVerificationSchema = z.object({
       trusted_witness_resolved: z.boolean(),
       trusted_key_resolved: z.boolean(),
       signature_valid: z.boolean(),
+      note_cosignature_verified: z.boolean().optional(),
       verification_status: z.enum(['verified', 'missing_witness', 'missing_key', 'cryptographic_failure']),
     }),
   ),

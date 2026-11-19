@@ -195,7 +195,10 @@ Transparency and provenance:
 - transparency checkpoint registration, checkpoint history, and
   RFC 6962 consistency-proof validation
 - witness attestations, quorum checks, checkpoint observations,
-  disagreement evidence, gossip events, and timeline/provenance views
+  disagreement evidence, gossip events, and timeline/provenance views;
+  waxing-style witness cosignatures on signed notes are verified against
+  attached witnesses with fail-closed handling and distinct-witness quorum
+  counting
 - minimal signed-note checkpoint ingestion seam that verifies the
   transparency-dev spec note format (Ed25519, name-bound key hash,
   `<name>+<hash8hex>+<base64>` verifier keys) alongside the legacy
@@ -261,8 +264,7 @@ Proposed next (not implemented yet):
 - richer LLM backends for the advisory validation layer
 - full WORM/transparency integration with Trillian/Tessera reconciliation
 - deeper witness-network semantics across multiple independent parties
-- witness cosignature (waxing) compatibility and tessera tile-file layout
-  compatibility
+- tessera tile-file layout compatibility
 
 ### Get it to run
 

@@ -188,6 +188,17 @@ export type RegistryTransparencyNoteSignature = {
   signer?: string;
   key_hint?: string;
   raw_signature_line?: string;
+  /**
+   * Cosignature verification outcome against the log's attached witnesses:
+   * `verified` (counted for quorum, witness_id set), `unmatched` (unknown
+   * signer line — spec semantics, stored as-is), `invalid` (matched key,
+   * bad signature) or `ambiguous` (multiple witnesses matched). The last
+   * two fail checkpoint ingestion closed.
+   */
+  verification?: {
+    status: 'verified' | 'unmatched' | 'invalid' | 'ambiguous';
+    witness_id?: string;
+  };
 };
 
 export type RegistryTransparencyCheckpointDetails = {
@@ -202,6 +213,8 @@ export type RegistryTransparencyCheckpointDetails = {
   append_only_verified?: boolean;
   witness_quorum_satisfied?: boolean;
   valid_witness_attestation_count?: number;
+  /** Distinct witnesses verifying this checkpoint (attestations + verified note cosignatures). */
+  valid_witness_count?: number;
   witness_quorum_required?: number;
   note_format?: 'raw_signed_note' | 'normalized_checkpoint';
   signature_count?: number;
@@ -1135,6 +1148,8 @@ export type RegistryTransparencyLogVerification = {
     trusted_witness_resolved: boolean;
     trusted_key_resolved: boolean;
     signature_valid: boolean;
+    /** Waxing-style: the witness also cosigned the checkpoint note directly. */
+    note_cosignature_verified?: boolean;
     verification_status: 'verified' | 'missing_witness' | 'missing_key' | 'cryptographic_failure';
   }>;
   verification_status:

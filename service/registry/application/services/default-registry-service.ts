@@ -66,6 +66,7 @@ import {
   noteKeyHashBytes,
   parseCheckpointNote,
   rfc6962LeafHashBytes,
+  verifyNoteSignatureBytes,
   verifyRfc6962Inclusion,
   verifySignedNote,
 } from './transparency-notes.js';
@@ -864,6 +865,92 @@ export class DefaultRegistryService implements RegistryService {
     }
   }
 
+  /**
+   * Waxing-style witness cosignatures: verify every cosignature LINE in a
+   * submitted signed note against the log's attached witnesses. Ed25519
+   * witness keys are matched by the name-bound spec hint (line signer name +
+   * witness key data), legacy PEMs by the SPKI hint. Unknown signer lines
+   * stay `unmatched` (spec semantics — stored, not counted); a matched key
+   * with an invalid signature, or multiple witnesses matching one line,
+   * fails the checkpoint closed. Outcomes are recorded on the normalized
+   * signatures so they persist to the checkpoint artifact and details.
+   */
+  private async verifyNoteCosignatures(input: {
+    log_urn: string;
+    normalizedCheckpoint: NormalizedCheckpointSubmission;
+  }): Promise<void> {
+    const { normalizedCheckpoint } = input;
+    if (normalizedCheckpoint.note_format !== 'raw_signed_note') return;
+    const cosignatures = normalizedCheckpoint.signatures.filter(
+      (signature) => signature.signature_role === 'cosignature',
+    );
+    if (cosignatures.length === 0) return;
+
+    const witnessEdges = await this.deps.graph.listEdgesFrom(input.log_urn, 'sg:trustedByWitness');
+    const witnesses: Array<{
+      witness_id: string;
+      public_key_pem: string;
+      key_data: Buffer | null;
+      legacy_hint: Buffer | null;
+    }> = [];
+    for (const edge of witnessEdges) {
+      const node = await this.deps.graph.getNode(edge.to_urn);
+      if (!node || node.entity_type !== 'TRANSPARENCY_WITNESS') continue;
+      if (stringOrUndefined(node.properties['trust_status']) !== 'trusted') continue;
+      if (!isWithinTrustWindow(node.properties, nowIso())) continue;
+      const keyRef = stringOrUndefined(node.properties['key_ref']);
+      const material = keyRef ? await this.resolveTrustedPublicKeyMaterial(keyRef) : null;
+      if (!material) continue;
+      witnesses.push({
+        witness_id: String(node.properties['witness_id'] ?? node.urn),
+        public_key_pem: material.public_key_pem,
+        key_data: noteKeyDataFromPem(material.public_key_pem),
+        legacy_hint: keyHintForPublicKeyPem(material.public_key_pem),
+      });
+    }
+
+    const message = Buffer.from(normalizedCheckpoint.checkpoint_body, 'utf8');
+    for (const signature of cosignatures) {
+      const signer = stringOrUndefined(signature.signer);
+      const keyHint = stringOrUndefined(signature.key_hint);
+      if (!signer || !keyHint) {
+        signature.verification = { status: 'unmatched' };
+        continue;
+      }
+      const hint = Buffer.from(keyHint.replace(/^base64:/, ''), 'base64');
+      const matches = witnesses.filter((witness) =>
+        witness.key_data
+          ? noteKeyHashBytes(signer, witness.key_data).subarray(0, 4).equals(hint)
+          : Boolean(witness.legacy_hint && witness.legacy_hint.subarray(0, 4).equals(hint)),
+      );
+      if (matches.length === 0) {
+        signature.verification = { status: 'unmatched' };
+        continue;
+      }
+      if (matches.length > 1) {
+        signature.verification = { status: 'ambiguous' };
+        throw new RegistryCoreError(
+          'CHECKPOINT_COSIGNATURE_INVALID',
+          `Checkpoint note cosignature ${signature.signature_index} matches multiple trusted witnesses; refusing an ambiguous witness identity.`,
+        );
+      }
+      const witness = matches[0] as (typeof witnesses)[number];
+      const valid = verifyNoteSignatureBytes({
+        public_key_pem: witness.public_key_pem,
+        message,
+        signature: Buffer.from(signature.signature.replace(/^base64:/, ''), 'base64'),
+      });
+      if (!valid) {
+        signature.verification = { status: 'invalid' };
+        throw new RegistryCoreError(
+          'CHECKPOINT_COSIGNATURE_INVALID',
+          `Checkpoint note cosignature ${signature.signature_index} (${signer}) matches trusted witness ${witness.witness_id} but is cryptographically invalid.`,
+        );
+      }
+      signature.verification = { status: 'verified', witness_id: witness.witness_id };
+    }
+  }
+
   async createTransparencyCheckpoint(input: import('../ports/registry-service.js').CreateTransparencyCheckpointInput) {
     const log = await this.getTransparencyLog({ log_id: input.log_id });
     if (!log) throw new RegistryCoreError('TRANSPARENCY_LOG_NOT_FOUND', 'Transparency log not found.');
@@ -894,6 +981,10 @@ export class DefaultRegistryService implements RegistryService {
       normalizedCheckpoint,
       public_key_pem: checkpointKey.public_key_pem,
       origin: checkpointFields.origin,
+    });
+    await this.verifyNoteCosignatures({
+      log_urn: log.transparency_log.urn,
+      normalizedCheckpoint,
     });
 
     let appendOnlyVerified = true;
@@ -1115,6 +1206,10 @@ export class DefaultRegistryService implements RegistryService {
       normalizedCheckpoint,
       public_key_pem: checkpointKey.public_key_pem,
       origin: checkpointFields.origin,
+    });
+    await this.verifyNoteCosignatures({
+      log_urn: log.transparency_log.urn,
+      normalizedCheckpoint,
     });
     const observedAt = input.observed_at ?? nowIso();
     const payloadProvenance = buildCheckpointPayloadProvenance({
@@ -8168,14 +8263,24 @@ export class DefaultRegistryService implements RegistryService {
       stringOrUndefined(artifactNode.properties['signed_note_key_hint']) ?? fallbackSignedNote?.signed_note_key_hint;
     const appendOnlyVerified = booleanOrUndefined(artifactNode.properties['append_only_verified']);
     const witnessAttestations = await this.deps.graph.listEdgesFrom(checkpointArtifactUrn, 'sg:hasWitnessAttestation');
-    const validWitnessCount = (
-      await Promise.all(
-        witnessAttestations.map(async (edge) => {
-          const att = await this.deps.graph.getNode(edge.to_urn);
-          return att && att.entity_type === 'ARTIFACT' && att.properties['signature_valid'] === true;
-        }),
-      )
-    ).filter(Boolean).length;
+    // Attestations count by DISTINCT witness, and waxing-style note
+    // cosignatures count too (verified against attached witnesses at
+    // ingestion) — the same witness can never satisfy a quorum alone.
+    const validWitnessIds = new Set<string>();
+    let validAttestationCount = 0;
+    for (const edge of witnessAttestations) {
+      const att = await this.deps.graph.getNode(edge.to_urn);
+      if (att && att.entity_type === 'ARTIFACT' && att.properties['signature_valid'] === true) {
+        validAttestationCount += 1;
+        const attestedWitnessId = stringOrUndefined(att.properties['witness_id']);
+        if (attestedWitnessId) validWitnessIds.add(attestedWitnessId);
+      }
+    }
+    for (const signature of signatures) {
+      if (signature.verification?.status === 'verified' && signature.verification.witness_id) {
+        validWitnessIds.add(signature.verification.witness_id);
+      }
+    }
     const witnessQuorumRequired = input?.witness_quorum_required ?? 0;
     return {
       checkpoint_artifact_urn: checkpointArtifactUrn,
@@ -8187,12 +8292,13 @@ export class DefaultRegistryService implements RegistryService {
       checkpoint_signature_valid: artifactNode.properties['checkpoint_signature_valid'] === true,
       ...(typeof appendOnlyVerified === 'boolean' ? { append_only_verified: appendOnlyVerified } : {}),
       ...(typeof input?.witness_quorum_required === 'number'
-        ? { witness_quorum_satisfied: validWitnessCount >= witnessQuorumRequired }
+        ? { witness_quorum_satisfied: validWitnessIds.size >= witnessQuorumRequired }
         : {}),
       ...(typeof input?.witness_quorum_required === 'number'
         ? { witness_quorum_required: witnessQuorumRequired }
         : {}),
-      valid_witness_attestation_count: validWitnessCount,
+      valid_witness_attestation_count: validAttestationCount,
+      valid_witness_count: validWitnessIds.size,
       note_format: noteFormat,
       signature_count: signatureCount,
       signatures,
@@ -8210,6 +8316,9 @@ export class DefaultRegistryService implements RegistryService {
     const witnessEdges = await this.deps.graph.listEdgesFrom(input.log.transparency_log.urn, 'sg:trustedByWitness');
     const attestationEdges = await this.deps.graph.listEdgesFrom(input.checkpoint_artifact_urn, 'sg:hasWitnessAttestation');
     const attestationNodes = await Promise.all(attestationEdges.map((edge) => this.deps.graph.getNode(edge.to_urn)));
+    const checkpointArtifactNode = await this.deps.graph.getNode(input.checkpoint_artifact_urn);
+    const noteSignatures =
+      parseTransparencyNoteSignatures(checkpointArtifactNode?.properties['signed_note_signatures_json']) ?? [];
     return await Promise.all(
       witnessEdges.map(async (edge) => {
         const witness = await this.deps.graph.getNode(edge.to_urn);
@@ -8251,6 +8360,11 @@ export class DefaultRegistryService implements RegistryService {
           trusted_witness_resolved: true,
           trusted_key_resolved: Boolean(key),
           signature_valid: Boolean(signatureValid),
+          note_cosignature_verified: noteSignatures.some(
+            (noteSignature) =>
+              noteSignature.verification?.status === 'verified' &&
+              noteSignature.verification.witness_id === String(witness.properties['witness_id'] ?? witness.urn),
+          ),
           verification_status: !key
             ? ('missing_key' as const)
             : !signatureValid
@@ -10182,10 +10296,20 @@ function parseTransparencyNoteSignatures(
       ) {
         return null;
       }
+      const verificationRaw = (entry as Record<string, unknown>)['verification'];
+      let verification: import('../ports/registry-service.js').RegistryTransparencyNoteSignature['verification'];
+      if (verificationRaw && typeof verificationRaw === 'object' && !Array.isArray(verificationRaw)) {
+        const status = (verificationRaw as Record<string, unknown>)['status'];
+        const witnessId = stringOrUndefined((verificationRaw as Record<string, unknown>)['witness_id']);
+        if (status === 'verified' || status === 'unmatched' || status === 'invalid' || status === 'ambiguous') {
+          verification = { status, ...(witnessId ? { witness_id: witnessId } : {}) };
+        }
+      }
       return {
         signature_index: signatureIndex,
         signature_role: signatureRole,
         signature,
+        ...(verification ? { verification } : {}),
         ...(stringOrUndefined((entry as Record<string, unknown>)['signer'])
           ? { signer: stringOrUndefined((entry as Record<string, unknown>)['signer']) }
           : {}),
