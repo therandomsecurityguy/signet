@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.71](https://github.com/therandomsecurityguy/signet/compare/v0.1.70...v0.1.71) (2026-11-19)
+
+
+### Features
+
+* **tessera-sidecar:** spec note-mode checkpoint signing (PR B) ([e801619](https://github.com/therandomsecurityguy/signet/commit/e8016199c0205ef82ec7b20ce81a521c147d0439))
+* **tessera-sidecar:** spec note-mode checkpoint signing (PR B) ([b778a6f](https://github.com/therandomsecurityguy/signet/commit/b778a6f50a44d44718a7c1143095d1e78c9009b1))
+
+
+### Bug Fixes
+
+* **registry:** cut only the first two '+' separators when parsing note verifier keys ([d7864b9](https://github.com/therandomsecurityguy/signet/commit/d7864b97e1aae67426a41f799146ee8e7d7caad2))
+* **registry:** parse note verifier keys with '+' in base64 key data ([70f64e9](https://github.com/therandomsecurityguy/signet/commit/70f64e95eb03a5a9c93bd9f119e9a1aa56dc985f))
+
 ## [0.1.70](https://github.com/therandomsecurityguy/signet/compare/v0.1.69...v0.1.70) (2026-11-19)
 
 
