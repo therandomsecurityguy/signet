@@ -333,7 +333,9 @@ describe('OWL ontology packages end to end', () => {
       expect(step.status).toBe(200);
     }
 
-    // Promotion from authored OWL ontologies is explicitly refused.
+    // Promotion from authored OWL ontologies lands a NEW authored-OWL
+    // version: existing class IRIs are preserved and the promoted term
+    // becomes normative in the target version.
     const promote = await app.request('/v1/de-facto-terms/mystery/review', {
       method: 'POST',
       headers: authHeaders(token),
@@ -344,9 +346,42 @@ describe('OWL ontology packages end to end', () => {
         target_ontology_version: 'owl-area/v2',
       }),
     });
-    expect(promote.status).toBe(400);
+    expect(promote.status).toBe(200);
     await expect(promote.json()).resolves.toMatchObject({
-      error: { code: 'DEFACTO_TERM_PROMOTE_INVALID' },
+      term: 'mystery',
+      status: 'promoted',
+      promoted_into_ontology_version: 'owl-area/v2',
+    });
+
+    const promotedPackage = await app.request(`/v1/ontology-packages/${encodeURIComponent('owl-area/v2')}`);
+    expect(promotedPackage.status).toBe(200);
+    const promotedPackageBody = (await promotedPackage.json()) as {
+      ontology_format: string;
+      canonical_rdf_sha256: string;
+      ontology: unknown;
+    };
+    expect(promotedPackageBody.ontology_format).toBe('owl-turtle');
+    expect(promotedPackageBody.canonical_rdf_sha256).toBeTruthy();
+
+    // A claim that was unmapped against v1 binds against the promoted v2.
+    const promotedDraft = await app.request('/v1/skills/owl-promoted/drafts', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        author: 'pablo',
+        capability_claims: ['mystery', 'transform'],
+        artifact: { content: '# ok', original_path: 'skills/owl-promoted.md' },
+        governance: { ontology_version: 'owl-area/v2' },
+      }),
+    });
+    expect(promotedDraft.status).toBe(200);
+    const promotedValidate = await app.request('/v1/skills/owl-promoted/versions/1/validate', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ author: 'pablo' }),
+    });
+    await expect(promotedValidate.json()).resolves.toMatchObject({
+      result: { skill_version: { properties: { lifecycle_status: 'validated' } } },
     });
   });
 

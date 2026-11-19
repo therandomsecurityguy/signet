@@ -61,6 +61,8 @@ export class OwlOntologyError extends Error {
 export type ProjectedOwlOntology = {
   concepts: OntologyConcept[];
   disjoint: Array<[string, string]>;
+  /** Concept id -> declared class IRI (insertion deterministic by id). */
+  iri_by_id: Record<string, string>;
 };
 
 /** Claim-binding id: explicit override, else the IRI's local name. */
@@ -236,5 +238,5 @@ export function parseOwlOntologyTurtle(turtle: string): ProjectedOwlOntology {
     a[0] === b[0] ? a[1].localeCompare(b[1]) : a[0].localeCompare(b[0]),
   );
 
-  return { concepts, disjoint };
+  return { concepts, disjoint, iri_by_id: Object.fromEntries([...iriById.entries()].sort()) };
 }
