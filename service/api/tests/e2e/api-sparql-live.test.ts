@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { createHash, generateKeyPairSync, sign as signBytes } from 'node:crypto';
+import { createHash, createPublicKey, generateKeyPairSync, sign as signBytes } from 'node:crypto';
 import { createServer } from 'node:net';
 import type { KeyObject } from 'node:crypto';
 import type { ServerType } from '@hono/node-server';
@@ -389,7 +389,7 @@ async function seedTransparencySampleGraph(baseUrl: string, token: string) {
     {
       signer: logId,
       detachedSignature: checkpointSigTwo,
-      keyHintBytes: [0, 0, 0, 1],
+      keyHintBytes: specKeyHint(logId, checkpointKey),
     },
     {
       signer: 'witness-cosignature',
@@ -422,7 +422,9 @@ async function seedTransparencySampleGraph(baseUrl: string, token: string) {
   const rootTwoAlt = `base64:${nodeHash(leafOne, leafTwoAlt).toString('base64')}`;
   const checkpointBodyTwoAlt = checkpointBody(logId, 2, rootTwoAlt);
   const checkpointSigTwoAlt = encodeSignature(checkpointBodyTwoAlt, checkpointKey);
-  const checkpointTwoAltNote = signedCheckpointNote(checkpointBodyTwoAlt, checkpointSigTwoAlt);
+  const checkpointTwoAltNote = signedCheckpointNote(checkpointBodyTwoAlt, [
+    { signer: logId, detachedSignature: checkpointSigTwoAlt, keyHintBytes: specKeyHint(logId, checkpointKey) },
+  ]);
   const createObservation = await fetch(`${baseUrl}/v1/transparency-logs/${encodeURIComponent(logId)}/observations`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
@@ -558,6 +560,13 @@ function signedCheckpointNote(
     return `— ${entry.signer} ${withKeyHint}`;
   });
   return `${body}\n${signatureLines.join('\n')}\n`;
+}
+
+/** Spec note-key hint (bigendian32(SHA256(origin + "\n" + 0x01||pubkey))[:4]). */
+function specKeyHint(origin: string, privateKey: KeyObject): number[] {
+  const publicDer = createPublicKey(privateKey).export({ type: 'spki', format: 'der' });
+  const keyData = Buffer.concat([Buffer.from([0x01]), publicDer.subarray(publicDer.length - 32)]);
+  return [...createHash('sha256').update(origin).update('\n').update(keyData).digest().subarray(0, 4)];
 }
 
 function sha256Hex(bytes: Uint8Array) {

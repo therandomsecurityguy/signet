@@ -1,0 +1,12 @@
+{
+  "key_hash_hex": "98864f5a",
+  "name": "signet-fixture-log",
+  "note_body": "signet-fixture-log\n3\nzp9wvkPZ/+7Jcu41MOlqP5ZNkiHrOffLqOFML/GO0SI=\n",
+  "opened_text_matches": true,
+  "private_key": "PRIVATE+KEY+signet-fixture-log+98864f5a+AdArpgEq9tpSyyTqj1DJPJf5lHFwrdce8tsOg2iG+2U/",
+  "root_hash_hex": "ce9f70be43d9ffeec972ee3530e96a3f964d9221eb39f7cba8e14c2ff18ed122",
+  "seed_hex": "d02ba6012af6da52cb24ea8f50c93c97f9947170add71ef2db0e836886fb653f",
+  "signed_note": "signet-fixture-log\n3\nzp9wvkPZ/+7Jcu41MOlqP5ZNkiHrOffLqOFML/GO0SI=\n\n— signet-fixture-log mIZPWsBvQxaR1XcGAlH7uoFRyVSjAJsmHfWlh7jYQw/a3rXBWNzRRnjHzEIsZ66gzGQj4euCwYb+pb41VxeNaDYhfgw=\n",
+  "tree_size": 3,
+  "verifier_key": "signet-fixture-log+98864f5a+AYcpnjCPuf03OeHWi2taACJP25/3Ipve66FiI5RrhZTR"
+}

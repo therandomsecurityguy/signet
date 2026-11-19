@@ -104,8 +104,11 @@ A signature failure is a stop: do not apply the pin. Re-run the release
    `tessera-log-private-key`, which must match the signer you are migrating from.
    To enable registry-side transparency reconciliation, set
    `tesseraSidecar.logPublicKeyPem` to the matching public key PEM (public, not
-   a secret; derive with `openssl pkey -pubout`) and optionally
-   `tesseraSidecar.logOrigin`. Without the public key the sidecar still stages
+   a secret; derive with `openssl pkey -pubout`) — or, for a
+   transparency-dev note key, `tesseraSidecar.logNoteVerifier` to the spec
+   verifier string (`node scripts/make-tessera-note-key.mjs <origin>` prints
+   both halves; the two settings are mutually exclusive) — and optionally
+   `tesseraSidecar.logOrigin`. Without a verifier key the sidecar still stages
    append intents and runs the native log, but
    `POST /v1/transparency-logs/reconcile` returns 409.
    Seed `tessera-sidecar-auth-token` (Secrets Manager); the sidecar fails

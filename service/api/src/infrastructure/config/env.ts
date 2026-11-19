@@ -79,8 +79,13 @@ const EnvSchema = z.object({
   SHACL_RUNTIME_TOKEN: z.string().optional(),
   // PEM content of the native companion log's checkpoint key; enables
   // transparency reconciliation when set alongside TESSERA_SIDECAR_URL and
-  // TRANSPARENCY_APPEND_LOG_ID.
+  // TRANSPARENCY_APPEND_LOG_ID. Legacy key identity (SPKI-derived hint).
   TESSERA_LOG_PUBLIC_KEY: z.string().optional(),
+  // Spec transparency-dev verifier key (`<name>+<hash8hex>+<base64>`) for the
+  // companion log's Ed25519 checkpoint key; mutually exclusive with
+  // TESSERA_LOG_PUBLIC_KEY. Preferred: binds signatures to key identity per
+  // the signed-note spec.
+  TESSERA_LOG_NOTE_VERIFIER: z.string().optional(),
   TIME_AWARE_GRAPH_BACKEND: z.enum(['json_file', 'memory', 'sparql']).default('json_file'),
   TIME_AWARE_GRAPH_STATE_FILE: z.string().default('../../data/registry/graph/time-aware-state.json'),
   TIME_AWARE_SPARQL_QUERY_URL: z.string().optional(),
@@ -112,6 +117,13 @@ const EnvSchema = z.object({
   // '*' (dev only); production must set an explicit allowlist.
   CORS_ALLOWED_ORIGINS: z.string().optional(),
 }).superRefine((env, ctx) => {
+  if (env.TESSERA_LOG_PUBLIC_KEY && env.TESSERA_LOG_NOTE_VERIFIER) {
+    ctx.addIssue({
+      code: 'custom',
+      message:
+        'TESSERA_LOG_PUBLIC_KEY and TESSERA_LOG_NOTE_VERIFIER are mutually exclusive; configure the spec note verifier key or the legacy PEM, not both.',
+    });
+  }
   // Mock auth is dev/test-only when Okta auth is actually selected: staging,
   // prod, or any unrecognized NODE_ENV requires an explicit opt-in.
   if (

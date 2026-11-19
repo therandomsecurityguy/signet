@@ -108,6 +108,10 @@ spec:
             - name: TESSERA_LOG_PUBLIC_KEY
               value: {{ .Values.tesseraSidecar.logPublicKeyPem | quote }}
             {{- end }}
+            {{- if .Values.tesseraSidecar.logNoteVerifier }}
+            - name: TESSERA_LOG_NOTE_VERIFIER
+              value: {{ .Values.tesseraSidecar.logNoteVerifier | quote }}
+            {{- end }}
             # Shared bearer token presented to the tessera-sidecar; optional so
             # environments without the key keep working (local dev only).
             - name: TESSERA_SIDECAR_AUTH_TOKEN

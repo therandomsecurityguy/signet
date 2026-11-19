@@ -1,9 +1,26 @@
-import { createHash, generateKeyPairSync, sign as signBytes } from 'node:crypto';
+import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, sign as signBytes } from 'node:crypto';
+import type { KeyObject } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { buildAppDependencies } from '../../src/app/dependencies.js';
 import { buildApp } from '../../src/app/server.js';
 import { loadEnv } from '../../src/infrastructure/config/env.js';
+
+// Shared oracle with the Go runtime tests (service/tessera-runtime).
+const SPEC_FIXTURE = JSON.parse(
+  readFileSync(new URL('../../../tessera-runtime/testdata/signed-notes/spec-note-v1.json', import.meta.url), 'utf8'),
+) as {
+  name: string;
+  tree_size: number;
+  root_hash_hex: string;
+  seed_hex: string;
+  key_hash_hex: string;
+  note_body: string;
+  signed_note: string;
+};
+
+const ED25519_PKCS8_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
 
 type TestAppLike = {
   request: (input: string, init?: RequestInit) => Response | Promise<Response>;
@@ -76,6 +93,17 @@ function signedCheckpointNote(
     return `— ${entry.signer} ${withKeyHint}`;
   });
   return `${body}\n${signatureLines.join('\n')}\n`;
+}
+
+/**
+ * Spec note-key hint (bigendian32(SHA256(origin + "\n" + 0x01||pubkey))[:4]).
+ * Signed-note submissions for Ed25519 trusted keys must carry it — the seam
+ * binds note signatures to key identity per the transparency-dev spec.
+ */
+function specKeyHint(origin: string, privateKey: KeyObject): number[] {
+  const publicDer = createPublicKey(privateKey).export({ type: 'spki', format: 'der' });
+  const keyData = Buffer.concat([Buffer.from([0x01]), publicDer.subarray(publicDer.length - 32)]);
+  return [...createHash('sha256').update(origin).update('\n').update(keyData).digest().subarray(0, 4)];
 }
 
 describe('transparency log routes', () => {
@@ -293,7 +321,9 @@ describe('transparency log routes', () => {
     const root = `base64:${leafHash('entry-note').toString('base64')}`;
     const body = checkpointBody('sg-note-log', 1, root);
     const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
-    const note = signedCheckpointNote(body, detachedSignature);
+    const note = signedCheckpointNote(body, [
+      { signer: 'sg-note-log', detachedSignature, keyHintBytes: specKeyHint('sg-note-log', checkpointKey) },
+    ]);
 
     const createCheckpoint = await app.request('/v1/transparency-logs/sg-note-log/checkpoints', {
       method: 'POST',
@@ -337,7 +367,9 @@ describe('transparency log routes', () => {
     const root = `base64:${leafHash('entry-crlf').toString('base64')}`;
     const body = checkpointBody('sg-crlf-log', 1, root);
     const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
-    const note = signedCheckpointNote(body, detachedSignature).replace(/\n/g, '\r\n').replace('— ', '- ');
+    const note = signedCheckpointNote(body, [
+      { signer: 'sg-crlf-log', detachedSignature, keyHintBytes: specKeyHint('sg-crlf-log', checkpointKey) },
+    ]).replace(/\n/g, '\r\n').replace('— ', '- ');
 
     const createCheckpoint = await app.request('/v1/transparency-logs/sg-crlf-log/checkpoints', {
       method: 'POST',
@@ -635,7 +667,9 @@ describe('transparency log routes', () => {
     const root = `base64:${leafHash('entry-provenance').toString('base64')}`;
     const body = checkpointBody('sg-provenance-log', 1, root);
     const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
-    const note = signedCheckpointNote(body, detachedSignature);
+    const note = signedCheckpointNote(body, [
+      { signer: 'sg-provenance-log', detachedSignature, keyHintBytes: specKeyHint('sg-provenance-log', checkpointKey) },
+    ]);
     const expectedPayloadSha = createHash('sha256').update(note, 'utf8').digest('hex');
 
     const createCheckpoint = await app.request('/v1/transparency-logs/sg-provenance-log/checkpoints', {
@@ -764,11 +798,12 @@ describe('transparency log routes', () => {
     const body = checkpointBody('sg-multisig-log', 1, root);
     const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
     const cosignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), cosignerKey).toString('base64')}`;
+    const primaryHint = specKeyHint('sg-multisig-log', checkpointKey);
     const note = signedCheckpointNote(body, [
       {
         signer: 'sg-multisig-log',
         detachedSignature,
-        keyHintBytes: [0, 0, 0, 1],
+        keyHintBytes: primaryHint,
       },
       {
         signer: 'witness-beta',
@@ -792,13 +827,13 @@ describe('transparency log routes', () => {
       note_format: 'raw_signed_note',
       signature_count: 2,
       signed_note_signer: 'sg-multisig-log',
-      signed_note_key_hint: 'base64:AAAAAQ==',
+      signed_note_key_hint: `base64:${Buffer.from(primaryHint).toString('base64')}`,
       signatures: [
         expect.objectContaining({
           signature_index: 0,
           signature_role: 'checkpoint',
           signer: 'sg-multisig-log',
-          key_hint: 'base64:AAAAAQ==',
+          key_hint: `base64:${Buffer.from(primaryHint).toString('base64')}`,
         }),
         expect.objectContaining({
           signature_index: 1,
@@ -807,6 +842,87 @@ describe('transparency log routes', () => {
           key_hint: 'base64:AAAAAg==',
         }),
       ],
+    });
+  });
+
+  it('rejects signed notes that do not bind to the trusted Ed25519 key hint', async () => {
+    const { app, token } = await buildTestApp();
+    const checkpointKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/checkpoint-hint',
+      owner: 'security-team',
+    });
+    const createLog = await app.request('/v1/transparency-logs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        log_id: 'sg-hint-log',
+        origin: 'sg-hint-log',
+        checkpoint_key_ref: 'kms://registry/checkpoint-hint',
+      }),
+    });
+    expect(createLog.status).toBe(201);
+
+    const root = `base64:${leafHash('entry-hint').toString('base64')}`;
+    const body = checkpointBody('sg-hint-log', 1, root);
+    const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
+    const note = signedCheckpointNote(body, [
+      { signer: 'sg-hint-log', detachedSignature, keyHintBytes: [0, 0, 0, 9] },
+    ]);
+
+    const createCheckpoint = await app.request('/v1/transparency-logs/sg-hint-log/checkpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ signed_note: note }),
+    });
+    expect(createCheckpoint.status).toBe(409);
+    await expect(createCheckpoint.json()).resolves.toMatchObject({
+      error: { code: 'CHECKPOINT_NOTE_KEY_HINT_MISMATCH' },
+    });
+  });
+
+  it('accepts a real transparency-dev fixture note for a matching Ed25519 key', async () => {
+    const { app, token } = await buildTestApp();
+    const privateKey = createPrivateKey({
+      key: Buffer.concat([ED25519_PKCS8_PREFIX, Buffer.from(SPEC_FIXTURE.seed_hex, 'hex')]),
+      format: 'der',
+      type: 'pkcs8',
+    });
+    const publicKeyPem = createPublicKey(privateKey).export({ type: 'spki', format: 'pem' }).toString();
+    const registerKey = await app.request('/v1/public-keys', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        key_ref: 'kms://registry/checkpoint-spec-fixture',
+        algorithm: 'ed25519',
+        public_key_pem: publicKeyPem,
+        owner: 'security-team',
+      }),
+    });
+    expect(registerKey.status).toBe(201);
+    const createLog = await app.request('/v1/transparency-logs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        log_id: 'spec-fixture-log',
+        origin: SPEC_FIXTURE.name,
+        checkpoint_key_ref: 'kms://registry/checkpoint-spec-fixture',
+      }),
+    });
+    expect(createLog.status).toBe(201);
+
+    const createCheckpoint = await app.request('/v1/transparency-logs/spec-fixture-log/checkpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ signed_note: SPEC_FIXTURE.signed_note }),
+    });
+    expect(createCheckpoint.status).toBe(200);
+    await expect(createCheckpoint.json()).resolves.toMatchObject({
+      tree_size: SPEC_FIXTURE.tree_size,
+      root_hash: Buffer.from(SPEC_FIXTURE.root_hash_hex, 'hex').toString('base64'),
+      checkpoint_signature_valid: true,
+      note_format: 'raw_signed_note',
+      signed_note_signer: SPEC_FIXTURE.name,
+      signed_note_key_hint: `base64:${Buffer.from(SPEC_FIXTURE.key_hash_hex, 'hex').toString('base64')}`,
     });
   });
 });
