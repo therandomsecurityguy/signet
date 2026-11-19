@@ -25,6 +25,7 @@ One Secrets Manager secret per key, under `<secret_prefix>/` (default
 | `redis-url` | `redis-url` | api, mcp |
 | `api-key-pepper` | `api-key-pepper` | api, mcp |
 | `tessera-log-private-key` | `tessera-log-private-key` | tessera-sidecar |
+| `tessera-log-note-key` | `tessera-log-note-key` | tessera-sidecar (note mode) |
 | `tessera-sidecar-auth-token` | `tessera-sidecar-auth-token` | api, tessera-sidecar |
 | `shacl-runtime-token` | `shacl-runtime-token` | api, shacl-runtime |
 
@@ -39,7 +40,7 @@ AWS SDK picks up the web-identity credentials automatically. There are no
   `database-url`, `fuseki-admin-password`, `redis-url`, `api-key-pepper`. Created
   by the `signet-data` module.
 - **Operator-seeded** (never in Terraform state, never in Helm values):
-  `okta-client-secret`, `tessera-log-private-key`,
+  `okta-client-secret`, `tessera-log-private-key`, `tessera-log-note-key`,
   `tessera-sidecar-auth-token`, `shacl-runtime-token`.
 
 ## Seeding operator secrets
@@ -97,13 +98,14 @@ violation.
 The matching checkpoint **public** key is not a secret. Set
 `tesseraSidecar.logPublicKeyPem` to its PEM content (derive from the seeded
 private key with `openssl pkey -pubout`) to enable registry-side transparency
-reconciliation (`POST /v1/transparency-logs/reconcile`). For a
-transparency-dev note key, generate one with
+reconciliation (`POST /v1/transparency-logs/reconcile`). For
+transparency-dev note mode instead: generate a key with
 `node scripts/make-tessera-note-key.mjs <log-origin>` (see
-`docs/runbooks/secret-rotation.md`): seed the signer string for your log
-signer and set the public verifier string as
-`tesseraSidecar.logNoteVerifier` (mutually exclusive with
-`logPublicKeyPem`).
+`docs/runbooks/secret-rotation.md`), seed the signer string as
+`tessera-log-note-key`, set `tesseraSidecar.logNoteKeyFromSecret: true` (this
+suppresses the PEM injection — one signing mode per deployment), and set the
+public verifier string as `tesseraSidecar.logNoteVerifier` (mutually
+exclusive with `logPublicKeyPem`).
 
 ## Non-secret per-env values
 

@@ -200,7 +200,9 @@ Transparency and provenance:
   transparency-dev spec note format (Ed25519, name-bound key hash,
   `<name>+<hash8hex>+<base64>` verifier keys) alongside the legacy
   SPKI-hint format, with fail-closed hint binding and
-  `TESSERA_LOG_NOTE_VERIFIER` for spec reconciliation
+  `TESSERA_LOG_NOTE_VERIFIER` for spec reconciliation; the native sidecar
+  emits spec notes when configured with `TESSERA_LOG_NOTE_KEY` (signing
+  byte-verified against golang's note library with a shared fixture)
 - canonical governance events for every lifecycle operation, stored as
   immutable CAS artifacts and appended to an internal Merkle log with
   RFC 6962 inclusion-proof generation and verifier replay

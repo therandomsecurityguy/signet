@@ -155,7 +155,9 @@ do not bind fail closed with `CHECKPOINT_NOTE_KEY_HINT_MISMATCH`. Generate
 spec keys with `node scripts/make-tessera-note-key.mjs <log-origin>`;
 reconciliation verifies the companion log's checkpoints against
 `TESSERA_LOG_PUBLIC_KEY` (legacy PEM) or `TESSERA_LOG_NOTE_VERIFIER` (spec
-verifier string; mutually exclusive).
+verifier string; mutually exclusive). The native sidecar emits spec notes
+when configured with `TESSERA_LOG_NOTE_KEY` — its signatures are
+fixture-verified to match golang's `x/mod/sumdb/note` byte-for-byte.
 | GET | `/v1/governance-log` | Internal governance Merkle log |
 | GET | `/v1/governance-log/proofs/{leafIndex}` | Inclusion proof |
 | GET | `/v1/governance-log/replay` | Verifier replay |

@@ -29,11 +29,11 @@ change** — there is no key-overlap today.
 Two key modes exist side by side:
 
 **Spec note-key mode (preferred for new deployments)** — a transparency-dev
-signed-note Ed25519 key (`<name>+<hash8hex>+<base64>` identity). The registry
-verifies note-format checkpoints against the verifier key; the signer string
-is consumed by whichever log signer you run (the Go `service/tessera-runtime`
-takes it as `TESSERA_LOG_PRIVATE_KEY`; the Node sidecar's PEM mode is
-unchanged — it gains a note mode in a follow-up).
+signed-note Ed25519 key (`<name>+<hash8hex>+<base64>` identity). The Node
+sidecar signs with it when `tesseraSidecar.logNoteKeyFromSecret` is true
+(the PEM injection is suppressed; the two modes are mutually exclusive), and
+the Go `service/tessera-runtime` takes the string as
+`TESSERA_LOG_PRIVATE_KEY`.
 
 1. Generate a note key with the log origin as its name:
 
@@ -43,9 +43,11 @@ unchanged — it gains a note mode in a follow-up).
    # verifier key -> <name>+<hash8hex>+... (public)
    ```
 
-2. Seed the signer string at `<prefix>/tessera-log-note-key` for your log
-   signer, and set `tesseraSidecar.logNoteVerifier` to the verifier string
-   (registry side); apply and restart the api.
+2. Seed the signer string at `<prefix>/tessera-log-note-key`, set
+   `tesseraSidecar.logNoteKeyFromSecret: true` (sidecar signer) — or feed it
+   to the Go runtime as `TESSERA_LOG_PRIVATE_KEY` — and set
+   `tesseraSidecar.logNoteVerifier` to the verifier string (registry side);
+   apply and restart the sidecar + api.
 3. `TESSERA_LOG_PUBLIC_KEY` and `TESSERA_LOG_NOTE_VERIFIER` are mutually
    exclusive — clear the legacy PEM when switching.
 4. Historical checkpoints signed with the old key stop verifying until the

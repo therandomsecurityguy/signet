@@ -5,7 +5,8 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { fetchWithRetry } from './fetch-with-retry.js';
-import { buildSignedCheckpoint, keyHintForPrivateKey } from './log.js';
+import { buildCheckpointForSigner, keyHintForPrivateKey, parseNoteSignerKey } from './log.js';
+import type { CheckpointSigner } from './log.js';
 import { NativeLog, type S3Like } from './native-log.js';
 import type { Env } from './config/env.js';
 
@@ -42,7 +43,33 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
     env.TESSERA_SIDECAR_TILES_PREFIX,
     env.TESSERA_SIDECAR_REQUESTS_PREFIX,
   );
-  const nativeLogEnabled = Boolean(env.TESSERA_LOG_PRIVATE_KEY);
+  // Native companion log signing. Exactly one mode (enforced by env
+  // validation): a legacy PEM key or a spec note key. In note mode the key
+  // name is part of the key identity, so it must match the note origin the
+  // registry binds checkpoints to.
+  const noteSigner = env.TESSERA_LOG_NOTE_KEY ? parseNoteSignerKey(env.TESSERA_LOG_NOTE_KEY) : null;
+  if (noteSigner && noteSigner.name !== env.TESSERA_LOG_ORIGIN) {
+    throw new Error(
+      `TESSERA_LOG_ORIGIN (${env.TESSERA_LOG_ORIGIN}) must equal the note signer key name (${noteSigner.name}); the name is part of the spec key identity.`,
+    );
+  }
+  const checkpointSigner: CheckpointSigner | null = noteSigner
+    ? { kind: 'note', noteKey: env.TESSERA_LOG_NOTE_KEY as string }
+    : env.TESSERA_LOG_PRIVATE_KEY
+      ? { kind: 'pem', privateKeyPem: env.TESSERA_LOG_PRIVATE_KEY }
+      : null;
+  const keyHintHex = noteSigner
+    ? noteSigner.keyHashHex
+    : env.TESSERA_LOG_PRIVATE_KEY
+      ? keyHintForPrivateKey(createPrivateKey(env.TESSERA_LOG_PRIVATE_KEY)).toString('hex')
+      : '';
+  const nativeLogNotConfigured = () =>
+    ({
+      error: {
+        code: 'NATIVE_LOG_NOT_CONFIGURED',
+        message: 'Configure TESSERA_LOG_PRIVATE_KEY (legacy PEM) or TESSERA_LOG_NOTE_KEY (spec note key) to enable the native log.',
+      },
+    }) as const;
   const authToken = env.TESSERA_SIDECAR_AUTH_TOKEN;
   const allowUnauthenticated = env.TESSERA_SIDECAR_ALLOW_UNAUTHENTICATED && !authToken;
   // Fail closed: /v1/* requires the shared bearer token. Running without a
@@ -108,13 +135,13 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
       service: 'tessera-sidecar',
       purpose: 'Stage registry transparency append intents and companion metadata into S3 prefixes reserved for Tessera-related local and dev/test workflows.',
       capabilities: {
-        mode: nativeLogEnabled ? 's3-companion+native-log' : 's3-companion',
+        mode: checkpointSigner ? 's3-companion+native-log' : 's3-companion',
         supports: [
           'health',
           'config-summary',
           'append-intent-staging',
-          ...(nativeLogEnabled
-            ? ['native-log-append', 'signed-checkpoints', 'inclusion-proofs']
+          ...(checkpointSigner
+            ? ['native-log-append', 'signed-checkpoints', 'inclusion-proofs', `checkpoint-signer:${checkpointSigner.kind}`]
             : []),
           ...(authToken ? ['bearer-auth'] : []),
         ],
@@ -130,8 +157,9 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
       tiles_prefix: trimSlashes(env.TESSERA_SIDECAR_TILES_PREFIX),
       requests_prefix: trimSlashes(env.TESSERA_SIDECAR_REQUESTS_PREFIX),
       tessera_runtime_add_url: env.TESSERA_RUNTIME_ADD_URL,
-      native_log_enabled: nativeLogEnabled,
-      tessera_log_origin: nativeLogEnabled ? env.TESSERA_LOG_ORIGIN : null,
+      native_log_enabled: Boolean(checkpointSigner),
+      native_log_signer: checkpointSigner ? checkpointSigner.kind : null,
+      tessera_log_origin: checkpointSigner ? env.TESSERA_LOG_ORIGIN : null,
       auth_enabled: Boolean(authToken),
       unauthenticated_allowed: allowUnauthenticated,
       using_custom_endpoint: Boolean(env.TESSERA_SIDECAR_AWS_ENDPOINT),
@@ -197,11 +225,11 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
           source_type: parsed.data.source_type,
           source_urn: parsed.data.source_urn,
         })
-      : env.TESSERA_LOG_PRIVATE_KEY
+      : checkpointSigner
         ? await appendToNativeLog({
             nativeLog,
-            privateKeyPem: env.TESSERA_LOG_PRIVATE_KEY,
-            origin: env.TESSERA_LOG_ORIGIN,
+            checkpointSigner,
+            checkpointOrigin: env.TESSERA_LOG_ORIGIN,
             logId: parsed.data.log_id,
             requestId,
             record,
@@ -232,8 +260,8 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
   });
 
   app.get('/v1/logs', async (c) => {
-    if (!nativeLogEnabled) {
-      return c.json({ error: { code: 'NATIVE_LOG_NOT_CONFIGURED', message: 'Configure TESSERA_LOG_PRIVATE_KEY to enable the native log.' } }, 501);
+    if (!checkpointSigner) {
+      return c.json(nativeLogNotConfigured(), 501);
     }
     const logIds = await nativeLog.listLogIds();
     const logs = [];
@@ -245,17 +273,17 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
   });
 
   app.get('/v1/logs/:logId', async (c) => {
-    if (!nativeLogEnabled) {
-      return c.json({ error: { code: 'NATIVE_LOG_NOT_CONFIGURED', message: 'Configure TESSERA_LOG_PRIVATE_KEY to enable the native log.' } }, 501);
+    if (!checkpointSigner) {
+      return c.json(nativeLogNotConfigured(), 501);
     }
     const logId = c.req.param('logId');
     const state = await nativeLog.readState(logId);
     if (!state) {
       return c.json({ error: { code: 'LOG_NOT_FOUND', message: 'Unknown log id.' } }, 404);
     }
-    const checkpoint = buildSignedCheckpoint({
+    const checkpoint = buildCheckpointForSigner({
+      signer: checkpointSigner,
       origin: env.TESSERA_LOG_ORIGIN,
-      privateKeyPem: env.TESSERA_LOG_PRIVATE_KEY as string,
       treeSize: state.tree_size,
       rootHash: Buffer.from(state.root_hash, 'hex'),
     });
@@ -266,15 +294,16 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
         root_hash: state.root_hash,
         updated_at: state.updated_at,
         checkpoint: { envelope: checkpoint.envelope, note_sha256: checkpoint.noteSha256 },
-        key_hint: keyHintForPrivateKey(createPrivateKey(env.TESSERA_LOG_PRIVATE_KEY as string)).toString('hex'),
+        key_hint: keyHintHex,
+        signer: checkpointSigner.kind,
       },
       200,
     );
   });
 
   app.get('/v1/logs/:logId/entries/:index', async (c) => {
-    if (!nativeLogEnabled) {
-      return c.json({ error: { code: 'NATIVE_LOG_NOT_CONFIGURED', message: 'Configure TESSERA_LOG_PRIVATE_KEY to enable the native log.' } }, 501);
+    if (!checkpointSigner) {
+      return c.json(nativeLogNotConfigured(), 501);
     }
     const logId = c.req.param('logId');
     const index = Number(c.req.param('index'));
@@ -285,7 +314,7 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
       logId,
       index,
       checkpointOrigin: env.TESSERA_LOG_ORIGIN,
-      checkpointPrivateKeyPem: env.TESSERA_LOG_PRIVATE_KEY as string,
+      checkpointSigner,
     });
     if (!got) {
       return c.json({ error: { code: 'ENTRY_NOT_FOUND', message: 'Unknown entry index.' } }, 404);
@@ -311,8 +340,8 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
 
 async function appendToNativeLog(input: {
   nativeLog: NativeLog;
-  privateKeyPem: string;
-  origin: string;
+  checkpointSigner: CheckpointSigner;
+  checkpointOrigin: string;
   logId: string;
   requestId: string;
   record: string;
@@ -328,9 +357,9 @@ async function appendToNativeLog(input: {
     recordSha256: input.sha256,
     createdAt: input.createdAt,
   });
-  const checkpoint = buildSignedCheckpoint({
-    origin: input.origin,
-    privateKeyPem: input.privateKeyPem,
+  const checkpoint = buildCheckpointForSigner({
+    signer: input.checkpointSigner,
+    origin: input.checkpointOrigin,
     treeSize: appended.state.tree_size,
     rootHash: Buffer.from(appended.state.root_hash, 'hex'),
   });
