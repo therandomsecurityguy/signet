@@ -70,12 +70,18 @@ export type ParsedNoteVerifierKey = {
  * a 32-byte Ed25519 key, and the hash recomputed over the decoded key.
  */
 export function parseNoteVerifierKey(verifierKey: string): ParsedNoteVerifierKey {
-  const parts = verifierKey.split('+');
-  if (parts.length !== 3) {
+  // Cut only the first two separators: the standard-base64 key data may
+  // itself contain '+' (the spec forbids '+' in names for exactly this
+  // reason), so a naive split would reject valid keys intermittently.
+  const nameEnd = verifierKey.indexOf('+');
+  const hashEnd = nameEnd >= 0 ? verifierKey.indexOf('+', nameEnd + 1) : -1;
+  if (nameEnd <= 0 || hashEnd <= nameEnd + 1 || hashEnd >= verifierKey.length - 1) {
     throw new NoteVerifierKeyError('note verifier key must be <name>+<hash8hex>+<base64>');
   }
-  const [name, hashHex, key64] = parts as [string, string, string];
-  if (!name || /\s/u.test(name) || name.includes('+')) {
+  const name = verifierKey.slice(0, nameEnd);
+  const hashHex = verifierKey.slice(nameEnd + 1, hashEnd);
+  const key64 = verifierKey.slice(hashEnd + 1);
+  if (/\s/u.test(name)) {
     throw new NoteVerifierKeyError('note verifier name must be non-empty with no spaces or pluses');
   }
   if (!/^[0-9a-f]{8}$/.test(hashHex)) {

@@ -111,6 +111,45 @@ describe('transparency-dev signed-note compatibility', () => {
     expect(checkpoint.envelope).toBe(fixture.signed_note);
   });
 
+  it('parses verifier keys whose base64 key data contains "+" (spec cut semantics)', () => {
+    // Standard base64 includes '+'; the spec cuts only the first two
+    // separators. Find a deterministic seed whose key data exercises it.
+    let seedByte = 0;
+    let keyData: Buffer | null = null;
+    let privateKey: ReturnType<typeof createPrivateKey> | null = null;
+    for (seedByte = 0; seedByte < 1024; seedByte += 1) {
+      const seed = Buffer.alloc(32, seedByte);
+      const candidateKey = createPrivateKey({
+        key: Buffer.concat([ED25519_PKCS8_PREFIX, seed]),
+        format: 'der',
+        type: 'pkcs8',
+      });
+      const spki = createPublicKey(candidateKey).export({ type: 'spki', format: 'der' });
+      const candidate = Buffer.concat([Buffer.from([0x01]), spki.subarray(spki.length - 32)]);
+      if (candidate.toString('base64').includes('+')) {
+        keyData = candidate;
+        privateKey = candidateKey;
+        break;
+      }
+    }
+    expect(keyData).not.toBeNull();
+    const name = 'plus-key-log';
+    const hashHex = noteKeyHashBytes(name, keyData as Buffer).subarray(0, 4).toString('hex');
+    const verifierKey = `${name}+${hashHex}+${(keyData as Buffer).toString('base64')}`;
+    const parsed = parseNoteVerifierKey(verifierKey);
+    expect(parsed.name).toBe(name);
+    expect(parsed.keyHashHex).toBe(hashHex);
+
+    // Full path: a note signed by the same key verifies in spec mode.
+    const signature = signBytes(null, Buffer.from(fixture.note_body, 'utf8'), privateKey as ReturnType<typeof createPrivateKey>);
+    const envelope = `${fixture.note_body}\n\u2014 ${name} ${Buffer.concat([
+      Buffer.from(hashHex, 'hex'),
+      signature,
+    ]).toString('base64')}\n`;
+    const outcome = verifySignedNote({ envelope, note_verifier_key: verifierKey });
+    expect(outcome.verified).toBe(true);
+  });
+
   it('rejects malformed verifier keys with explicit errors', () => {
     const { hash, keyData } = splitNoteKey(fixture.verifier_key);
     const key64 = keyData.toString('base64');
