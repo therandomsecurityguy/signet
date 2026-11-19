@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.69](https://github.com/therandomsecurityguy/signet/compare/v0.1.68...v0.1.69) (2026-11-19)
+
+
+### Features
+
+* **registry:** ontology-aware SHACL validation + de-facto promotion into authored OWL ([ca309f3](https://github.com/therandomsecurityguy/signet/commit/ca309f34b7c739adea80360b35bfe25a050ee5ed))
+* **registry:** ontology-aware SHACL validation + de-facto promotion into authored OWL ([44bd8ad](https://github.com/therandomsecurityguy/signet/commit/44bd8ade2aa2bcbbb8bc97c3407d0f9bc245cfe2))
+
 ## [0.1.68](https://github.com/therandomsecurityguy/signet/compare/v0.1.67...v0.1.68) (2026-11-18)
 
 
