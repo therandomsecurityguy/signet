@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.70](https://github.com/therandomsecurityguy/signet/compare/v0.1.69...v0.1.70) (2026-11-19)
+
+
+### Features
+
+* **registry:** transparency-dev spec signed-note verification (PR A) ([df21075](https://github.com/therandomsecurityguy/signet/commit/df2107512c58d957828fff3f4fc28d21e8599e5d))
+* **registry:** transparency-dev spec signed-note verification (PR A) ([bb3f809](https://github.com/therandomsecurityguy/signet/commit/bb3f809e9808b6480d95017cf11b9d3cd6566e92))
+
 ## [0.1.69](https://github.com/therandomsecurityguy/signet/compare/v0.1.68...v0.1.69) (2026-11-19)
 
 
