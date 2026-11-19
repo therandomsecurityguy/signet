@@ -10,7 +10,7 @@ Implemented now:
 - append-intent staging into an S3 prefix reserved for Tessera-related workflows
 - real registry publish/certify flows can now call this sidecar when `TESSERA_SIDECAR_URL` and `TRANSPARENCY_APPEND_LOG_ID` are configured in `service/api`
 - when a Tessera runtime is configured, the sidecar can submit the append-intent record and return published-checkpoint metadata when available
-- native RFC 6962 companion log (activated by `TESSERA_LOG_PRIVATE_KEY`): append-intent records are appended as leaves with S3-backed tree state, signed transparency-dev checkpoints are published (`TESSERA_LOG_ORIGIN` sets the note origin), and per-entry inclusion proofs are served on `GET /v1/logs/*`
+- native RFC 6962 companion log (activated by `TESSERA_LOG_PRIVATE_KEY` or `TESSERA_LOG_NOTE_KEY`): append-intent records are appended as leaves with S3-backed tree state, signed checkpoints are published (`TESSERA_LOG_ORIGIN` sets the note origin), and per-entry inclusion proofs are served on `GET /v1/logs/*`
 - `service/api` can reconcile recorded append intents against this log (`POST /v1/transparency-logs/reconcile`), verifying record digests, leaf hashes, inclusion proofs, and checkpoint signatures against a trusted `TESSERA_LOG_PUBLIC_KEY`
 
 Auth is fail-closed: `healthz`, `readyz`, `/v1`, and `/v1/config` stay open
@@ -46,14 +46,15 @@ npm run dev
 ### Example env
 
 See:
-- `infra/.env.example`
+- `../../infra/.env.example`
 
 Important values:
 - `TESSERA_SIDECAR_BUCKET`
 - `TESSERA_SIDECAR_REGION`
 - `TESSERA_SIDECAR_TILES_PREFIX`
 - `TESSERA_SIDECAR_REQUESTS_PREFIX`
-- `TESSERA_LOG_PRIVATE_KEY` (PEM; enables the native companion log and signed checkpoints)
+- `TESSERA_LOG_PRIVATE_KEY` (legacy PEM; enables the native companion log with SPKI-hint checkpoints)
+- `TESSERA_LOG_NOTE_KEY` (transparency-dev spec note key, `PRIVATE+KEY+<name>+<hash8hex>+<base64>`; enables spec-format checkpoints — pure Ed25519 with the name-bound key hash, byte-identical to x/mod sumdb/note output. Mutually exclusive with `TESSERA_LOG_PRIVATE_KEY`; the key name must equal `TESSERA_LOG_ORIGIN`. Generate with `node scripts/make-tessera-note-key.mjs <origin>`)
 - `TESSERA_LOG_ORIGIN` (checkpoint note origin, default `signet-tessera.local`)
 - `TESSERA_SIDECAR_AUTH_TOKEN` (shared bearer token; `/v1/*` calls must present it — the registry sends it from its own `TESSERA_SIDECAR_AUTH_TOKEN`)
 - `TESSERA_SIDECAR_ALLOW_UNAUTHENTICATED=true` (explicit local-development opt-out; without it a missing token fails closed)

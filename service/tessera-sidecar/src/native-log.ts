@@ -1,6 +1,7 @@
 import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
 
-import { buildSignedCheckpoint, computeMerkleRoot, generateInclusionProof, rfc6962LeafHash } from './log.js';
+import { buildCheckpointForSigner, computeMerkleRoot, generateInclusionProof, rfc6962LeafHash } from './log.js';
+import type { CheckpointSigner } from './log.js';
 
 export type S3Like = {
   send(command: unknown): Promise<unknown>;
@@ -117,7 +118,7 @@ export class NativeLog {
     logId: string;
     index: number;
     checkpointOrigin: string;
-    checkpointPrivateKeyPem: string;
+    checkpointSigner: CheckpointSigner;
   }): Promise<{
     entry: NativeLogEntry;
     proof: { tree_size: number; root_hash: string; hashes: string[] };
@@ -137,9 +138,9 @@ export class NativeLog {
     const leafHashes = leaves.map((leaf) => Buffer.from(leaf.leaf_hash, 'hex'));
     const proofHashes = generateInclusionProof(leafHashes, input.index);
     const rootHash = Buffer.from(state.root_hash, 'hex');
-    const checkpoint = buildSignedCheckpoint({
+    const checkpoint = buildCheckpointForSigner({
       origin: input.checkpointOrigin,
-      privateKeyPem: input.checkpointPrivateKeyPem,
+      signer: input.checkpointSigner,
       treeSize: state.tree_size,
       rootHash,
     });

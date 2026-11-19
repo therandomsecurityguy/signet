@@ -113,6 +113,12 @@ tesseraSidecar:
   # false only when supplying the key another way — the signer identity must
   # never differ across replicas or deployments.
   logPrivateKeyFromSecret: true
+  # Sign checkpoints with a spec note key (PRIVATE+KEY+..., Ed25519) from the
+  # release Secret key `tessera-log-note-key` instead of the legacy PEM. When
+  # true, the PEM injection above is suppressed (the two modes are mutually
+  # exclusive); pair it with logNoteVerifier so the registry verifies the
+  # note-mode checkpoints.
+  logNoteKeyFromSecret: false
   # Local-development escape hatch only: run /v1/* without a token. Never
   # enable in a deployed environment (seed tessera-sidecar-auth-token instead).
   allowUnauthenticated: false

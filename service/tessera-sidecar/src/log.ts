@@ -3,10 +3,16 @@ import type { KeyObject } from 'node:crypto';
 
 // Native RFC 6962 companion log: append leaves (canonical append-intent
 // record bytes), maintain the tree state, and publish supervised
-// checkpoints as transparency-dev signed notes. Verification lives in the
-// registry (transparency-notes.ts) and mirrors these constructions:
-// leaf 0x00 / node 0x01 domain separation, note-body signatures with a
-// 4-byte key hint (sha256 of the SPKI DER).
+// checkpoints. Two signing modes produce the same envelope shape
+// (`<origin>\n<size>\n<base64 root>\n\n— <name> <base64(hint||sig)>\n`):
+// - PEM (legacy): hint = sha256(SPKI DER)[:4], signature via
+//   `sign('sha256', ...)`; verification lives in the registry
+//   (transparency-notes.ts) and mirrors the construction.
+// - NOTE (transparency-dev spec): the signer is a `PRIVATE+KEY+...` Ed25519
+//   note key, the hint is the name-bound spec key hash
+//   (bigendian32(SHA256(name + "\n" + 0x01||pubkey))), and the signature is
+//   pure Ed25519 over the note body — byte-identical to golang's
+//   x/mod/sumdb/note output for the same key (fixture-verified).
 
 export function rfc6962LeafHash(leafPayload: string): Buffer {
   return createHash('sha256')
@@ -105,4 +111,115 @@ export function buildSignedCheckpoint(input: {
     treeSize: input.treeSize,
     rootHashHex: input.rootHash.toString('hex'),
   };
+}
+
+const ED25519_PKCS8_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
+const NOTE_ALG_ED25519 = 0x01;
+
+export class NoteSignerKeyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NoteSignerKeyError';
+  }
+}
+
+export type NoteSigner = {
+  name: string;
+  keyHash: Buffer;
+  keyHashHex: string;
+  privateKey: KeyObject;
+};
+
+/**
+ * Strict parser for spec signer keys (`PRIVATE+KEY+<name>+<hash8hex>+<base64>`):
+ * the base64 key data is `0x01 || 32-byte Ed25519 seed`, and the hash is
+ * recomputed over the derived public key (a mismatched hash fails closed).
+ */
+export function parseNoteSignerKey(signerKey: string): NoteSigner {
+  if (!signerKey.startsWith('PRIVATE+KEY+')) {
+    throw new NoteSignerKeyError('note signer key must start with PRIVATE+KEY+');
+  }
+  const parts = signerKey.slice('PRIVATE+KEY+'.length).split('+');
+  if (parts.length < 3) {
+    throw new NoteSignerKeyError('note signer key must be PRIVATE+KEY+<name>+<hash8hex>+<base64>');
+  }
+  const name = parts[0] ?? '';
+  const hashHex = parts[1] ?? '';
+  // The base64 key data may contain '+', so only the first two separators
+  // after the prefix are cut.
+  const key64 = parts.slice(2).join('+');
+  if (!name || /\s/u.test(name)) {
+    throw new NoteSignerKeyError('note signer name must be non-empty with no spaces');
+  }
+  if (!/^[0-9a-f]{8}$/.test(hashHex)) {
+    throw new NoteSignerKeyError('note signer hash must be 8 lowercase hex characters');
+  }
+  const keyData = Buffer.from(key64, 'base64');
+  if (keyData.toString('base64') !== key64) {
+    throw new NoteSignerKeyError('note signer key data must be standard base64');
+  }
+  if (keyData.length !== 1 + 32 || keyData[0] !== NOTE_ALG_ED25519) {
+    throw new NoteSignerKeyError('note signer key must be Ed25519 (algorithm byte 0x01, 32-byte seed)');
+  }
+  const privateKey = createPrivateKey({
+    key: Buffer.concat([ED25519_PKCS8_PREFIX, keyData.subarray(1)]),
+    format: 'der',
+    type: 'pkcs8',
+  });
+  const spkiDer = createPublicKey(privateKey).export({ type: 'spki', format: 'der' });
+  const publicKey = spkiDer.subarray(spkiDer.length - 32);
+  const keyHash = createHash('sha256')
+    .update(name)
+    .update('\n')
+    .update(Buffer.concat([Buffer.from([NOTE_ALG_ED25519]), publicKey]))
+    .digest()
+    .subarray(0, 4);
+  if (keyHash.toString('hex') !== hashHex) {
+    throw new NoteSignerKeyError('note signer hash does not match the key');
+  }
+  return { name, keyHash, keyHashHex: hashHex, privateKey };
+}
+
+/** Spec note checkpoint: pure Ed25519 over the note body, name-bound hint. */
+export function buildSignedNoteCheckpoint(input: {
+  noteKey: string;
+  treeSize: number;
+  rootHash: Buffer;
+}): BuiltCheckpoint {
+  const signer = parseNoteSignerKey(input.noteKey);
+  const note = `${signer.name}\n${input.treeSize}\n${input.rootHash.toString('base64')}\n`;
+  const signature = signBytes(null, Buffer.from(note, 'utf8'), signer.privateKey);
+  const envelope = `${note}\n\u2014 ${signer.name} ${Buffer.concat([signer.keyHash, signature]).toString('base64')}\n`;
+  return {
+    envelope,
+    note,
+    noteSha256: createHash('sha256').update(Buffer.from(envelope, 'utf8')).digest('hex'),
+    treeSize: input.treeSize,
+    rootHashHex: input.rootHash.toString('hex'),
+  };
+}
+
+export type CheckpointSigner = { kind: 'pem'; privateKeyPem: string } | { kind: 'note'; noteKey: string };
+
+export function buildCheckpointForSigner(input: {
+  signer: CheckpointSigner;
+  origin: string;
+  treeSize: number;
+  rootHash: Buffer;
+}): BuiltCheckpoint {
+  if (input.signer.kind === 'note') {
+    // The note name is authoritative for spec notes (boot-time validation
+    // pins it to TESSERA_LOG_ORIGIN).
+    return buildSignedNoteCheckpoint({
+      noteKey: input.signer.noteKey,
+      treeSize: input.treeSize,
+      rootHash: input.rootHash,
+    });
+  }
+  return buildSignedCheckpoint({
+    origin: input.origin,
+    privateKeyPem: input.signer.privateKeyPem,
+    treeSize: input.treeSize,
+    rootHash: input.rootHash,
+  });
 }

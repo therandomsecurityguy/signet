@@ -16,6 +16,7 @@ import {
   parseSignedNote,
   verifySignedNote,
 } from '../../../registry/application/services/transparency-notes.js';
+import { buildSignedNoteCheckpoint } from '../../../tessera-sidecar/src/log.js';
 
 // Shared oracle with the Go side: the same file is verified by
 // service/tessera-runtime/note_fixture_test.go with the real
@@ -99,6 +100,15 @@ describe('transparency-dev signed-note compatibility', () => {
     const hint = Buffer.from(fixture.key_hash_hex, 'hex');
     const envelope = `${fixture.note_body}\n\u2014 ${fixture.name} ${Buffer.concat([hint, signature]).toString('base64')}\n`;
     expect(envelope).toBe(fixture.signed_note);
+  });
+
+  it('emits byte-identical notes from the sidecar signer (fixture-verified)', () => {
+    const checkpoint = buildSignedNoteCheckpoint({
+      noteKey: fixture.private_key,
+      treeSize: fixture.tree_size,
+      rootHash: Buffer.from(fixture.root_hash_hex, 'hex'),
+    });
+    expect(checkpoint.envelope).toBe(fixture.signed_note);
   });
 
   it('rejects malformed verifier keys with explicit errors', () => {

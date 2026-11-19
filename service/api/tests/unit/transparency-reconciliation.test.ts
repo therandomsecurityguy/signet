@@ -119,6 +119,47 @@ describe('transparency reconciliation', () => {
     expect(version.status).toBe(200);
   });
 
+  it('reconciles against a spec note-mode companion log (Ed25519 note verifier)', async () => {
+    const sidecar = await startNativeSidecar({ noteKeyMode: true });
+    const { app, token } = await buildTestApp({
+      TESSERA_SIDECAR_URL: sidecar.baseUrl,
+      TRANSPARENCY_APPEND_LOG_ID: 'signet-governance',
+      TESSERA_LOG_NOTE_VERIFIER: sidecar.noteVerifierKey,
+    });
+
+    await publishSkill(app, token, 'skill:reconcile-note-mode');
+    const reconciled = await reconcile(app, token, 'urn:sg:skill-version:skill:reconcile-note-mode@v1');
+    expect(reconciled.status).toBe(200);
+    expect(reconciled.body).toMatchObject({
+      publication_urn: 'urn:sg:skill-version:skill:reconcile-note-mode@v1',
+      log_id: 'signet-governance',
+      status: 'verified',
+    });
+    const outcomes = reconciled.body['outcomes'] as Array<Record<string, unknown>>;
+    expect(outcomes.length).toBeGreaterThanOrEqual(2);
+    for (const outcome of outcomes) {
+      expect(outcome['status']).toBe('verified');
+      const checks = outcome['checks'] as Array<{ name: string; ok: boolean }>;
+      expect(checks.every((check) => check.ok)).toBe(true);
+      expect(checks.map((check) => check.name)).toEqual(
+        expect.arrayContaining([
+          'record_digest_matches_staged_intent',
+          'inclusion_proof_valid',
+          'checkpoint_signature_valid',
+          'checkpoint_matches_inclusion_root',
+        ]),
+      );
+    }
+
+    // The sidecar publishes a real spec note: its envelope verifies against
+    // the verifier key the registry was configured with.
+    const entry = await fetch(`${sidecar.baseUrl}/v1/logs/signet-governance`);
+    expect(entry.status).toBe(200);
+    const entryBody = (await entry.json()) as { signer?: string; checkpoint: { envelope: string } };
+    expect(entryBody.signer).toBe('note');
+    expect(entryBody.checkpoint.envelope).toContain('\u2014 signet-test-log ');
+  });
+
   it('reports not_submitted intents when the sidecar runs staged-only', async () => {
     const sidecar = await startNativeSidecar({ native: false });
     const { app, token } = await buildTestApp({

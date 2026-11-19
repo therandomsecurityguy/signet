@@ -5,12 +5,35 @@
  * Shared by transparency-reconciliation.test.ts and
  * evidence-transparency.test.ts.
  */
-import { generateKeyPairSync } from 'node:crypto';
+import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { createServer } from 'node:net';
 import { serve, type ServerType } from '@hono/node-server';
 
 import { buildApp as buildSidecarApp } from '../../../../tessera-sidecar/src/app.js';
 import { loadEnv as loadSidecarEnv } from '../../../../tessera-sidecar/src/config/env.js';
+
+const ED25519_PKCS8_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
+
+/** Build (name, seed) -> spec signer/verifier key strings. */
+function buildNoteKeys(name: string): { noteKey: string; verifierKey: string } {
+  const seed = randomBytes(32);
+  const privateKey = createPrivateKey({
+    key: Buffer.concat([ED25519_PKCS8_PREFIX, seed]),
+    format: 'der',
+    type: 'pkcs8',
+  });
+  const spkiDer = createPublicKey(privateKey).export({ type: 'spki', format: 'der' });
+  const publicKey = spkiDer.subarray(spkiDer.length - 32);
+  const keyData = Buffer.concat([Buffer.from([0x01]), publicKey]);
+  const hash = createHash('sha256').update(name).update('\n').update(keyData).digest().subarray(0, 4);
+  return {
+    noteKey: `PRIVATE+KEY+${name}+${hash.toString('hex')}+${Buffer.concat([
+      Buffer.from([0x01]),
+      seed,
+    ]).toString('base64')}`,
+    verifierKey: `${name}+${hash.toString('hex')}+${keyData.toString('base64')}`,
+  };
+}
 
 const servers: ServerType[] = [];
 
@@ -107,20 +130,30 @@ export async function startNativeSidecar(input?: {
   native?: boolean;
   authToken?: string;
   allowUnauthenticated?: boolean;
+  /** Sign checkpoints with a spec note key (Ed25519) instead of the legacy PEM. */
+  noteKeyMode?: boolean;
 }) {
   const native = input?.native ?? true;
   // Dev-equivalent default for tests that do not exercise auth: explicit
   // opt-out, matching local development without a token.
   const allowUnauthenticated = input?.allowUnauthenticated ?? !input?.authToken;
-  const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
-  const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
-  const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
+  const noteKeys = input?.noteKeyMode ? buildNoteKeys('signet-test-log') : null;
+  let privateKeyPem: string | null = null;
+  let publicKeyPem: string | null = null;
+  // Always provide a legacy key pair unless in note mode: staged-only tests
+  // still need a public key for registry reconciliation config.
+  if (!input?.noteKeyMode) {
+    const pair = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    privateKeyPem = pair.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+    publicKeyPem = pair.publicKey.export({ type: 'spki', format: 'pem' }).toString();
+  }
   const fakeS3 = createFakeS3();
   const env = loadSidecarEnv({
     TESSERA_SIDECAR_BUCKET: 'transparency-test-bucket',
     TESSERA_SIDECAR_TILES_PREFIX: 'tessera/tiles/test',
     TESSERA_SIDECAR_REQUESTS_PREFIX: 'tessera/requests/test',
-    ...(native ? { TESSERA_LOG_PRIVATE_KEY: privateKeyPem, TESSERA_LOG_ORIGIN: 'signet-test-log' } : {}),
+    ...(native && privateKeyPem ? { TESSERA_LOG_PRIVATE_KEY: privateKeyPem, TESSERA_LOG_ORIGIN: 'signet-test-log' } : {}),
+    ...(native && noteKeys ? { TESSERA_LOG_NOTE_KEY: noteKeys.noteKey, TESSERA_LOG_ORIGIN: 'signet-test-log' } : {}),
     ...(input?.authToken ? { TESSERA_SIDECAR_AUTH_TOKEN: input.authToken } : {}),
     ...(allowUnauthenticated ? { TESSERA_SIDECAR_ALLOW_UNAUTHENTICATED: 'true' } : {}),
   });
@@ -132,7 +165,8 @@ export async function startNativeSidecar(input?: {
   servers.push(server);
   return {
     baseUrl: `http://127.0.0.1:${port}`,
-    publicKeyPem,
+    publicKeyPem: publicKeyPem ?? '',
+    noteVerifierKey: noteKeys?.verifierKey ?? '',
     objects: fakeS3.objects,
   };
 }

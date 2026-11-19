@@ -9,10 +9,13 @@ const EnvSchema = z.object({
   TESSERA_SIDECAR_TILES_PREFIX: z.string().default('tessera/tiles/dev'),
   TESSERA_SIDECAR_REQUESTS_PREFIX: z.string().default('tessera/requests/dev'),
   TESSERA_RUNTIME_ADD_URL: z.string().optional(),
-  // Native companion log (RFC 6962): when the log private key is configured
-  // (PEM), append intents are also appended to the native log and signed
+  // Native companion log (RFC 6962): when a signing key is configured,
+  // append intents are also appended to the native log and signed
   // checkpoints are published; the registry reconciles against them.
+  // Exactly one signing mode: legacy PEM (SPKI-hint notes) or spec note key
+  // (PRIVATE+KEY+<name>+<hash8hex>+<base64>, transparency-dev format).
   TESSERA_LOG_PRIVATE_KEY: z.string().optional(),
+  TESSERA_LOG_NOTE_KEY: z.string().optional(),
   TESSERA_LOG_ORIGIN: z.string().default('signet-tessera.local'),
   // Shared bearer token for /v1/* calls (health/readiness/config stay open).
   // Auth is fail-closed: without the token, /v1/* responds 401 unless
@@ -31,6 +34,14 @@ const EnvSchema = z.object({
   TESSERA_SIDECAR_AWS_ACCESS_KEY_ID: z.string().optional(),
   TESSERA_SIDECAR_AWS_SECRET_ACCESS_KEY: z.string().optional(),
   TESSERA_SIDECAR_AWS_SESSION_TOKEN: z.string().optional(),
+}).superRefine((env, ctx) => {
+  if (env.TESSERA_LOG_PRIVATE_KEY && env.TESSERA_LOG_NOTE_KEY) {
+    ctx.addIssue({
+      code: 'custom',
+      message:
+        'TESSERA_LOG_PRIVATE_KEY (legacy PEM) and TESSERA_LOG_NOTE_KEY (spec note key) are mutually exclusive; configure one signing mode.',
+    });
+  }
 });
 
 export type Env = z.infer<typeof EnvSchema>;

@@ -52,12 +52,19 @@ spec:
               value: {{ .Values.tesseraSidecar.port | quote }}
             - name: NODE_ENV
               value: {{ .Values.runtimeNodeEnv }}
-            {{- if .Values.tesseraSidecar.logPrivateKeyFromSecret }}
+            {{- if and .Values.tesseraSidecar.logPrivateKeyFromSecret (not .Values.tesseraSidecar.logNoteKeyFromSecret) }}
             - name: TESSERA_LOG_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.secrets.name }}
                   key: tessera-log-private-key
+            {{- end }}
+            {{- if .Values.tesseraSidecar.logNoteKeyFromSecret }}
+            - name: TESSERA_LOG_NOTE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: tessera-log-note-key
             {{- end }}
             {{- if .Values.tesseraSidecar.logOrigin }}
             - name: TESSERA_LOG_ORIGIN

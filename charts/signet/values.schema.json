@@ -141,6 +141,10 @@
           "type": "boolean",
           "description": "Inject TESSERA_LOG_PRIVATE_KEY from the release Secret. The signer identity must never differ across replicas or deployments."
         },
+        "logNoteKeyFromSecret": {
+          "type": "boolean",
+          "description": "Inject TESSERA_LOG_NOTE_KEY (spec Ed25519 note key) from the release Secret instead of the legacy PEM; mutually exclusive with the PEM injection."
+        },
         "logPublicKeyPem": {
           "type": "string",
           "description": "PEM content of the native log checkpoint public key; enables registry-side transparency reconciliation."
