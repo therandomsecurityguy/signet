@@ -62,6 +62,8 @@ import { computeCanonicalRdf, projectPublicationGraphToNQuads } from './rdf-proj
 import { verifyKeylessBundle, type KeylessTrustPolicy } from './keyless-verification.js';
 import {
   keyHintForPublicKeyPem,
+  noteKeyDataFromPem,
+  noteKeyHashBytes,
   parseCheckpointNote,
   rfc6962LeafHashBytes,
   verifyRfc6962Inclusion,
@@ -121,10 +123,13 @@ export class DefaultRegistryService implements RegistryService {
       graph: GraphStore;
       cas: ArtifactStore;
       appendIntentPublisher?: TransparencyAppendIntentPublisher;
-      transparencyReconciler?: {
-        public_key_pem: string;
-        fetchLogEntry(input: { log_id: string; entry_index: number }): Promise<Record<string, unknown>>;
-      };
+    transparencyReconciler?: {
+      /** Legacy PEM checkpoint key (verified with the SPKI-derived hint). */
+      public_key_pem?: string;
+      /** Spec verifier key (`<name>+<hash8hex>+<base64>`); preferred when set. */
+      note_verifier_key?: string;
+      fetchLogEntry(input: { log_id: string; entry_index: number }): Promise<Record<string, unknown>>;
+    };
       keyless?: KeylessTrustPolicy;
       llmValidator?: LlmValidator;
       /**
@@ -829,6 +834,36 @@ export class DefaultRegistryService implements RegistryService {
     return { value: updated, created: !existing };
   }
 
+  /**
+   * Spec note-key binding: a signed-note checkpoint for an Ed25519 trusted
+   * key must carry a signature whose 4-byte hint is the name-bound spec key
+   * hash (bigendian32(SHA256(origin + "\n" + 0x01||pubkey))) — this is how
+   * transparency-dev notes bind signatures to key identity. Legacy
+   * (non-Ed25519) keys keep their SPKI-hint convention, and the detached
+   * `checkpoint_body + checkpoint_signature` submission form is not a note
+   * and is not hint-checked.
+   */
+  private enforceNoteKeyHintForEd25519Checkpoint(input: {
+    normalizedCheckpoint: NormalizedCheckpointSubmission;
+    public_key_pem: string;
+    origin: string;
+  }): void {
+    if (input.normalizedCheckpoint.note_format !== 'raw_signed_note') return;
+    const keyData = noteKeyDataFromPem(input.public_key_pem);
+    if (!keyData) return;
+    const expectedHint = noteKeyHashBytes(input.origin, keyData).subarray(0, 4);
+    const hintMatched = input.normalizedCheckpoint.signatures.some((signature) => {
+      const hint = signature.key_hint?.replace(/^base64:/, '') ?? '';
+      return hint.length > 0 && Buffer.from(hint, 'base64').equals(expectedHint);
+    });
+    if (!hintMatched) {
+      throw new RegistryCoreError(
+        'CHECKPOINT_NOTE_KEY_HINT_MISMATCH',
+        `Checkpoint note carries no signature for the trusted key of ${input.origin} (expected hint base64:${expectedHint.toString('base64')}).`,
+      );
+    }
+  }
+
   async createTransparencyCheckpoint(input: import('../ports/registry-service.js').CreateTransparencyCheckpointInput) {
     const log = await this.getTransparencyLog({ log_id: input.log_id });
     if (!log) throw new RegistryCoreError('TRANSPARENCY_LOG_NOT_FOUND', 'Transparency log not found.');
@@ -855,6 +890,11 @@ export class DefaultRegistryService implements RegistryService {
     if (!checkpointSignatureValid) {
       throw new RegistryCoreError('TRANSPARENCY_CHECKPOINT_SIGNATURE_INVALID', 'Checkpoint signature is invalid.');
     }
+    this.enforceNoteKeyHintForEd25519Checkpoint({
+      normalizedCheckpoint,
+      public_key_pem: checkpointKey.public_key_pem,
+      origin: checkpointFields.origin,
+    });
 
     let appendOnlyVerified = true;
     const current = log.current_checkpoint;
@@ -1071,6 +1111,11 @@ export class DefaultRegistryService implements RegistryService {
     if (!checkpointSignatureValid) {
       throw new RegistryCoreError('TRANSPARENCY_CHECKPOINT_SIGNATURE_INVALID', 'Checkpoint signature is invalid.');
     }
+    this.enforceNoteKeyHintForEd25519Checkpoint({
+      normalizedCheckpoint,
+      public_key_pem: checkpointKey.public_key_pem,
+      origin: checkpointFields.origin,
+    });
     const observedAt = input.observed_at ?? nowIso();
     const payloadProvenance = buildCheckpointPayloadProvenance({
       checkpoint_body: normalizedCheckpoint.checkpoint_body,
@@ -6366,7 +6411,7 @@ export class DefaultRegistryService implements RegistryService {
     const uniqueIntents = [...new Map(intents.map((intent) => [intent.request_id, intent])).values()];
 
     const reconciledAt = nowIso();
-    const keyHint = keyHintForPublicKeyPem(reconciler.public_key_pem);
+    const keyHint = reconciler.public_key_pem ? keyHintForPublicKeyPem(reconciler.public_key_pem) : null;
     const outcomes: import('../ports/registry-service.js').RegistryTransparencyReconciliationOutcome[] = [];
     for (const intent of uniqueIntents) {
       const base = {
@@ -6408,7 +6453,8 @@ export class DefaultRegistryService implements RegistryService {
       const checks = checkReconciledLogEntry({
         entry,
         intent,
-        publicKeyPem: reconciler.public_key_pem,
+        ...(reconciler.public_key_pem ? { publicKeyPem: reconciler.public_key_pem } : {}),
+        ...(reconciler.note_verifier_key ? { noteVerifierKey: reconciler.note_verifier_key } : {}),
         keyHint,
       });
       outcomes.push({
@@ -9526,7 +9572,8 @@ function transparencyAppendIntentProps(
 function checkReconciledLogEntry(input: {
   entry: Record<string, unknown>;
   intent: import('../ports/registry-service.js').RegistryTransparencyAppendIntentRef;
-  publicKeyPem: string;
+  publicKeyPem?: string;
+  noteVerifierKey?: string;
   keyHint: Buffer | null;
 }): import('../ports/registry-service.js').RegistryTransparencyReconciliationCheck[] {
   const checks: import('../ports/registry-service.js').RegistryTransparencyReconciliationCheck[] = [];
@@ -9601,24 +9648,32 @@ function checkReconciledLogEntry(input: {
   let checkpointDetail: string | undefined;
   let checkpointOk = false;
   let checkpointMatchesRoot = false;
-  if (checkpoint && typeof checkpoint.envelope === 'string' && input.keyHint) {
-    const noteOutcome = verifySignedNote({
-      envelope: checkpoint.envelope,
-      publicKeyPem: input.publicKeyPem,
-      keyHintSource: input.keyHint,
-    });
-    checkpointOk = noteOutcome.verified;
-    if (!noteOutcome.verified) checkpointDetail = noteOutcome.error;
-    if (noteOutcome.verified && noteOutcome.note && proofTreeSize !== null && proofRootHash) {
-      const parsed = parseCheckpointNote(noteOutcome.note);
-      checkpointMatchesRoot = Boolean(
-        parsed &&
-          parsed.logSize === BigInt(proofTreeSize) &&
-          parsed.logHash.equals(Buffer.from(proofRootHash, 'hex')),
-      );
+  if (checkpoint && typeof checkpoint.envelope === 'string') {
+    // Spec verifier keys take precedence; the legacy PEM+hint pair is the
+    // fallback for deployments that have not moved to note keys.
+    const noteOutcome = input.noteVerifierKey
+      ? verifySignedNote({ envelope: checkpoint.envelope, note_verifier_key: input.noteVerifierKey })
+      : input.publicKeyPem && input.keyHint
+        ? verifySignedNote({
+            envelope: checkpoint.envelope,
+            public_key_pem: input.publicKeyPem,
+            key_hint_source: input.keyHint,
+          })
+        : null;
+    if (noteOutcome) {
+      checkpointOk = noteOutcome.verified;
+      if (!noteOutcome.verified) checkpointDetail = noteOutcome.error;
+      if (noteOutcome.verified && noteOutcome.note && proofTreeSize !== null && proofRootHash) {
+        const parsed = parseCheckpointNote(noteOutcome.note);
+        checkpointMatchesRoot = Boolean(
+          parsed &&
+            parsed.logSize === BigInt(proofTreeSize) &&
+            parsed.logHash.equals(Buffer.from(proofRootHash, 'hex')),
+        );
+      }
+    } else {
+      checkpointDetail = 'checkpoint key could not be resolved';
     }
-  } else if (!input.keyHint) {
-    checkpointDetail = 'configured log public key could not be parsed';
   } else {
     checkpointDetail = 'entry carries no checkpoint envelope';
   }

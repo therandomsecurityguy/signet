@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, createPublicKey, verify as nodeVerify } from 'node:crypto';
 import type { KeyObject } from 'node:crypto';
 
 import { crypto as sigstoreCrypto } from '@sigstore/core';
@@ -7,11 +7,98 @@ import { crypto as sigstoreCrypto } from '@sigstore/core';
 // external-log verifier (Rekor anchoring and Tessera reconciliation). The
 // note format is the transparency-dev signed-note format:
 //   <origin>\n<tree size>\n<base64 root hash>\n\n— <name> <base64(hint||sig)>\n
-// where the hint is the first 4 bytes of the log id and signatures cover the
-// note body bytes.
+//
+// Two key-identity conventions are supported:
+// - SPEC (transparency-dev / x/mod sumdb/note, Ed25519-only): the 4-byte
+//   hint is bigendian32(SHA256(name + "\n" + keyData)) with
+//   keyData = 0x01 || pubkey; signatures are pure Ed25519 over the note
+//   body; verifier keys are `<name>+<hash8hex>+<base64(keyData)>`.
+// - LEGACY (this repo's native sidecar): hint = SHA256(SPKI DER)[:4],
+//   ECDSA-SHA256 signatures via Node `sign('sha256', ...)`. Kept for
+//   existing deployments and notes.
 
 const CHECKPOINT_SEPARATOR = '\n\n';
 const CHECKPOINT_SIGNATURE_REGEX = /\u2014 (\S+) (\S+)\n/g;
+
+const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
+const NOTE_ALG_ED25519 = 0x01;
+
+export class NoteVerifierKeyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NoteVerifierKeyError';
+  }
+}
+
+/** Spec key hash: full SHA-256 over name + "\n" + keyData (hint = first 4 bytes). */
+export function noteKeyHashBytes(name: string, keyData: Buffer): Buffer {
+  return createHash('sha256').update(name).update('\n').update(keyData).digest();
+}
+
+/**
+ * Ed25519 public key as spec keyData (0x01 || 32-byte key) when the PEM key
+ * is Ed25519; null otherwise (legacy key — spec enforcement does not apply).
+ */
+export function noteKeyDataFromPem(publicKeyPem: string): Buffer | null {
+  try {
+    const key = createPublicKey(publicKeyPem);
+    if (key.asymmetricKeyType !== 'ed25519') return null;
+    const der = key.export({ type: 'spki', format: 'der' });
+    if (
+      der.length !== ED25519_SPKI_PREFIX.length + 32 ||
+      !der.subarray(0, ED25519_SPKI_PREFIX.length).equals(ED25519_SPKI_PREFIX)
+    ) {
+      return null;
+    }
+    return Buffer.concat([Buffer.from([NOTE_ALG_ED25519]), der.subarray(ED25519_SPKI_PREFIX.length)]);
+  } catch {
+    return null;
+  }
+}
+
+export type ParsedNoteVerifierKey = {
+  name: string;
+  keyHash: Buffer;
+  keyHashHex: string;
+  publicKey: KeyObject;
+};
+
+/**
+ * Strict parser for spec verifier keys (`<name>+<hash8hex>+<base64>`):
+ * name rules per spec (non-empty, no Unicode spaces, no `+`), 8 lowercase
+ * hex hash characters, standard base64 keyData with algorithm byte 0x01 and
+ * a 32-byte Ed25519 key, and the hash recomputed over the decoded key.
+ */
+export function parseNoteVerifierKey(verifierKey: string): ParsedNoteVerifierKey {
+  const parts = verifierKey.split('+');
+  if (parts.length !== 3) {
+    throw new NoteVerifierKeyError('note verifier key must be <name>+<hash8hex>+<base64>');
+  }
+  const [name, hashHex, key64] = parts as [string, string, string];
+  if (!name || /\s/u.test(name) || name.includes('+')) {
+    throw new NoteVerifierKeyError('note verifier name must be non-empty with no spaces or pluses');
+  }
+  if (!/^[0-9a-f]{8}$/.test(hashHex)) {
+    throw new NoteVerifierKeyError('note verifier hash must be 8 lowercase hex characters');
+  }
+  const keyData = Buffer.from(key64, 'base64');
+  if (keyData.toString('base64') !== key64) {
+    throw new NoteVerifierKeyError('note verifier key data must be standard base64');
+  }
+  if (keyData.length !== 1 + 32 || keyData[0] !== NOTE_ALG_ED25519) {
+    throw new NoteVerifierKeyError('note verifier key must be Ed25519 (algorithm byte 0x01, 32-byte key)');
+  }
+  const expectedHash = noteKeyHashBytes(name, keyData);
+  if (expectedHash.subarray(0, 4).toString('hex') !== hashHex) {
+    throw new NoteVerifierKeyError('note verifier hash does not match the key');
+  }
+  const publicKey = createPublicKey({
+    key: Buffer.concat([ED25519_SPKI_PREFIX, keyData.subarray(1)]),
+    format: 'der',
+    type: 'spki',
+  });
+  return { name, keyHash: expectedHash.subarray(0, 4), keyHashHex: hashHex, publicKey };
+}
 
 export type ParsedSignedNote = {
   note: string;
@@ -42,24 +129,75 @@ export function parseSignedNote(envelope: string): ParsedSignedNote | null {
   return signatures.length > 0 ? { note, signatures } : null;
 }
 
-// Verifies that at least one signature in the signed note matches the
-// expected key hint and validates against the trusted public key. The
-// signature name is informational and deliberately not trusted.
+export type SignedNoteVerification = {
+  verified: boolean;
+  note?: string;
+  error?: string;
+  verifier?: { name: string; key_hash_hex: string };
+};
+
+/**
+ * Verify a signed note. Two modes:
+ * - SPEC: pass `note_verifier_key` — signatures are selected by (name, hash)
+ *   per the transparency-dev spec and verified as pure Ed25519 over the note
+ *   body.
+ * - LEGACY: pass `public_key_pem` + `key_hint_source` — at least one
+ *   signature whose 4-byte hint matches the expected SPKI-derived prefix
+ *   must verify against the trusted PEM key (the signature name is
+ *   informational and deliberately not trusted).
+ */
 export function verifySignedNote(input: {
   envelope: string;
-  publicKeyPem: string;
-  keyHintSource: Buffer;
-}): { verified: boolean; note?: string; error?: string } {
+  public_key_pem?: string;
+  key_hint_source?: Buffer;
+  note_verifier_key?: string;
+}): SignedNoteVerification {
   const parsed = parseSignedNote(input.envelope);
   if (!parsed) return { verified: false, error: 'malformed checkpoint note' };
+
+  if (input.note_verifier_key !== undefined) {
+    let verifier: ParsedNoteVerifierKey;
+    try {
+      verifier = parseNoteVerifierKey(input.note_verifier_key);
+    } catch (err) {
+      return {
+        verified: false,
+        error: err instanceof Error ? err.message : 'configured note verifier key could not be parsed',
+      };
+    }
+    const noteData = Buffer.from(parsed.note, 'utf8');
+    const matched = parsed.signatures.filter(
+      (signature) => signature.name === verifier.name && signature.keyHint.equals(verifier.keyHash),
+    );
+    if (matched.length === 0) {
+      return { verified: false, error: 'checkpoint note carries no signature for the configured verifier key' };
+    }
+    const signatureOk = matched.some((signature) => {
+      try {
+        return nodeVerify(null, noteData, verifier.publicKey, signature.signature) as boolean;
+      } catch {
+        return false;
+      }
+    });
+    if (!signatureOk) return { verified: false, error: 'invalid checkpoint signature' };
+    return {
+      verified: true,
+      note: parsed.note,
+      verifier: { name: verifier.name, key_hash_hex: verifier.keyHashHex },
+    };
+  }
+
+  if (!input.public_key_pem || !input.key_hint_source) {
+    return { verified: false, error: 'checkpoint verification requires a trusted key' };
+  }
   let publicKey: KeyObject;
   try {
-    publicKey = sigstoreCrypto.createPublicKey(input.publicKeyPem) as unknown as KeyObject;
+    publicKey = sigstoreCrypto.createPublicKey(input.public_key_pem) as unknown as KeyObject;
   } catch {
     return { verified: false, error: 'configured log public key could not be parsed' };
   }
   const noteData = Buffer.from(parsed.note, 'utf8');
-  const expectedHint = input.keyHintSource.subarray(0, 4);
+  const expectedHint = input.key_hint_source.subarray(0, 4);
   const signatureOk = parsed.signatures.some((signature) => {
     if (!signature.keyHint.equals(expectedHint)) return false;
     try {

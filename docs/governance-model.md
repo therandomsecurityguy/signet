@@ -603,7 +603,7 @@ The project already has:
 - checkpoint history with consistency-proof validation for append-only log evolution
 - witness quorum checks over checkpoint attestations for first multi-party trust
 - externally observed checkpoints and disagreement surfaces for first split-view detection
-- a minimal signed-note checkpoint ingestion seam that preserves raw note bytes while normalizing the checkpoint for verification
+- a minimal signed-note checkpoint ingestion seam that preserves raw note bytes while normalizing the checkpoint for verification; key-identity binding is fail-closed — notes for Ed25519 trusted keys must carry the transparency-dev spec key hash (bigendian32(SHA256(origin + "\n" + 0x01||pubkey))[:4]) and reconciliation accepts a spec verifier key (`<name>+<hash8hex>+<base64>`) as the alternative to the legacy PEM
 
 ### Write authority and audit
 
@@ -651,7 +651,7 @@ These are target-state capabilities, not current claims:
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures over provenance graphs)
 - richer trust-root policy modeling beyond the current trusted public-key registry objects
 - cryptographic trust-chain and key-rotation policy enforcement
-- full signed-note / checkpoint ecosystem compatibility where needed across transparency backends
+- full signed-note / checkpoint ecosystem compatibility where needed across transparency backends (witness cosignature/waxing and tessera tile-file layout remain open)
 - richer checkpoint-chain and historical consistency analysis beyond the currently registered checkpoint lineage
 - witness gossip and multi-party checkpoint exchange beyond the current quorum-attestation model
 - stronger split-view forensics and checkpoint-source provenance over a broader observation network

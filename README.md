@@ -196,7 +196,11 @@ Transparency and provenance:
   RFC 6962 consistency-proof validation
 - witness attestations, quorum checks, checkpoint observations,
   disagreement evidence, gossip events, and timeline/provenance views
-- minimal signed-note checkpoint ingestion seam
+- minimal signed-note checkpoint ingestion seam that verifies the
+  transparency-dev spec note format (Ed25519, name-bound key hash,
+  `<name>+<hash8hex>+<base64>` verifier keys) alongside the legacy
+  SPKI-hint format, with fail-closed hint binding and
+  `TESSERA_LOG_NOTE_VERIFIER` for spec reconciliation
 - canonical governance events for every lifecycle operation, stored as
   immutable CAS artifacts and appended to an internal Merkle log with
   RFC 6962 inclusion-proof generation and verifier replay
@@ -255,7 +259,8 @@ Proposed next (not implemented yet):
 - richer LLM backends for the advisory validation layer
 - full WORM/transparency integration with Trillian/Tessera reconciliation
 - deeper witness-network semantics across multiple independent parties
-- fuller signed-note / Tessera ecosystem compatibility
+- witness cosignature (waxing) compatibility and tessera tile-file layout
+  compatibility
 
 ### Get it to run
 

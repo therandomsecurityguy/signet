@@ -72,7 +72,7 @@ Implemented now:
 - transparency checkpoint registration, checkpoint history, and consistency-proof validation
 - witness attestations, quorum checks, checkpoint observations, and disagreement evidence
 - witness gossip events and transparency timeline/provenance views
-- minimal signed-note checkpoint ingestion seam
+- minimal signed-note checkpoint ingestion seam that verifies BOTH key-identity conventions: the legacy SPKI-hint format and the transparency-dev spec note format (Ed25519: key hash = bigendian32(SHA256(origin + "\n" + 0x01||pubkey))[:4], pure-Ed25519 note signatures, `<name>+<hash8hex>+<base64>` verifier keys) — signed-note submissions for Ed25519 trusted keys must bind to the name-bound spec hint (fail-closed `CHECKPOINT_NOTE_KEY_HINT_MISMATCH`), reconciliation accepts `TESSERA_LOG_NOTE_VERIFIER` as the spec alternative to `TESSERA_LOG_PUBLIC_KEY` (mutually exclusive), and a fixture generated with the real x/mod note library is verified by both the Go runtime tests and the registry's TypeScript tests
 - RFC 8785 (JCS) canonical JSON for publication envelopes and governance events, with per-publication `canonicalization_algorithm` and legacy fallback
 - publication envelope provenance, revocation, and supersession references
 - frozen publication envelope artifacts at publish with CAS digest verification on every read (warn by default, `enforce` opt-in) and explicit live-drift reporting in publication verification
@@ -124,6 +124,6 @@ Proposed next:
 - cross-format de-facto promotion (legacy JSON source → authored OWL target) and subclass-aware claim binding semantics, richer de facto ontology mining (runtime observations, corpus analysis)
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures over provenance graphs)
 - deeper witness-network semantics across multiple independent parties
-- fuller signed-note / Tessera ecosystem compatibility
+- witness cosignature (waxing) compatibility and tessera tile-file layout compatibility, richer multi-signature observation/gossip provenance
 
 Do not overclaim future guarantees as present behavior.

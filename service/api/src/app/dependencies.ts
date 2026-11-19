@@ -117,6 +117,7 @@ export function buildAppDependencies(env: Env) {
       : {}),
     ...(env.TRANSPARENCY_APPEND_LOG_ID ? { transparency_append_log_id: env.TRANSPARENCY_APPEND_LOG_ID } : {}),
     ...(env.TESSERA_LOG_PUBLIC_KEY ? { tessera_log_public_key_pem: env.TESSERA_LOG_PUBLIC_KEY } : {}),
+    ...(env.TESSERA_LOG_NOTE_VERIFIER ? { tessera_log_note_verifier: env.TESSERA_LOG_NOTE_VERIFIER } : {}),
   });
   const timeAwareCas = new FsCasArtifactStore(path.resolve(env.TIME_AWARE_OBJECTS_DIR));
   const timeAwareCore = buildTimeAwareCore({

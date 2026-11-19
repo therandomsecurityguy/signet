@@ -67,8 +67,8 @@ Today the project also provides a real first transparency/governance trust layer
 - witness attestations and quorum-aware verification
 - observed checkpoints, disagreement evidence, and split-view-style detection surfaces
 - witness gossip events and timeline-style provenance views
-- signed-note checkpoint ingestion that preserves raw note bytes while normalizing the checkpoint
-- fuller multi-signature parsing plus stronger observation/gossip provenance
+- signed-note checkpoint ingestion that preserves raw note bytes while normalizing the checkpoint, with fail-closed transparency-dev spec key-identity binding (Ed25519 name-bound key hash) alongside the legacy SPKI-hint format
+- fuller multi-signature parsing plus stronger observation/gossip provenance; witness cosignature (waxing) and tessera tile-file layout compatibility remain open
 
 Human value:
 - operators can inspect why a checkpoint is trusted, not only whether it is trusted

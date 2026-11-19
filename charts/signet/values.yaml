@@ -121,6 +121,10 @@ tesseraSidecar:
   # PEM content of the native log's checkpoint public key. Setting it enables
   # registry-side transparency reconciliation (POST /v1/transparency-logs/reconcile).
   logPublicKeyPem: ""
+  # Spec transparency-dev verifier key (`<name>+<hash8hex>+<base64>`) for an
+  # Ed25519 checkpoint key; mutually exclusive with logPublicKeyPem. Preferred
+  # for note-spec-compatible companion logs.
+  logNoteVerifier: ""
   env: {}
 
 # Optional SHACL-AF runtime sidecar (service/shacl-runtime): executes SHACL

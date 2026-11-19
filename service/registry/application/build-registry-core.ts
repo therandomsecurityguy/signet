@@ -46,8 +46,11 @@ export type RegistryCoreConfig = {
   keyless?: import('./services/keyless-verification.js').KeylessTrustPolicy;
   transparency_append_log_id?: string;
   // PEM of the native companion log's checkpoint key, used to verify signed
-  // checkpoints during transparency reconciliation.
+  // checkpoints during transparency reconciliation (legacy key identity).
   tessera_log_public_key_pem?: string;
+  // Spec transparency-dev verifier key for the companion log's Ed25519
+  // checkpoint key; preferred over the PEM when set.
+  tessera_log_note_verifier?: string;
   llm_validator_url?: string;
   llm_validator_model?: string;
 };
@@ -61,9 +64,12 @@ export function buildRegistryCore(cfg: RegistryCoreConfig) {
     ? { authorization: `Bearer ${cfg.transparency_append_token}` }
     : {};
   const transparencyReconciler =
-    transparencyAppendUrl && transparencyAppendLogId && cfg.tessera_log_public_key_pem
+    transparencyAppendUrl &&
+    transparencyAppendLogId &&
+    (cfg.tessera_log_public_key_pem || cfg.tessera_log_note_verifier)
       ? {
-          public_key_pem: cfg.tessera_log_public_key_pem,
+          ...(cfg.tessera_log_public_key_pem ? { public_key_pem: cfg.tessera_log_public_key_pem } : {}),
+          ...(cfg.tessera_log_note_verifier ? { note_verifier_key: cfg.tessera_log_note_verifier } : {}),
           fetchLogEntry: async ({ log_id, entry_index }: { log_id: string; entry_index: number }) => {
             const response = await fetchWithRetry(
               new URL(`/v1/logs/${encodeURIComponent(log_id)}/entries/${entry_index}`, transparencyAppendUrl),

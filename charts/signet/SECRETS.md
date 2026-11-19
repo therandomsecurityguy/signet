@@ -97,7 +97,13 @@ violation.
 The matching checkpoint **public** key is not a secret. Set
 `tesseraSidecar.logPublicKeyPem` to its PEM content (derive from the seeded
 private key with `openssl pkey -pubout`) to enable registry-side transparency
-reconciliation (`POST /v1/transparency-logs/reconcile`).
+reconciliation (`POST /v1/transparency-logs/reconcile`). For a
+transparency-dev note key, generate one with
+`node scripts/make-tessera-note-key.mjs <log-origin>` (see
+`docs/runbooks/secret-rotation.md`): seed the signer string for your log
+signer and set the public verifier string as
+`tesseraSidecar.logNoteVerifier` (mutually exclusive with
+`logPublicKeyPem`).
 
 ## Non-secret per-env values
 

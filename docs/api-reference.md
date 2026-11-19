@@ -144,6 +144,18 @@ const verification = await client.getSkillVerification('skill:example', 1);
 | POST | `/v1/transparency-logs/{logId}/observations` | Record observation |
 | POST | `/v1/transparency-logs/reconcile` | Reconcile a publication against the native companion log |
 | POST | `/v1/transparency-logs/{logId}/gossip-events` | Record gossip event |
+
+Checkpoint submissions accept either a `signed_note` (a transparency-dev
+signed note — spec Ed25519 notes and the legacy SPKI-hint format are both
+verified) or a detached `checkpoint_body` + `checkpoint_signature` pair. For
+Ed25519 trusted keys, signed notes must carry a signature whose 4-byte key
+hint is the **name-bound spec key hash**
+(`bigendian32(SHA256(origin + "\n" + 0x01||pubkey))[:4]`); submissions that
+do not bind fail closed with `CHECKPOINT_NOTE_KEY_HINT_MISMATCH`. Generate
+spec keys with `node scripts/make-tessera-note-key.mjs <log-origin>`;
+reconciliation verifies the companion log's checkpoints against
+`TESSERA_LOG_PUBLIC_KEY` (legacy PEM) or `TESSERA_LOG_NOTE_VERIFIER` (spec
+verifier string; mutually exclusive).
 | GET | `/v1/governance-log` | Internal governance Merkle log |
 | GET | `/v1/governance-log/proofs/{leafIndex}` | Inclusion proof |
 | GET | `/v1/governance-log/replay` | Verifier replay |

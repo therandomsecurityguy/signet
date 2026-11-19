@@ -20,21 +20,48 @@ kubectl -n signet rollout restart deploy/<affected>
 ## Tessera checkpoint key (`tessera-log-private-key`)
 
 Signs the native transparency log's checkpoints. The registry verifies them
-against `tesseraSidecar.logPublicKeyPem`.
+against `tesseraSidecar.logPublicKeyPem` (legacy mode) or
+`tesseraSidecar.logNoteVerifier` (spec note-key mode).
 
 **Rotation is breaking unless the registry trust is updated in the same
-change** — there is no key-overlap today (one trusted key, note key-hint =
-sha256(SPKI DER)[0:4]).
+change** — there is no key-overlap today.
+
+Two key modes exist side by side:
+
+**Spec note-key mode (preferred for new deployments)** — a transparency-dev
+signed-note Ed25519 key (`<name>+<hash8hex>+<base64>` identity). The registry
+verifies note-format checkpoints against the verifier key; the signer string
+is consumed by whichever log signer you run (the Go `service/tessera-runtime`
+takes it as `TESSERA_LOG_PRIVATE_KEY`; the Node sidecar's PEM mode is
+unchanged — it gains a note mode in a follow-up).
+
+1. Generate a note key with the log origin as its name:
+
+   ```bash
+   node scripts/make-tessera-note-key.mjs signet-<env>-log
+   # signer key  -> PRIVATE+KEY+...        (secret)
+   # verifier key -> <name>+<hash8hex>+... (public)
+   ```
+
+2. Seed the signer string at `<prefix>/tessera-log-note-key` for your log
+   signer, and set `tesseraSidecar.logNoteVerifier` to the verifier string
+   (registry side); apply and restart the api.
+3. `TESSERA_LOG_PUBLIC_KEY` and `TESSERA_LOG_NOTE_VERIFIER` are mutually
+   exclusive — clear the legacy PEM when switching.
+4. Historical checkpoints signed with the old key stop verifying until the
+   trust is updated; keep the old key recorded if you need to audit them.
+
+**Legacy mode** — an EC P-256 PEM (note key-hint = sha256(SPKI DER)[0:4]):
 
 1. Generate: `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out log-key.pem`
-   (EC P-256; the signer uses `sha256` digests, so do not use Ed25519).
+   (EC P-256; this signer uses `sha256` digests, so do not use Ed25519).
 2. `aws secretsmanager put-secret-value --secret-id <prefix>/tessera-log-private-key --secret-string file://log-key.pem`
 3. Derive the public key: `openssl pkey -in log-key.pem -pubout` and update
    `tesseraSidecar.logPublicKeyPem` in the environment values, then apply.
 4. ESO force-sync + restart the sidecar.
-5. Historical checkpoints signed with the old key will no longer verify until
-   a dual-key overlap is implemented — treat pre-rotation reconcile runs as
-   expected-to-fail and keep the old PEM recorded if you need to audit them.
+5. Historical checkpoints signed with the old key will no longer verify —
+   treat pre-rotation reconcile runs as expected-to-fail and keep the old
+   PEM recorded if you need to audit them.
 
 ## Sidecar shared token (`tessera-sidecar-auth-token`)
 

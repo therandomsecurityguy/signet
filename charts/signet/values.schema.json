@@ -145,6 +145,10 @@
           "type": "string",
           "description": "PEM content of the native log checkpoint public key; enables registry-side transparency reconciliation."
         },
+        "logNoteVerifier": {
+          "type": "string",
+          "description": "Spec transparency-dev verifier key (<name>+<hash8hex>+<base64>) for an Ed25519 checkpoint key; mutually exclusive with logPublicKeyPem."
+        },
         "port": {
           "type": "integer"
         },

@@ -1,4 +1,4 @@
-import { createHash, generateKeyPairSync, sign as signBytes } from 'node:crypto';
+import { createHash, createPublicKey, generateKeyPairSync, sign as signBytes } from 'node:crypto';
 import type { KeyObject } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
@@ -124,7 +124,7 @@ export async function seedTransparencySampleGraph(
     {
       signer: spec.logId,
       detachedSignature: checkpointSigTwo,
-      keyHintBytes: [0, 0, 0, 1],
+      keyHintBytes: specKeyHint(spec.logId, checkpointKey),
     },
     {
       signer: spec.signerName,
@@ -156,7 +156,9 @@ export async function seedTransparencySampleGraph(
   const rootTwoAlt = `base64:${nodeHash(leafOne, leafTwoAlt).toString('base64')}`;
   const checkpointBodyTwoAlt = checkpointBody(spec.logId, 2, rootTwoAlt);
   const checkpointSigTwoAlt = encodeSignature(checkpointBodyTwoAlt, checkpointKey);
-  const checkpointTwoAltNote = signedCheckpointNote(checkpointBodyTwoAlt, checkpointSigTwoAlt);
+  const checkpointTwoAltNote = signedCheckpointNote(checkpointBodyTwoAlt, [
+    { signer: spec.logId, detachedSignature: checkpointSigTwoAlt, keyHintBytes: specKeyHint(spec.logId, checkpointKey) },
+  ]);
 
   await api.createTransparencyObservation(
     spec.logId,
@@ -285,6 +287,17 @@ function signedCheckpointNote(
     return `— ${entry.signer} ${withKeyHint}`;
   });
   return `${body}\n${signatureLines.join('\n')}\n`;
+}
+
+/**
+ * Spec note-key hint (bigendian32(SHA256(origin + "\n" + 0x01||pubkey))[:4]).
+ * The registry's checkpoint seam enforces it for Ed25519 trusted keys, so
+ * seeded signed notes must bind to the log's key identity.
+ */
+function specKeyHint(origin: string, privateKey: KeyObject): number[] {
+  const publicDer = createPublicKey(privateKey).export({ type: 'spki', format: 'der' });
+  const keyData = Buffer.concat([Buffer.from([0x01]), publicDer.subarray(publicDer.length - 32)]);
+  return [...createHash('sha256').update(origin).update('\n').update(keyData).digest().subarray(0, 4)];
 }
 
 function sha256Hex(bytes: Uint8Array) {
