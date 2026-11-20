@@ -119,7 +119,13 @@ export type OntologyValidationResult = {
  * Claims that bind to no known concept are Violations (normative
  * ontologies govern publication decisions) and are also reported as de
  * facto vocabulary candidates. Claim sets containing disjoint concept
- * pairs fail even when every claim binds.
+ * pairs fail even when every claim binds — and disjointness is
+ * SUBCLASS-AWARE: a claim on a subclass of one disjoint concept combined
+ * with a claim on a subclass of the other is the same conflict, reported
+ * with the claims and the disjoint ancestor pair that produced it. A
+ * single multiply-derived claim covering both sides of a pair is an
+ * ontology-inconsistency question, not a claim combination, and is not
+ * flagged here.
  */
 export function validateCapabilityClaims(input: {
   focus_urn: string;
@@ -145,18 +151,45 @@ export function validateCapabilityClaims(input: {
     }
   }
 
-  const claimSet = new Set(input.claims);
-  for (const [left, right] of input.document.disjoint) {
-    if (claimSet.has(left) && claimSet.has(right)) {
-      violations.push({
-        focusNode: input.focus_urn,
-        resultPath: 'capability_claims',
-        sourceConstraintComponent: 'OntologyDisjointConstraintComponent',
-        sourceShape: `ontology:${input.ontology_version}`,
-        message: `capability claims combine disjoint concepts: ${left} + ${right}`,
-        severity: 'Violation',
-      });
+  // Ancestor closure per bound claim: exact binding plus every transitive
+  // parent, so disjointness propagates through the subclass hierarchy.
+  const closureByClaim = new Map<string, Set<string>>();
+  for (const claim of input.claims) {
+    const concept = known.get(claim);
+    if (!concept) continue;
+    const closure = new Set<string>([claim]);
+    const queue: string[] = [claim];
+    while (queue.length > 0) {
+      const conceptId = queue.pop() as string;
+      for (const parent of known.get(conceptId)?.parents ?? []) {
+        if (!closure.has(parent)) {
+          closure.add(parent);
+          queue.push(parent);
+        }
+      }
     }
+    closureByClaim.set(claim, closure);
+  }
+  const orderedClaims = [...closureByClaim.keys()];
+
+  for (const [left, right] of input.document.disjoint) {
+    const leftClaim = orderedClaims.find((claim) => (closureByClaim.get(claim) as Set<string>).has(left));
+    if (!leftClaim) continue;
+    const rightClaim = orderedClaims.find(
+      (claim) => claim !== leftClaim && (closureByClaim.get(claim) as Set<string>).has(right),
+    );
+    if (!rightClaim) continue;
+    // Exact pairs keep the historical message byte-for-byte; subclass
+    // witnesses append the disjoint ancestor pair for evidence.
+    const viaDetail = leftClaim === left && rightClaim === right ? '' : ` (via ${left} + ${right})`;
+    violations.push({
+      focusNode: input.focus_urn,
+      resultPath: 'capability_claims',
+      sourceConstraintComponent: 'OntologyDisjointConstraintComponent',
+      sourceShape: `ontology:${input.ontology_version}`,
+      message: `capability claims combine disjoint concepts: ${leftClaim} + ${rightClaim}${viaDetail}`,
+      severity: 'Violation',
+    });
   }
 
   return { violations, de_facto_candidates: deFactoCandidates };

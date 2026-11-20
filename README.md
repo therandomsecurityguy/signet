@@ -158,9 +158,11 @@ Validation (five layers):
   refusals); every package carries an RDFC-1.0 canonical semantic
   projection (format-independent digest + artifact)
 - ontology validation of `capability_claims`: concept binding, disjoint
-  combination rejection, de facto candidate recording; bound ontologies
-  are also exposed to SHACL execution (claim concept IRIs + subclass
-  taxonomy) so policies can use `sh:class` with hierarchy semantics
+  combination rejection (propagated through the subclass hierarchy with
+  the disjoint ancestor pair as evidence), de facto candidate recording;
+  bound ontologies are also exposed to SHACL execution (claim concept
+  IRIs + subclass taxonomy) so policies can use `sh:class` with hierarchy
+  semantics
 - advisory LLM validation (model-agnostic port, deterministic heuristic
   default, HTTP model seam) emitting scorecard/prompt/confidence evidence
 - human review workflow: review decisions as first-class
