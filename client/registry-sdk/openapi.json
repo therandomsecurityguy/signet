@@ -10832,6 +10832,9 @@
                           "signature_valid": {
                             "type": "boolean"
                           },
+                          "note_cosignature_verified": {
+                            "type": "boolean"
+                          },
                           "verification_status": {
                             "type": "string",
                             "enum": [

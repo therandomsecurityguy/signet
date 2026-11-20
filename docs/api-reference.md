@@ -158,6 +158,16 @@ reconciliation verifies the companion log's checkpoints against
 verifier string; mutually exclusive). The native sidecar emits spec notes
 when configured with `TESSERA_LOG_NOTE_KEY` — its signatures are
 fixture-verified to match golang's `x/mod/sumdb/note` byte-for-byte.
+
+**Waxing-style witness cosignatures**: additional signature lines in a
+signed note are verified against the log's attached witnesses (Ed25519 keys
+by the name-bound spec hint of the line's signer, legacy PEMs by the SPKI
+hint). Unknown signer lines are stored as `unmatched`; a matched key with an
+invalid signature or an ambiguous match across witnesses fails the
+submission closed with `CHECKPOINT_COSIGNATURE_INVALID`. Witness quorum
+counts **distinct** witnesses across valid attestations and verified
+cosignatures (`valid_witness_count`), so one witness can never satisfy a
+quorum alone.
 | GET | `/v1/governance-log` | Internal governance Merkle log |
 | GET | `/v1/governance-log/proofs/{leafIndex}` | Inclusion proof |
 | GET | `/v1/governance-log/replay` | Verifier replay |

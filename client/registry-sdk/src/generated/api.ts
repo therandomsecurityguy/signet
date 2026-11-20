@@ -4768,6 +4768,7 @@ export interface paths {
                                 trusted_witness_resolved: boolean;
                                 trusted_key_resolved: boolean;
                                 signature_valid: boolean;
+                                note_cosignature_verified?: boolean;
                                 /** @enum {string} */
                                 verification_status: "verified" | "missing_witness" | "missing_key" | "cryptographic_failure";
                             }[];

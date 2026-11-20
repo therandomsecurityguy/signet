@@ -925,4 +925,297 @@ describe('transparency log routes', () => {
       signed_note_key_hint: `base64:${Buffer.from(SPEC_FIXTURE.key_hash_hex, 'hex').toString('base64')}`,
     });
   });
+
+  it('verifies waxing-style witness cosignatures and counts them for quorum', async () => {
+    const { app, token } = await buildTestApp();
+    const checkpointKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/checkpoint-cosig',
+      owner: 'security-team',
+    });
+    const witnessKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/witness-cosig',
+      owner: 'witness-ops',
+    });
+    const createLog = await app.request('/v1/transparency-logs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        log_id: 'sg-cosig-log',
+        origin: 'sg-cosig-log',
+        checkpoint_key_ref: 'kms://registry/checkpoint-cosig',
+        witness_quorum: 1,
+      }),
+    });
+    expect(createLog.status).toBe(201);
+    const attachWitness = await app.request('/v1/transparency-logs/sg-cosig-log/witnesses', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ witness_id: 'witness-cosig', key_ref: 'kms://registry/witness-cosig' }),
+    });
+    expect(attachWitness.status).toBe(201);
+
+    const root = `base64:${leafHash('entry-cosig').toString('base64')}`;
+    const body = checkpointBody('sg-cosig-log', 1, root);
+    const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
+    const witnessSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), witnessKey).toString('base64')}`;
+    const note = signedCheckpointNote(body, [
+      { signer: 'sg-cosig-log', detachedSignature, keyHintBytes: specKeyHint('sg-cosig-log', checkpointKey) },
+      { signer: 'witness-cosig', detachedSignature: witnessSignature, keyHintBytes: specKeyHint('witness-cosig', witnessKey) },
+    ]);
+
+    const createCheckpoint = await app.request('/v1/transparency-logs/sg-cosig-log/checkpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ signed_note: note }),
+    });
+    expect(createCheckpoint.status).toBe(200);
+    await expect(createCheckpoint.json()).resolves.toMatchObject({
+      checkpoint_signature_valid: true,
+      signature_count: 2,
+      valid_witness_attestation_count: 0,
+      valid_witness_count: 1,
+      witness_quorum_required: 1,
+      witness_quorum_satisfied: true,
+      signatures: [
+        expect.objectContaining({ signature_role: 'checkpoint' }),
+        expect.objectContaining({
+          signature_index: 1,
+          signature_role: 'cosignature',
+          signer: 'witness-cosig',
+          verification: { status: 'verified', witness_id: 'witness-cosig' },
+        }),
+      ],
+    });
+  });
+
+  it('does not let a single witness satisfy quorum twice', async () => {
+    const { app, token } = await buildTestApp();
+    const checkpointKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/checkpoint-double',
+      owner: 'security-team',
+    });
+    const witnessKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/witness-double',
+      owner: 'witness-ops',
+    });
+    const createLog = await app.request('/v1/transparency-logs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        log_id: 'sg-double-log',
+        origin: 'sg-double-log',
+        checkpoint_key_ref: 'kms://registry/checkpoint-double',
+        witness_quorum: 2,
+      }),
+    });
+    expect(createLog.status).toBe(201);
+    const attachWitness = await app.request('/v1/transparency-logs/sg-double-log/witnesses', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ witness_id: 'witness-double', key_ref: 'kms://registry/witness-double' }),
+    });
+    expect(attachWitness.status).toBe(201);
+
+    const root = `base64:${leafHash('entry-double').toString('base64')}`;
+    const body = checkpointBody('sg-double-log', 1, root);
+    const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
+    const witnessSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), witnessKey).toString('base64')}`;
+    const note = signedCheckpointNote(body, [
+      { signer: 'sg-double-log', detachedSignature, keyHintBytes: specKeyHint('sg-double-log', checkpointKey) },
+      { signer: 'witness-double', detachedSignature: witnessSignature, keyHintBytes: specKeyHint('witness-double', witnessKey) },
+    ]);
+
+    // The SAME witness via two channels (note cosignature + attestation):
+    // both verify, but the quorum counts one distinct witness.
+    const createCheckpoint = await app.request('/v1/transparency-logs/sg-double-log/checkpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        signed_note: note,
+        witness_attestations: [{ witness_id: 'witness-double', signature: witnessSignature }],
+      }),
+    });
+    expect(createCheckpoint.status).toBe(200);
+    await expect(createCheckpoint.json()).resolves.toMatchObject({
+      valid_witness_attestation_count: 1,
+      valid_witness_count: 1,
+      witness_quorum_required: 2,
+      witness_quorum_satisfied: false,
+    });
+  });
+
+  it('rejects cryptographically invalid witness cosignatures', async () => {
+    const { app, token } = await buildTestApp();
+    const checkpointKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/checkpoint-badcosig',
+      owner: 'security-team',
+    });
+    const witnessKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/witness-badcosig',
+      owner: 'witness-ops',
+    });
+    const createLog = await app.request('/v1/transparency-logs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        log_id: 'sg-badcosig-log',
+        origin: 'sg-badcosig-log',
+        checkpoint_key_ref: 'kms://registry/checkpoint-badcosig',
+      }),
+    });
+    expect(createLog.status).toBe(201);
+    const attachWitness = await app.request('/v1/transparency-logs/sg-badcosig-log/witnesses', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ witness_id: 'witness-badcosig', key_ref: 'kms://registry/witness-badcosig' }),
+    });
+    expect(attachWitness.status).toBe(201);
+
+    const root = `base64:${leafHash('entry-badcosig').toString('base64')}`;
+    const body = checkpointBody('sg-badcosig-log', 1, root);
+    const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
+    const witnessSignature = Buffer.from(signBytes(null, Buffer.from(body, 'utf8'), witnessKey));
+    witnessSignature[0] = (witnessSignature[0] as number) ^ 0x01;
+    const note = signedCheckpointNote(body, [
+      { signer: 'sg-badcosig-log', detachedSignature, keyHintBytes: specKeyHint('sg-badcosig-log', checkpointKey) },
+      {
+        signer: 'witness-badcosig',
+        detachedSignature: `base64:${witnessSignature.toString('base64')}`,
+        keyHintBytes: specKeyHint('witness-badcosig', witnessKey),
+      },
+    ]);
+
+    const createCheckpoint = await app.request('/v1/transparency-logs/sg-badcosig-log/checkpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ signed_note: note }),
+    });
+    expect(createCheckpoint.status).toBe(409);
+    await expect(createCheckpoint.json()).resolves.toMatchObject({
+      error: { code: 'CHECKPOINT_COSIGNATURE_INVALID' },
+    });
+  });
+
+  it('accepts legacy EC witness cosignatures via the SPKI hint', async () => {
+    const { app, token } = await buildTestApp();
+    const checkpointKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/checkpoint-ec',
+      owner: 'security-team',
+    });
+    const ecPair = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    const ecPublicPem = ecPair.publicKey.export({ type: 'spki', format: 'pem' }).toString();
+    const registerEc = await app.request('/v1/public-keys', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        key_ref: 'kms://registry/witness-ec',
+        algorithm: 'ecdsa',
+        public_key_pem: ecPublicPem,
+        owner: 'witness-ops',
+      }),
+    });
+    expect(registerEc.status).toBe(201);
+    const createLog = await app.request('/v1/transparency-logs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        log_id: 'sg-ec-cosig-log',
+        origin: 'sg-ec-cosig-log',
+        checkpoint_key_ref: 'kms://registry/checkpoint-ec',
+        witness_quorum: 1,
+      }),
+    });
+    expect(createLog.status).toBe(201);
+    const attachWitness = await app.request('/v1/transparency-logs/sg-ec-cosig-log/witnesses', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ witness_id: 'witness-ec', key_ref: 'kms://registry/witness-ec' }),
+    });
+    expect(attachWitness.status).toBe(201);
+
+    const root = `base64:${leafHash('entry-ec-cosig').toString('base64')}`;
+    const body = checkpointBody('sg-ec-cosig-log', 1, root);
+    const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
+    // Legacy EC cosignature: SPKI-derived hint, ECDSA-SHA256 signature.
+    const ecSpki = ecPair.publicKey.export({ type: 'spki', format: 'der' });
+    const legacyHint = [...createHash('sha256').update(ecSpki).digest().subarray(0, 4)];
+    const ecSignature = `base64:${signBytes('sha256', Buffer.from(body, 'utf8'), ecPair.privateKey).toString('base64')}`;
+    const note = signedCheckpointNote(body, [
+      { signer: 'sg-ec-cosig-log', detachedSignature, keyHintBytes: specKeyHint('sg-ec-cosig-log', checkpointKey) },
+      { signer: 'witness-ec', detachedSignature: ecSignature, keyHintBytes: legacyHint },
+    ]);
+
+    const createCheckpoint = await app.request('/v1/transparency-logs/sg-ec-cosig-log/checkpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ signed_note: note }),
+    });
+    expect(createCheckpoint.status).toBe(200);
+    await expect(createCheckpoint.json()).resolves.toMatchObject({
+      valid_witness_count: 1,
+      witness_quorum_satisfied: true,
+      signatures: [
+        expect.objectContaining({ signature_role: 'checkpoint' }),
+        expect.objectContaining({
+          signature_role: 'cosignature',
+          signer: 'witness-ec',
+          verification: { status: 'verified', witness_id: 'witness-ec' },
+        }),
+      ],
+    });
+  });
+
+  it('leaves unattached cosignature lines unmatched and uncounted', async () => {
+    const { app, token } = await buildTestApp();
+    const checkpointKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/checkpoint-unmatched',
+      owner: 'security-team',
+    });
+    const strangerKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/stranger-unmatched',
+      owner: 'stranger',
+    });
+    const createLog = await app.request('/v1/transparency-logs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        log_id: 'sg-unmatched-log',
+        origin: 'sg-unmatched-log',
+        checkpoint_key_ref: 'kms://registry/checkpoint-unmatched',
+        witness_quorum: 1,
+      }),
+    });
+    expect(createLog.status).toBe(201);
+
+    const root = `base64:${leafHash('entry-unmatched').toString('base64')}`;
+    const body = checkpointBody('sg-unmatched-log', 1, root);
+    const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
+    const strangerSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), strangerKey).toString('base64')}`;
+    const note = signedCheckpointNote(body, [
+      { signer: 'sg-unmatched-log', detachedSignature, keyHintBytes: specKeyHint('sg-unmatched-log', checkpointKey) },
+      { signer: 'not-a-witness', detachedSignature: strangerSignature, keyHintBytes: specKeyHint('not-a-witness', strangerKey) },
+    ]);
+
+    const createCheckpoint = await app.request('/v1/transparency-logs/sg-unmatched-log/checkpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ signed_note: note }),
+    });
+    expect(createCheckpoint.status).toBe(200);
+    await expect(createCheckpoint.json()).resolves.toMatchObject({
+      signature_count: 2,
+      valid_witness_count: 0,
+      witness_quorum_required: 1,
+      witness_quorum_satisfied: false,
+      signatures: [
+        expect.objectContaining({ signature_role: 'checkpoint' }),
+        expect.objectContaining({
+          signature_index: 1,
+          signature_role: 'cosignature',
+          signer: 'not-a-witness',
+          verification: { status: 'unmatched' },
+        }),
+      ],
+    });
+  });
 });

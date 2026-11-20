@@ -216,6 +216,28 @@ export function verifySignedNote(input: {
   return { verified: true, note: parsed.note };
 }
 
+/**
+ * Algorithm-aware single-signature verification over an arbitrary message
+ * (used for note cosignature lines): Ed25519/Ed448 signatures are pure
+ * (no digest), everything else goes through the sigstore crypto wrapper
+ * that mirrors the legacy PEM signing path.
+ */
+export function verifyNoteSignatureBytes(input: {
+  public_key_pem: string;
+  message: Buffer;
+  signature: Buffer;
+}): boolean {
+  try {
+    const key = createPublicKey(input.public_key_pem);
+    if (key.asymmetricKeyType === 'ed25519' || key.asymmetricKeyType === 'ed448') {
+      return Boolean(nodeVerify(null, input.message, key, input.signature));
+    }
+    return Boolean(sigstoreCrypto.verify(input.message, key as never, input.signature));
+  } catch {
+    return false;
+  }
+}
+
 export function parseCheckpointNote(note: string): ParsedCheckpoint | null {
   const lines = note.trimEnd().split('\n');
   if (lines.length < 3) return null;
