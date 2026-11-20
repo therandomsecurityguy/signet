@@ -651,7 +651,7 @@ These are target-state capabilities, not current claims:
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures over provenance graphs)
 - richer trust-root policy modeling beyond the current trusted public-key registry objects
 - cryptographic trust-chain and key-rotation policy enforcement
-- full signed-note / checkpoint ecosystem compatibility where needed across transparency backends (waxing-style witness cosignatures are verified against attached witnesses with distinct-witness quorum counting; tessera tile-file layout remains open)
+- full signed-note / checkpoint ecosystem compatibility where needed across transparency backends (waxing-style witness cosignatures are verified against attached witnesses with distinct-witness quorum counting, and the native sidecar serves the C2SP tlog-tiles read API — checkpoint, hash tiles, entry bundles — fixture-verified against transparency-dev's layout packages)
 - richer checkpoint-chain and historical consistency analysis beyond the currently registered checkpoint lineage
 - witness gossip and multi-party checkpoint exchange beyond the current quorum-attestation model
 - stronger split-view forensics and checkpoint-source provenance over a broader observation network

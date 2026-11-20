@@ -205,7 +205,10 @@ Transparency and provenance:
   SPKI-hint format, with fail-closed hint binding and
   `TESSERA_LOG_NOTE_VERIFIER` for spec reconciliation; the native sidecar
   emits spec notes when configured with `TESSERA_LOG_NOTE_KEY` (signing
-  byte-verified against golang's note library with a shared fixture)
+  byte-verified against golang's note library with a shared fixture) and
+  serves the C2SP tlog-tiles read API (`/tiles/<logId>/…`: checkpoint
+  note, hash tiles, entry bundles — fixture-verified against
+  transparency-dev's `tessera/api` layout)
 - canonical governance events for every lifecycle operation, stored as
   immutable CAS artifacts and appended to an internal Merkle log with
   RFC 6962 inclusion-proof generation and verifier replay
@@ -264,7 +267,6 @@ Proposed next (not implemented yet):
 - richer LLM backends for the advisory validation layer
 - full WORM/transparency integration with Trillian/Tessera reconciliation
 - deeper witness-network semantics across multiple independent parties
-- tessera tile-file layout compatibility
 
 ### Get it to run
 

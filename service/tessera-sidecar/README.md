@@ -23,7 +23,7 @@ ingress to the api/mcp pods.
 
 Not implemented yet:
 - witness policy enforcement
-- tessera binary tile-file layout compatibility (this is a native RFC 6962 log, not a tessera-format tile store)
+- witness-policy enforcement (witness roles/cosignature policy are governed by the registry; the sidecar does not enforce them)
 - checkpoint gossip to external monitors
 
 ### Why it exists
@@ -78,6 +78,27 @@ That updates the compose-backed service env files directly instead of requiring 
 - `GET /v1/logs` (501 unless the native log is configured)
 - `GET /v1/logs/{logId}`
 - `GET /v1/logs/{logId}/entries/{index}`
+
+### tlog-tiles read API (C2SP layout)
+
+Per-log static base `GET /tiles/{logId}/…`, served from current state so
+ecosystem tooling (witnesses, verifiers, tessera/hammer clients) can consume
+the companion log:
+
+- `GET /tiles/{logId}/checkpoint` — the current signed checkpoint note
+  (text/plain)
+- `GET /tiles/{logId}/tile/{L}/{N}[.p/{w}]` — hash tiles: the row of node
+  hashes at tree level `L*8`, up to 256 per tile, with the spec's grouped
+  decimal indexes (`x%03d/…/%03d`) and partial suffixes for the rightmost
+  incomplete tile at the current tree size (`application/octet-stream`)
+- `GET /tiles/{logId}/tile/entries/{N}[.p/{w}]` — entry bundles: the log's
+  leaf DATA (Signet's canonical append-intent record bytes), each prefixed
+  with a big-endian uint16 length
+
+Stale partial widths, non-canonical paths, and tiles beyond the current tree
+size return 404; the same bearer-auth policy as `/v1/*` applies. The layout
+is fixture-verified against the real transparency-dev `tessera/api` +
+`api/layout` packages (`service/tessera-runtime/testdata/tiles/`).
 
 ### First real integration path
 

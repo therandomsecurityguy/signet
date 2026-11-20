@@ -104,7 +104,7 @@ Implemented now:
 - canonical governance event JSON (JCS) and digests for all lifecycle operations, stored as immutable CAS artifacts
 - internal append-only Merkle log with RFC 6962 inclusion-proof generation and verifier replay (`/v1/governance-log*`)
 - governance-event digests staged through the Tessera sidecar for all lifecycle operations when configured
-- native RFC 6962 companion transparency log in the Tessera sidecar (S3-backed tree state, signed-note checkpoints, per-entry inclusion proofs; activated by `TESSERA_LOG_PRIVATE_KEY`, origin via `TESSERA_LOG_ORIGIN`) with registry-side reconciliation at `POST /v1/transparency-logs/reconcile`: each recorded append intent is re-fetched, its staged record digest and leaf hash re-derived, its RFC 6962 inclusion proof validated against the signed checkpoint, the checkpoint signature verified against the trusted `TESSERA_LOG_PUBLIC_KEY`, and per-intent outcomes stored as CAS evidence linked `sg:hasTransparencyReconciliation`
+- native RFC 6962 companion transparency log in the Tessera sidecar (S3-backed tree state, signed-note checkpoints, per-entry inclusion proofs; activated by `TESSERA_LOG_PRIVATE_KEY`, origin via `TESSERA_LOG_ORIGIN`) with registry-side reconciliation at `POST /v1/transparency-logs/reconcile`: each recorded append intent is re-fetched, its staged record digest and leaf hash re-derived, its RFC 6962 inclusion proof validated against the signed checkpoint, the checkpoint signature verified against the trusted `TESSERA_LOG_PUBLIC_KEY`, and per-intent outcomes stored as CAS evidence linked `sg:hasTransparencyReconciliation`; the sidecar also serves the C2SP tlog-tiles read API per log (`/tiles/<logId>/checkpoint` + grouped-index `tile/<L>/<N>[.p/<w>]` hash tiles + uint16-length-prefixed `tile/entries/...` bundles computed from current state; stale partial widths and non-canonical paths 404) — layout and serialization fixture-verified against the real transparency-dev `tessera/api` + `api/layout` packages from both Go and TypeScript tests
 - canonical RDF (RDFC-1.0) projection of publication graphs with semantic digests recorded at publish and certify
 - dual signatures: detached signatures over canonical JSON (operational) or canonical RDF (semantic) bytes with cross-verification
 - semantic compiler ingestion: markdown frontmatter and tool-manifest parsing into normalized capability claims, interfaces, and constraints (`POST /v1/compile/skill`)
@@ -124,6 +124,6 @@ Proposed next:
 - cross-format de-facto promotion (legacy JSON source → authored OWL target) and subclass-aware claim binding semantics, richer de facto ontology mining (runtime observations, corpus analysis)
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures over provenance graphs)
 - deeper witness-network semantics across multiple independent parties
-- tessera tile-file layout compatibility, richer multi-signature observation/gossip provenance
+- richer multi-signature observation/gossip provenance
 
 Do not overclaim future guarantees as present behavior.

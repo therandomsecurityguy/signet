@@ -2,6 +2,7 @@ import { randomUUID, createHash, createPrivateKey } from 'node:crypto';
 
 import { HeadBucketCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { z } from 'zod';
 
 import { fetchWithRetry } from './fetch-with-retry.js';
@@ -72,10 +73,11 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
     }) as const;
   const authToken = env.TESSERA_SIDECAR_AUTH_TOKEN;
   const allowUnauthenticated = env.TESSERA_SIDECAR_ALLOW_UNAUTHENTICATED && !authToken;
-  // Fail closed: /v1/* requires the shared bearer token. Running without a
-  // token requires the explicit local-development opt-out; health, readiness,
-  // and the config discovery endpoint stay open for probes and tooling.
-  app.use('/v1/*', async (c, next) => {
+  // Fail closed: /v1/* and the tlog-tiles read API require the shared
+  // bearer token. Running without a token requires the explicit
+  // local-development opt-out; health, readiness, and the config discovery
+  // endpoint stay open for probes and tooling.
+  const readAuth = async (c: Context, next: () => Promise<void>) => {
     if (c.req.path === '/v1/config') {
       return await next();
     }
@@ -101,7 +103,9 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
       );
     }
     return await next();
-  });
+  };
+  app.use('/v1/*', readAuth);
+  app.use('/tiles/*', readAuth);
 
   app.get('/healthz', (c) => c.json({ ok: true }, 200));
 
@@ -141,11 +145,11 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
           'config-summary',
           'append-intent-staging',
           ...(checkpointSigner
-            ? ['native-log-append', 'signed-checkpoints', 'inclusion-proofs', `checkpoint-signer:${checkpointSigner.kind}`]
+            ? ['native-log-append', 'signed-checkpoints', 'inclusion-proofs', 'tlog-tiles', `checkpoint-signer:${checkpointSigner.kind}`]
             : []),
           ...(authToken ? ['bearer-auth'] : []),
         ],
-        does_not_yet_support: ['witness-policy-enforcement', 'tile-file-layout'],
+        does_not_yet_support: ['witness-policy-enforcement'],
       },
     }),
   );
@@ -159,6 +163,7 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
       tessera_runtime_add_url: env.TESSERA_RUNTIME_ADD_URL,
       native_log_enabled: Boolean(checkpointSigner),
       native_log_signer: checkpointSigner ? checkpointSigner.kind : null,
+      tlog_tiles_base: checkpointSigner ? '/tiles' : null,
       tessera_log_origin: checkpointSigner ? env.TESSERA_LOG_ORIGIN : null,
       auth_enabled: Boolean(authToken),
       unauthenticated_allowed: allowUnauthenticated,
@@ -335,7 +340,103 @@ export function buildApp(env: Env, deps: BuildAppDeps = {}) {
     );
   });
 
+  // tlog-tiles read API (C2SP layout): a per-log static base under
+  // /tiles/<logId>/ serving the current checkpoint and the hash-tile /
+  // entry-bundle hierarchy, so ecosystem tooling can consume the companion
+  // log. Entry bundles carry the log's canonical record bytes.
+  app.get('/tiles/:logId/checkpoint', async (c) => {
+    if (!checkpointSigner) {
+      return c.json(nativeLogNotConfigured(), 501);
+    }
+    const logId = c.req.param('logId');
+    const state = await nativeLog.readState(logId);
+    if (!state) {
+      return c.json({ error: { code: 'LOG_NOT_FOUND', message: 'Unknown log id.' } }, 404);
+    }
+    const checkpoint = buildCheckpointForSigner({
+      signer: checkpointSigner,
+      origin: env.TESSERA_LOG_ORIGIN,
+      treeSize: state.tree_size,
+      rootHash: Buffer.from(state.root_hash, 'hex'),
+    });
+    return c.text(checkpoint.envelope, 200);
+  });
+
+  app.get('/tiles/:logId/tile/:spec{.+}', async (c) => {
+    if (!checkpointSigner) {
+      return c.json(nativeLogNotConfigured(), 501);
+    }
+    const logId = c.req.param('logId');
+    const parsed = parseTlogTilePath(c.req.param('spec'));
+    if (!parsed) {
+      return c.text('not found', 404);
+    }
+    const tile =
+      parsed.kind === 'entries'
+        ? await nativeLog.entriesTile(logId, parsed.index, parsed.partial)
+        : await nativeLog.hashTile(logId, parsed.level, parsed.index, parsed.partial);
+    if (!tile) {
+      return c.text('not found', 404);
+    }
+    return c.body(new Uint8Array(tile), 200, {
+      'content-type': 'application/octet-stream',
+      'content-length': String(tile.length),
+    });
+  });
+
   return app;
+}
+
+type ParsedTlogTilePath =
+  | { kind: 'hash'; level: number; index: number; partial: number }
+  | { kind: 'entries'; index: number; partial: number };
+
+/** Grouped decimal index per the C2SP spec: x%03d chunks + plain %03d tail. */
+function parseGroupedTlogIndex(segments: string[]): number | null {
+  if (segments.length === 0) return null;
+  let digits = '';
+  for (let index = 0; index < segments.length; index += 1) {
+    const segment = segments[index] as string;
+    const isLast = index === segments.length - 1;
+    const match = isLast ? /^([0-9]{3})$/.exec(segment) : /^x([0-9]{3})$/.exec(segment);
+    if (!match) return null;
+    digits += match[1];
+  }
+  const value = Number(digits);
+  return Number.isSafeInteger(value) ? value : null;
+}
+
+/**
+ * Strict parser for tlog-tiles paths after `tile/`:
+ *   <L>/<grouped-index>[.p/<width>]      hash tile
+ *   entries/<grouped-index>[.p/<width>]  entry bundle
+ * Canonical formatting only (grouped indexes, `.p` widths 1..255).
+ */
+function parseTlogTilePath(rest: string): ParsedTlogTilePath | null {
+  const segments = rest.split('/').filter((segment) => segment.length > 0);
+  if (segments.length < 2) return null;
+  const head = segments[0] as string;
+  let indexSegments = segments.slice(1);
+  let partial = 0;
+  const widthCandidate = indexSegments[indexSegments.length - 1] as string;
+  const partialCandidate = indexSegments[indexSegments.length - 2];
+  if (partialCandidate && partialCandidate.endsWith('.p')) {
+    if (!/^[0-9]{1,3}$/.test(widthCandidate)) return null;
+    const width = Number(widthCandidate);
+    if (width < 1 || width > 255) return null;
+    const base = partialCandidate.slice(0, -2);
+    if (!/^[0-9]{3}$/.test(base)) return null;
+    partial = width;
+    indexSegments = [...indexSegments.slice(0, -2), base];
+  }
+  if (head === 'entries') {
+    const index = parseGroupedTlogIndex(indexSegments);
+    return index === null ? null : { kind: 'entries', index, partial };
+  }
+  if (!/^[0-9]{1,6}$/.test(head)) return null;
+  const level = Number(head);
+  const index = parseGroupedTlogIndex(indexSegments);
+  return index === null ? null : { kind: 'hash', level, index, partial };
 }
 
 async function appendToNativeLog(input: {
