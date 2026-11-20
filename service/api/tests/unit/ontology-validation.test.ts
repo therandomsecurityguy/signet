@@ -271,4 +271,82 @@ describe('ontology packages', () => {
       },
     });
   });
+
+  it('rejects subclass combinations of disjoint concepts across the hierarchy', async () => {
+    const { app, token } = await buildTestApp();
+    expect(
+      (
+        await app.request('/v1/ontology-packages', {
+          method: 'POST',
+          headers: authHeaders(token),
+          body: JSON.stringify({
+            ontology_version: 'hierarchy/v1',
+            author: 'pablo',
+            ontology: {
+              kind: 'skill_area',
+              concepts: [
+                { id: 'analysis' },
+                { id: 'reporting-base' },
+                { id: 'transform-v2', parents: ['analysis'] },
+                { id: 'report', parents: ['reporting-base'] },
+              ],
+              disjoint: [['analysis', 'reporting-base']],
+            },
+          }),
+        })
+      ).status,
+    ).toBe(201);
+
+    // Subclass claims on both disjoint sides: rejected with ancestor evidence.
+    const draft = await app.request('/v1/skills/skill:hierarchy-disjoint/drafts', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        author: 'pablo',
+        artifact: { content: '# hierarchy', original_path: 'skills/hierarchy-disjoint.md' },
+        capability_claims: ['transform-v2', 'report'],
+        governance: { ontology_version: 'hierarchy/v1' },
+      }),
+    });
+    expect(draft.status).toBe(200);
+    const validate = await app.request('/v1/skills/skill:hierarchy-disjoint/versions/1/validate', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ author: 'pablo' }),
+    });
+    expect(validate.status).toBe(200);
+    await expect(validate.json()).resolves.toMatchObject({
+      result: {
+        skill_version: {
+          properties: {
+            lifecycle_status: 'rejected',
+            validation_failures: [
+              'capability claims combine disjoint concepts: transform-v2 + report (via analysis + reporting-base)',
+            ],
+          },
+        },
+      },
+    });
+
+    // Claims on the SAME side of the hierarchy still validate.
+    const siblingDraft = await app.request('/v1/skills/skill:hierarchy-sibling/drafts', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        author: 'pablo',
+        artifact: { content: '# sibling', original_path: 'skills/hierarchy-sibling.md' },
+        capability_claims: ['analysis', 'transform-v2'],
+        governance: { ontology_version: 'hierarchy/v1' },
+      }),
+    });
+    expect(siblingDraft.status).toBe(200);
+    const siblingValidate = await app.request('/v1/skills/skill:hierarchy-sibling/versions/1/validate', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ author: 'pablo' }),
+    });
+    await expect(siblingValidate.json()).resolves.toMatchObject({
+      result: { skill_version: { properties: { lifecycle_status: 'validated' } } },
+    });
+  });
 });

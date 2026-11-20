@@ -96,4 +96,48 @@ describe('capability claim validation', () => {
     });
     expect(result.violations[0]?.message).toContain('pii-handling + public-data');
   });
+
+  it('propagates disjointness through the subclass hierarchy', () => {
+    const HIERARCHY: OntologyDocument = {
+      kind: 'skill_area',
+      concepts: [
+        { id: 'analysis' },
+        { id: 'reporting-base' },
+        { id: 'transform', parents: ['analysis'] },
+        { id: 'transform-v2', parents: ['transform'] },
+        { id: 'report', parents: ['reporting-base'] },
+        { id: 'bridging', parents: ['analysis', 'reporting-base'] },
+      ],
+      disjoint: [['analysis', 'reporting-base']],
+    };
+    const validate = (claims: string[]) =>
+      validateCapabilityClaims({
+        focus_urn: 'urn:sg:skill-version:skill:demo@v1',
+        claims,
+        document: HIERARCHY,
+        ontology_version: 'hierarchy/v1',
+      });
+
+    // Subclass + subclass: conflict with the disjoint ancestor pair as evidence.
+    const both = validate(['transform', 'report']);
+    expect(both.violations).toHaveLength(1);
+    expect(both.violations[0]?.message).toBe(
+      'capability claims combine disjoint concepts: transform + report (via analysis + reporting-base)',
+    );
+
+    // Deep descendant + exact ancestor on the other side.
+    const mixed = validate(['reporting-base', 'transform-v2']);
+    expect(mixed.violations).toHaveLength(1);
+    expect(mixed.violations[0]?.message).toBe(
+      'capability claims combine disjoint concepts: transform-v2 + reporting-base (via analysis + reporting-base)',
+    );
+
+    // Subclasses of the SAME parent never conflict across that pair.
+    expect(validate(['transform', 'transform-v2']).violations).toEqual([]);
+
+    // A single multiply-derived claim covering both sides is an ontology
+    // inconsistency question, not a claim combination.
+    expect(validate(['bridging']).violations).toEqual([]);
+    expect(validate(['bridging', 'transform']).violations).toEqual([]);
+  });
 });

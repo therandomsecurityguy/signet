@@ -279,14 +279,15 @@ describe('OWL ontology packages end to end', () => {
       ),
     ).toBe(true);
 
-    // Conforming claims validate, and the report layer records the OWL
+    // Conforming claims validate (same side of the disjoint hierarchy:
+    // report is-a analyze), and the report layer records the OWL
     // format plus the artifact and canonical digests.
     const goodDraft = await app.request('/v1/skills/owl-conforming/drafts', {
       method: 'POST',
       headers: authHeaders(token),
       body: JSON.stringify({
         author: 'pablo',
-        capability_claims: ['report', 'transform'],
+        capability_claims: ['report', 'analyze'],
         artifact: { content: '# ok', original_path: 'skills/owl-conforming.md' },
         governance: { ontology_version: 'owl-area/v1' },
       }),
