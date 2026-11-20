@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.75](https://github.com/therandomsecurityguy/signet/compare/v0.1.74...v0.1.75) (2026-11-20)
+
+
+### Features
+
+* **registry:** subclass-aware disjointness in capability-claim validation ([0ac9838](https://github.com/therandomsecurityguy/signet/commit/0ac98386293b840a6c50ba9ec30c7c38354f82a8))
+* **registry:** subclass-aware disjointness in capability-claim validation ([12261c5](https://github.com/therandomsecurityguy/signet/commit/12261c5c0dcebd0f76b82913c1b600ff80472c60))
+
 ## [0.1.74](https://github.com/therandomsecurityguy/signet/compare/v0.1.73...v0.1.74) (2026-11-20)
 
 
