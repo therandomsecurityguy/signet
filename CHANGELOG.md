@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.74](https://github.com/therandomsecurityguy/signet/compare/v0.1.73...v0.1.74) (2026-11-20)
+
+
+### Features
+
+* **registry:** one-way cross-format de-facto promotion (legacy JSON -&gt; authored OWL) ([9e570ff](https://github.com/therandomsecurityguy/signet/commit/9e570ff9cb2e773900c81bdfea35b524d9f68e7a))
+* **registry:** one-way cross-format de-facto promotion (legacy JSON → authored OWL) ([fae075e](https://github.com/therandomsecurityguy/signet/commit/fae075ed99d199b61458dfc5216a1b70770ae4e3))
+
 ## [0.1.73](https://github.com/therandomsecurityguy/signet/compare/v0.1.72...v0.1.73) (2026-11-20)
 
 
