@@ -77,6 +77,18 @@ export function generateInclusionProof(leafHashes: Buffer[], leafIndex: number):
   return path;
 }
 
+/**
+ * RFC 6962 Merkle hash over a contiguous range of leaf hashes (a node at
+ * tree level log2(end-start) when the range is a power-of-two-aligned
+ * subtree). Used by the tlog-tiles layout to materialize tile rows.
+ */
+export function merkleRootOfRange(leafHashes: Buffer[], start: number, end: number): Buffer {
+  if (start < 0 || end > leafHashes.length || start >= end) {
+    throw new Error(`Leaf range out of bounds: [${start}, ${end}) with ${leafHashes.length} leaves`);
+  }
+  return computeSubtreeRoot(leafHashes, start, end);
+}
+
 export function keyHintForPrivateKey(privateKey: KeyObject): Buffer {
   const spkiDer = createPublicKey(privateKey).export({ type: 'spki', format: 'der' });
   return createHash('sha256').update(spkiDer).digest().subarray(0, 4);

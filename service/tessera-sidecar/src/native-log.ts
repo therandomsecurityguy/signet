@@ -1,7 +1,10 @@
 import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from '@aws-sdk/client-s3';
 
-import { buildCheckpointForSigner, computeMerkleRoot, generateInclusionProof, rfc6962LeafHash } from './log.js';
+import { buildCheckpointForSigner, computeMerkleRoot, generateInclusionProof, merkleRootOfRange, rfc6962LeafHash } from './log.js';
 import type { CheckpointSigner } from './log.js';
+
+const TLOG_TILE_WIDTH = 256;
+const TLOG_TILE_HEIGHT = 8;
 
 export type S3Like = {
   send(command: unknown): Promise<unknown>;
@@ -168,6 +171,75 @@ export class NativeLog {
     return (output.CommonPrefixes ?? [])
       .map((prefix) => (prefix.Prefix ?? '').replace(/\/$/, '').split('/').pop() ?? '')
       .filter(Boolean);
+  }
+
+  /**
+   * tlog-tiles hash tile (C2SP layout): the row of node hashes at tree level
+   * `level * 8` for tile `index`. Level-0 nodes are the stored leaf hashes;
+   * higher levels are RFC 6962 subtree roots over 2^(8*level) leaves.
+   * Returns null for tiles that do not exist at the current tree size, and
+   * for stale partial widths (`partial` must be the CURRENT rightmost
+   * partial size; 0 means a full tile and requires the tile to be complete).
+   */
+  async hashTile(logId: string, level: number, index: number, partial: number): Promise<Buffer | null> {
+    const state = await this.readState(logId);
+    if (!state) return null;
+    const sizeAtLevel = Math.floor(state.tree_size / 2 ** (level * TLOG_TILE_HEIGHT));
+    const fullTiles = Math.floor(sizeAtLevel / TLOG_TILE_WIDTH);
+    let width: number;
+    if (partial === 0) {
+      if (index >= fullTiles) return null;
+      width = TLOG_TILE_WIDTH;
+    } else {
+      if (index !== fullTiles || partial !== sizeAtLevel % TLOG_TILE_WIDTH) return null;
+      width = partial;
+    }
+    const leaves = await this.listLeaves(logId);
+    if (leaves.length !== state.tree_size) return null;
+    const leafHashes = leaves.map((leaf) => Buffer.from(leaf.leaf_hash, 'hex'));
+    const span = 2 ** (level * TLOG_TILE_HEIGHT);
+    const nodes: Buffer[] = [];
+    for (let offset = 0; offset < width; offset += 1) {
+      const start = (index * TLOG_TILE_WIDTH + offset) * span;
+      nodes.push(merkleRootOfRange(leafHashes, start, start + span));
+    }
+    return Buffer.concat(nodes);
+  }
+
+  /**
+   * tlog-tiles entry bundle: up to 256 leaf DATA records, each prefixed with
+   * its length as a big-endian uint16 (C2SP layout; verified against the
+   * transparency-dev EntryBundle parser). Our leaf data is the canonical
+   * append-intent record bytes. Partial validation mirrors `hashTile`.
+   */
+  async entriesTile(logId: string, index: number, partial: number): Promise<Buffer | null> {
+    const state = await this.readState(logId);
+    if (!state) return null;
+    const fullTiles = Math.floor(state.tree_size / TLOG_TILE_WIDTH);
+    let width: number;
+    if (partial === 0) {
+      if (index >= fullTiles) return null;
+      width = TLOG_TILE_WIDTH;
+    } else {
+      if (index !== fullTiles || partial !== state.tree_size % TLOG_TILE_WIDTH) return null;
+      width = partial;
+    }
+    const leaves = await this.listLeaves(logId);
+    if (leaves.length !== state.tree_size) return null;
+    const chunks: Buffer[] = [];
+    for (let offset = 0; offset < width; offset += 1) {
+      const leaf = leaves[index * TLOG_TILE_WIDTH + offset] as NativeLogEntry;
+      const record = await this.s3
+        .send(new GetObjectCommand({ Bucket: this.bucket, Key: leaf.record_key }))
+        .catch(() => null);
+      if (!record) return null;
+      const data = Buffer.from(await readBodyText(record), 'utf8');
+      if (data.length > 0xffff) return null;
+      const prefix = Buffer.alloc(2);
+      prefix.writeUInt16BE(data.length, 0);
+      chunks.push(prefix, data);
+    }
+    return Buffer.concat(chunks);
   }
 }
 
