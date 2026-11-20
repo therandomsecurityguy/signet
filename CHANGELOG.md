@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.73](https://github.com/therandomsecurityguy/signet/compare/v0.1.72...v0.1.73) (2026-11-20)
+
+
+### Features
+
+* **tessera-sidecar:** C2SP tlog-tiles read API ([a105a01](https://github.com/therandomsecurityguy/signet/commit/a105a0175e5acdbe693f691f64e941e87eb87dca))
+
 ## [0.1.72](https://github.com/therandomsecurityguy/signet/compare/v0.1.71...v0.1.72) (2026-11-20)
 
 
