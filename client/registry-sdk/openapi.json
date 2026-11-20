@@ -8948,6 +8948,13 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 200
+                  },
+                  "target_ontology_format": {
+                    "type": "string",
+                    "enum": [
+                      "legacy-json-v1",
+                      "owl-turtle"
+                    ]
                   }
                 },
                 "required": [

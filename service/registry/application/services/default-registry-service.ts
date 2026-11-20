@@ -6720,6 +6720,7 @@ export class DefaultRegistryService implements RegistryService {
     author: string;
     source_ontology_version?: string;
     target_ontology_version?: string;
+    target_ontology_format?: 'legacy-json-v1' | 'owl-turtle';
   }): Promise<import('../ports/registry-service.js').RegistryDeFactoTermDetails> {
     const urn = deFactoTermUrn(input.term);
     const existing = await this.deps.graph.getNode(urn);
@@ -6767,25 +6768,47 @@ export class DefaultRegistryService implements RegistryService {
         ontology_kind?: unknown;
       };
       const description = stringOrUndefined(sourceNode.properties['description']);
-      if (envelope.ontology_format === 'owl-turtle' && typeof envelope.ontology === 'string') {
-        // Within-format promotion: the target is a NEW version of the same
-        // authored-OWL package; existing class IRIs are preserved, and the
-        // promoted term is published under urn:sg:concept:{id}. The writer's
-        // round-trip guard refuses terms the v1 subset cannot represent.
-        const projected = parseOwlOntologyTurtle(envelope.ontology);
-        const document: OntologyDocument = {
+      const sourceFormat: 'legacy-json-v1' | 'owl-turtle' =
+        envelope.ontology_format === 'owl-turtle' && typeof envelope.ontology === 'string'
+          ? 'owl-turtle'
+          : 'legacy-json-v1';
+      const targetFormat = input.target_ontology_format ?? sourceFormat;
+      if (targetFormat === 'legacy-json-v1' && sourceFormat === 'owl-turtle') {
+        // One-way conversion by design: authored class IRIs cannot be
+        // represented in legacy JSON, and dropping them silently would
+        // narrow the normative ontology.
+        throw new RegistryCoreError(
+          'DEFACTO_TERM_PROMOTE_INVALID',
+          'Promotion from an authored OWL source into a legacy JSON target is not supported (it would drop the authored class IRIs); promote within OWL instead.',
+        );
+      }
+      let document: OntologyDocument;
+      let iriById: Record<string, string> = {};
+      if (sourceFormat === 'owl-turtle') {
+        const projected = parseOwlOntologyTurtle(envelope.ontology as string);
+        document = {
           kind: 'skill_area',
           concepts: projected.concepts,
           disjoint: projected.disjoint,
         };
-        if (document.concepts.some((concept) => concept.id === input.term)) {
-          throw new RegistryCoreError('DEFACTO_TERM_PROMOTE_CONFLICT', `Term already exists in ontology: ${input.term}`);
-        }
+        iriById = projected.iri_by_id;
+      } else {
+        document = parseOntologyDocument(envelope.ontology);
+      }
+      if (document.concepts.some((concept) => concept.id === input.term)) {
+        throw new RegistryCoreError('DEFACTO_TERM_PROMOTE_CONFLICT', `Term already exists in ontology: ${input.term}`);
+      }
+      if (targetFormat === 'owl-turtle') {
+        // Within-format OWL promotion (source class IRIs preserved) or the
+        // one-way legacy-JSON -> authored-OWL conversion (new concepts get
+        // urn:sg:concept:{id} classes with concept-id overrides when the id
+        // is not IRI-safe). The writer's round-trip guard refuses terms the
+        // v1 subset cannot represent.
         let turtle: string;
         try {
           turtle = serializeOwlOntologyTurtle(
             { ...document, concepts: [...document.concepts, { id: input.term }] },
-            projected.iri_by_id,
+            iriById,
           );
         } catch (err) {
           throw new RegistryCoreError(
@@ -6802,10 +6825,6 @@ export class DefaultRegistryService implements RegistryService {
           ...(description ? { description } : {}),
         });
       } else {
-        const document = parseOntologyDocument(envelope.ontology);
-        if (document.concepts.some((concept) => concept.id === input.term)) {
-          throw new RegistryCoreError('DEFACTO_TERM_PROMOTE_CONFLICT', `Term already exists in ontology: ${input.term}`);
-        }
         await this.createOntologyPackage({
           ontology_version: input.target_ontology_version,
           author: input.author,

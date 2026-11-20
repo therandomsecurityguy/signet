@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { buildAppDependencies } from '../../src/app/dependencies.js';
 import { buildApp } from '../../src/app/server.js';
 import { loadEnv } from '../../src/infrastructure/config/env.js';
+import { parseOwlOntologyTurtle } from '../../../registry/application/services/owl-ontology.js';
+import { canonicalizeOntologyDocument } from '../../../registry/application/services/ontology-projection.js';
 
 async function buildTestApp() {
   const env = loadEnv({
@@ -236,5 +238,147 @@ describe('semantic compiler ingestion', () => {
     const promoted = await app.request('/v1/de-facto-terms?status=promoted');
     const promotedBody = (await promoted.json()) as { terms: Array<{ term: string }> };
     expect(promotedBody.terms.map((t) => t.term)).toEqual(['teleportation']);
+  });
+
+  it('promotes a legacy JSON candidate into a NEW authored-OWL version (one-way conversion)', async () => {
+    const { app, token } = await buildTestApp();
+    await registerOntology(app, token);
+
+    // Seed a candidate against the legacy ontology.
+    const compile = await app.request('/v1/compile/skill', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        source_type: 'markdown',
+        content: '---\nname: skill:owl-bound\ncapabilities: [teleportation]\n---\n# X\n',
+        author: 'pablo',
+        ontology_version: 'skill-area/v1',
+        create_draft: true,
+      }),
+    });
+    expect(compile.status).toBe(200);
+    const validate = await app.request('/v1/skills/skill%3Aowl-bound/versions/1/validate', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ author: 'pablo' }),
+    });
+    expect(validate.status).toBe(200);
+
+    const promote = await app.request('/v1/de-facto-terms/teleportation/review', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        action: 'promote',
+        author: 'dana',
+        source_ontology_version: 'skill-area/v1',
+        target_ontology_version: 'skill-area-owl/v1',
+        target_ontology_format: 'owl-turtle',
+      }),
+    });
+    expect(promote.status).toBe(200);
+    await expect(promote.json()).resolves.toMatchObject({
+      term: 'teleportation',
+      status: 'promoted',
+      promoted_into_ontology_version: 'skill-area-owl/v1',
+    });
+
+    // The converted package is authored OWL with the SAME semantics as the
+    // legacy document plus the promoted term (format-independent digest).
+    const target = await app.request('/v1/ontology-packages/skill-area-owl%2Fv1');
+    expect(target.status).toBe(200);
+    const targetBody = (await target.json()) as {
+      ontology_format: string;
+      ontology: string;
+      canonical_rdf_sha256: string;
+    };
+    expect(targetBody.ontology_format).toBe('owl-turtle');
+    const projected = parseOwlOntologyTurtle(targetBody.ontology);
+    expect(projected.concepts.map((concept) => concept.id).sort()).toEqual([
+      'data-processing',
+      'reporting',
+      'teleportation',
+    ]);
+    expect(projected.concepts.find((concept) => concept.id === 'reporting')?.parents).toEqual(['data-processing']);
+    const expectedDigest = await canonicalizeOntologyDocument({
+      kind: 'skill_area',
+      concepts: [...SKILL_AREA.concepts, { id: 'teleportation' }],
+      disjoint: [],
+    });
+    expect(targetBody.canonical_rdf_sha256).toBe(expectedDigest.sha256);
+
+    // The promoted term binds against the converted ontology.
+    const draft = await app.request('/v1/skills/skill%3Aowl-bound-2/drafts', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        author: 'pablo',
+        capability_claims: ['teleportation'],
+        artifact: { content: '# x', original_path: 'skills/owl-bound-2.md' },
+        governance: { ontology_version: 'skill-area-owl/v1' },
+      }),
+    });
+    expect(draft.status).toBe(200);
+    const validate2 = await app.request('/v1/skills/skill%3Aowl-bound-2/versions/1/validate', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ author: 'pablo' }),
+    });
+    await expect(validate2.json()).resolves.toMatchObject({
+      result: { skill_version: { properties: { lifecycle_status: 'validated' } } },
+    });
+  });
+
+  it('refuses promoting an authored OWL source into a legacy JSON target', async () => {
+    const { app, token } = await buildTestApp();
+    const owlSource = await app.request('/v1/ontology-packages', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        ontology_version: 'owl-only/v1',
+        author: 'pablo',
+        ontology_format: 'owl-turtle',
+        ontology_kind: 'skill_area',
+        ontology: `@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+<urn:sg:ontology> a owl:Ontology .
+<urn:example:omega> a owl:Class .
+`,
+      }),
+    });
+    expect(owlSource.status).toBe(201);
+
+    const draft = await app.request('/v1/skills/skill%3Aowl-refuse/drafts', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        author: 'pablo',
+        capability_claims: ['mystery'],
+        artifact: { content: '# x', original_path: 'skills/owl-refuse.md' },
+        governance: { ontology_version: 'owl-only/v1' },
+      }),
+    });
+    expect(draft.status).toBe(200);
+    const validate = await app.request('/v1/skills/skill%3Aowl-refuse/versions/1/validate', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ author: 'pablo' }),
+    });
+    expect(validate.status).toBe(200);
+
+    const promote = await app.request('/v1/de-facto-terms/mystery/review', {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        action: 'promote',
+        author: 'dana',
+        source_ontology_version: 'owl-only/v1',
+        target_ontology_version: 'owl-only-legacy/v1',
+        target_ontology_format: 'legacy-json-v1',
+      }),
+    });
+    expect(promote.status).toBe(400);
+    await expect(promote.json()).resolves.toMatchObject({
+      error: { code: 'DEFACTO_TERM_PROMOTE_INVALID' },
+    });
   });
 });

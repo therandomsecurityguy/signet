@@ -14,6 +14,11 @@ export const ReviewDeFactoTermInputSchema = z.object({
   author: z.string().min(1).max(200),
   source_ontology_version: z.string().min(1).max(200).optional(),
   target_ontology_version: z.string().min(1).max(200).optional(),
+  // Authoring format of the NEW version. Defaults to the source's format;
+  // 'owl-turtle' converts a legacy JSON source through the deterministic
+  // OWL writer (one-way: OWL -> legacy is refused so class IRIs are never
+  // silently dropped).
+  target_ontology_format: z.enum(['legacy-json-v1', 'owl-turtle']).optional(),
 });
 
 export type CompileSkillInput = z.infer<typeof CompileSkillInputSchema>;

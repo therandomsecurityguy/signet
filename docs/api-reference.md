@@ -251,8 +251,14 @@ Ontology packages come in two authoring formats:
 Details include `ontology_format`, `canonical_rdf_sha256` (RDFC-1.0 digest
 over the format-independent semantic projection — equivalent JSON and OWL
 documents digest identically) and `canonical_rdf_artifact_urn` (fetch via
-`GET /v1/artifacts/{sha256}`). De-facto promotion from authored OWL
-ontologies is refused (v1).
+`GET /v1/artifacts/{sha256}`). De-facto promotion
+(`POST /v1/de-facto-terms/{term}/review`, `action: "promote"`) appends the
+term to a NEW version of the source package: within the source's format by
+default (authored-OWL sources keep their class IRIs via the deterministic
+writer), or one-way cross-format legacy JSON → authored OWL by passing
+`target_ontology_format: "owl-turtle"` (converted through the writer;
+`"legacy-json-v1"` against an OWL source is refused so class IRIs are never
+silently dropped).
 | POST | `/v1/compile/skill` | Compile markdown/tool manifest to capability claims |
 | GET | `/v1/de-facto-terms` | List de facto vocabulary candidates |
 | POST | `/v1/de-facto-terms/{term}/review` | Review a de facto term |

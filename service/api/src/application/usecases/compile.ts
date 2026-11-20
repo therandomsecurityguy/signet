@@ -50,6 +50,7 @@ export class DeFactoTermsUseCase {
       author: input.author,
       ...(input.source_ontology_version ? { source_ontology_version: input.source_ontology_version } : {}),
       ...(input.target_ontology_version ? { target_ontology_version: input.target_ontology_version } : {}),
+      ...(input.target_ontology_format ? { target_ontology_format: input.target_ontology_format } : {}),
     });
   }
 }

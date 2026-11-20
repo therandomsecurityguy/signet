@@ -3885,6 +3885,8 @@ export interface paths {
                         author: string;
                         source_ontology_version?: string;
                         target_ontology_version?: string;
+                        /** @enum {string} */
+                        target_ontology_format?: "legacy-json-v1" | "owl-turtle";
                     };
                 };
             };
