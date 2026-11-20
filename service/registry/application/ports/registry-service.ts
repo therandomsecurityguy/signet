@@ -742,6 +742,43 @@ export type RegistryDeFactoTermDetails = {
   promoted_into_ontology_version?: string;
 };
 
+export type RegistryDeFactoTermCandidateAnalysis = {
+  term: string;
+  occurrences: number;
+  bound_in: string[];
+  unbound_in: string[];
+  example_version_urns: string[];
+};
+
+export type RegistryDeFactoOntologyAnalysis = {
+  ontology_version: string;
+  versions_analyzed: number;
+  claims_total: number;
+  distinct_claims: number;
+  unbound_claims: number;
+  unbound_terms: string[];
+};
+
+/**
+ * Read-only corpus mining over every skill/agent version snapshot: how
+ * claims distribute across resolved skill-area ontologies, which terms are
+ * unbound (de facto vocabulary demand), and per-ontology drift stats.
+ * Recording and promotion stay at validation time / human review.
+ */
+export type RegistryDeFactoVocabularyAnalysis = {
+  totals: {
+    versions_analyzed: number;
+    versions_with_claims: number;
+    versions_without_ontology: number;
+    claims_total: number;
+    distinct_claims: number;
+    bound_claims: number;
+    unbound_claims: number;
+  };
+  candidates: RegistryDeFactoTermCandidateAnalysis[];
+  ontology_versions: RegistryDeFactoOntologyAnalysis[];
+};
+
 export type RegistryGovernanceLogState = {
   log_id: string;
   tree_size: number;
@@ -1259,6 +1296,7 @@ export interface RegistryService {
     ontology_version?: string;
   }): Promise<RegistryCompileSkillResult>;
   listDeFactoTerms(input?: { status?: 'candidate' | 'promoted' | 'rejected' }): Promise<{ terms: RegistryDeFactoTermDetails[] }>;
+  analyzeDeFactoVocabulary(input?: { ontology_version?: string }): Promise<RegistryDeFactoVocabularyAnalysis>;
   reviewDeFactoTerm(input: {
     term: string;
     action: 'promote' | 'reject';

@@ -261,6 +261,7 @@ writer), or one-way cross-format legacy JSON → authored OWL by passing
 silently dropped).
 | POST | `/v1/compile/skill` | Compile markdown/tool manifest to capability claims |
 | GET | `/v1/de-facto-terms` | List de facto vocabulary candidates |
+| GET | `/v1/de-facto-terms/analysis` | Read-only corpus analysis of claims against resolved skill-area ontologies |
 | POST | `/v1/de-facto-terms/{term}/review` | Review a de facto term |
 | GET | `/v1/reviews/pending` | Pending human-review queue |
 

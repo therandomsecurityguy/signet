@@ -36,6 +36,21 @@ const listDeFactoTermsRoute = createRoute({
   },
 });
 
+const analyzeDeFactoTermsRoute = createRoute({
+  method: 'get',
+  path: '/v1/de-facto-terms/analysis',
+  request: {
+    query: z.object({ ontology_version: z.string().min(1).max(200).optional() }),
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.any() } },
+      description: 'Read-only corpus analysis of capability claims against resolved skill-area ontologies',
+    },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid query parameters' },
+  },
+});
+
 const reviewDeFactoTermRoute = createRoute({
   method: 'post',
   path: '/v1/de-facto-terms/{term}/review',
@@ -127,6 +142,14 @@ export function registerCompileRoutes(
       return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid status filter.' } }, 400);
     }
     return c.json(await deps.deFactoTerms.list(status ? { status: status as 'candidate' | 'promoted' | 'rejected' } : undefined), 200);
+  });
+
+  app.openapi(analyzeDeFactoTermsRoute, async (c) => {
+    const ontologyVersion = c.req.query('ontology_version');
+    return c.json(
+      await deps.deFactoTerms.analyze(ontologyVersion ? { ontology_version: ontologyVersion } : undefined),
+      200,
+    );
   });
 
   app.openapi(reviewDeFactoTermRoute, async (c) => {
