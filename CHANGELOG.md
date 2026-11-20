@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.72](https://github.com/therandomsecurityguy/signet/compare/v0.1.71...v0.1.72) (2026-11-20)
+
+
+### Features
+
+* **registry:** waxing-style witness cosignatures + distinct-witness quorum ([fdca474](https://github.com/therandomsecurityguy/signet/commit/fdca474e847e8e9010eec0d2beac00890b66e0a8))
+* **registry:** waxing-style witness cosignatures + distinct-witness quorum ([6e3ffe7](https://github.com/therandomsecurityguy/signet/commit/6e3ffe7048006b0ce3ef20f08344bacf2861eecf))
+
 ## [0.1.71](https://github.com/therandomsecurityguy/signet/compare/v0.1.70...v0.1.71) (2026-11-19)
 
 
