@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.9...registry-sdk-v0.1.10) (2026-11-21)
+
+
+### Features
+
+* **registry:** fail-closed gossip provenance (attachment, source evidence, verified relay chains) ([362fd6e](https://github.com/therandomsecurityguy/signet/commit/362fd6ea3c29c9fbae3e5d7e30f2936275d3a6ae))
+
 ## [0.1.9](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.8...registry-sdk-v0.1.9) (2026-11-21)
 
 
