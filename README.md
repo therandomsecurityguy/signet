@@ -221,7 +221,9 @@ Transparency and provenance:
   lifecycle operations when configured
 - PROV-O provenance: `prov:wasDerivedFrom` / `prov:wasGeneratedBy` /
   `prov:used` / `prov:wasAssociatedWith` edges written at every lifecycle
-  operation, with traversal + audit-replay endpoints and the read-only
+  operation, plus export-side version lineage (`prov:wasRevisionOf` between
+  same-entity versions and `prov:specializationOf` to logical entity URNs),
+  with traversal + audit-replay endpoints and the read-only
   `registry.get_provenance` MCP tool
 - canonical provenance export: the read view projects to a deterministic
   PROV-O graph — RDFC-1.0 canonical N-Quads with a content-addressed
@@ -265,8 +267,9 @@ Proposed next (not implemented yet):
 - SHACL node expressions and `sh:js` (refused at registration; no
   execution semantics implemented), and an in-process SHACL-AF engine
   (graph mutation needs an inference-stage design)
-- richer PROV-O coverage (JSON-LD export, canonical RDF signatures over
-  provenance graphs)
+- richer PROV-O coverage: activity qualification
+  (`prov:qualifiedUsage`/`prov:qualifiedAssociation`) and revocation
+  invalidation edges
 - richer LLM backends for the advisory validation layer
 - full WORM/transparency integration with Trillian/Tessera reconciliation
 - deeper witness-network semantics across multiple independent parties

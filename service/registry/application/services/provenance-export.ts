@@ -15,9 +15,12 @@
  *   provenance signature verification in the registry service).
  *
  * Vocabulary: PROV-O for the graph shape (prov:Entity/Activity/Agent,
- * wasDerivedFrom/wasGeneratedBy/used/wasAssociatedWith) plus the registry's
- * own `urn:sg:` property/entity-type encodings (shared with the canonical
- * publication projection via `sg-vocabulary.ts`).
+ * wasDerivedFrom/wasGeneratedBy/used/wasAssociatedWith) plus revision
+ * lineage — `prov:wasRevisionOf` between versions of the same logical
+ * entity and `prov:specializationOf` from each version to its logical
+ * entity URN — plus the registry's own `urn:sg:` property/entity-type
+ * encodings (shared with the canonical publication projection via
+ * `sg-vocabulary.ts`).
  */
 
 import type { RegistryPublicationProvenance } from '../ports/registry-service.js';
@@ -34,6 +37,26 @@ import {
 import { entityTypeIri, SG_PROPERTY_PREFIX } from './sg-vocabulary.js';
 
 const PROV = 'http://www.w3.org/ns/prov#';
+
+/**
+ * Logical entity URN for a version URN (`urn:sg:skill-version:{key}@vN` ->
+ * `urn:sg:skill:{key}`, agent likewise); null for anything else. Used for
+ * PROV-O revision lineage (wasRevisionOf / specializationOf).
+ */
+export function logicalUrnForVersion(versionUrn: string): string | null {
+  for (const [versionPrefix, logicalPrefix] of [
+    ['urn:sg:skill-version:', 'urn:sg:skill:'],
+    ['urn:sg:agent-version:', 'urn:sg:agent:'],
+  ] as const) {
+    if (versionUrn.startsWith(versionPrefix)) {
+      const rest = versionUrn.slice(versionPrefix.length);
+      const at = rest.lastIndexOf('@');
+      if (at <= 0) return null;
+      return `${logicalPrefix}${rest.slice(0, at)}`;
+    }
+  }
+  return null;
+}
 
 /** The provenance view is the input; evidence/signature fields are computed here. */
 export type ProvenanceExportInput = Omit<
@@ -67,8 +90,24 @@ export function buildProvenanceTriples(provenance: ProvenanceExportInput): Prove
   });
 
   for (const entry of provenance.derivation_chain) {
+    const entryLogicalUrn = logicalUrnForVersion(entry.version_urn);
+    if (entryLogicalUrn) {
+      triples.push({
+        subject: entry.version_urn,
+        predicate: `${PROV}specializationOf`,
+        object: iri(entryLogicalUrn),
+      });
+    }
+    const revisionOf: string[] = [];
     for (const derived of [...entry.was_derived_from].sort()) {
       triples.push({ subject: entry.version_urn, predicate: `${PROV}wasDerivedFrom`, object: iri(derived) });
+      // Same-logical-entity derivations are revisions in PROV-O terms.
+      if (entryLogicalUrn && logicalUrnForVersion(derived) === entryLogicalUrn) {
+        revisionOf.push(derived);
+      }
+    }
+    for (const revision of revisionOf) {
+      triples.push({ subject: entry.version_urn, predicate: `${PROV}wasRevisionOf`, object: iri(revision) });
     }
     for (const activity of entry.activities) {
       triples.push({
