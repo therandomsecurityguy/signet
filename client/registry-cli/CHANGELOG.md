@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.7](https://github.com/therandomsecurityguy/signet/compare/registry-cli-v0.1.6...registry-cli-v0.1.7) (2026-11-21)
+
+
+### Features
+
+* **registry:** fail-closed gossip provenance (attachment, source evidence, verified relay chains) ([362fd6e](https://github.com/therandomsecurityguy/signet/commit/362fd6ea3c29c9fbae3e5d7e30f2936275d3a6ae))
+
+
+### Bug Fixes
+
+* **registry-cli:** seed a direct gossip event (relay claims are now verified) ([2d41cd8](https://github.com/therandomsecurityguy/signet/commit/2d41cd8cab62de263c424ba752a0f6147b9cd7a2))
+
 ## [0.1.6](https://github.com/therandomsecurityguy/signet/compare/registry-cli-v0.1.5...registry-cli-v0.1.6) (2026-11-19)
 
 
