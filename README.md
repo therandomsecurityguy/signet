@@ -198,9 +198,11 @@ Transparency and provenance:
   RFC 6962 consistency-proof validation
 - witness attestations, quorum checks, checkpoint observations,
   disagreement evidence, gossip events, and timeline/provenance views;
-  waxing-style witness cosignatures on signed notes are verified against
-  attached witnesses with fail-closed handling and distinct-witness quorum
-  counting
+  gossip stores fail closed (attached witnesses only, source must hold
+  checkpoint evidence, relay chains verified with consistent hop depths and
+  exposed as `relayed_from_event_urn`); waxing-style witness cosignatures
+  on signed notes are verified against attached witnesses with fail-closed
+  handling and distinct-witness quorum counting
 - minimal signed-note checkpoint ingestion seam that verifies the
   transparency-dev spec note format (Ed25519, name-bound key hash,
   `<name>+<hash8hex>+<base64>` verifier keys) alongside the legacy

@@ -1357,6 +1357,37 @@ export class DefaultRegistryService implements RegistryService {
     };
   }
 
+  /**
+   * Witness-side checkpoint evidence: a witness may only gossip a
+   * checkpoint it has cryptographically endorsed — a valid attestation
+   * artifact or a verified note cosignature bound to its witness id.
+   */
+  private async witnessHasCheckpointEvidence(witnessId: string, checkpointArtifactUrn: string): Promise<boolean> {
+    const checkpointNode = await this.deps.graph.getNode(checkpointArtifactUrn);
+    if (!checkpointNode) return false;
+    const signatures =
+      parseTransparencyNoteSignatures(checkpointNode.properties['signed_note_signatures_json']) ?? [];
+    if (
+      signatures.some(
+        (signature) => signature.verification?.status === 'verified' && signature.verification.witness_id === witnessId,
+      )
+    ) {
+      return true;
+    }
+    const attestationEdges = await this.deps.graph.listEdgesFrom(checkpointArtifactUrn, 'sg:hasWitnessAttestation');
+    for (const edge of attestationEdges) {
+      const attestation = await this.deps.graph.getNode(edge.to_urn);
+      if (
+        attestation &&
+        attestation.properties['witness_id'] === witnessId &&
+        attestation.properties['signature_valid'] === true
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   async createTransparencyGossipEvent(
     input: import('../ports/registry-service.js').CreateTransparencyGossipEventInput,
   ): Promise<import('../ports/registry-service.js').RegistryTransparencyGossipEvent> {
@@ -1373,6 +1404,72 @@ export class DefaultRegistryService implements RegistryService {
     const checkpoint = await this.getTransparencyCheckpointDetails(input.checkpoint_artifact_urn);
     if (!checkpoint) {
       throw new RegistryCoreError('TRANSPARENCY_CHECKPOINT_INVALID', 'Referenced checkpoint not found.');
+    }
+    // Gossip provenance is fail-closed: only witnesses attached to THIS log
+    // may gossip, the source witness must hold cryptographic evidence for
+    // the checkpoint (attestation or verified cosignature), and relay claims
+    // must resolve to a verified prior event with a consistent chain depth.
+    const attachedWitnessEdges = await this.deps.graph.listEdgesFrom(log.transparency_log.urn, 'sg:trustedByWitness');
+    const attachedWitnessUrns = new Set(attachedWitnessEdges.map((edge) => edge.to_urn));
+    if (!attachedWitnessUrns.has(fromWitness.urn) || !attachedWitnessUrns.has(toWitness.urn)) {
+      throw new RegistryCoreError(
+        'TRANSPARENCY_GOSSIP_UNTRUSTED_WITNESS',
+        'Gossip requires source and target witnesses attached to this transparency log.',
+      );
+    }
+    if (!(await this.witnessHasCheckpointEvidence(input.from_witness_id, input.checkpoint_artifact_urn))) {
+      throw new RegistryCoreError(
+        'TRANSPARENCY_GOSSIP_UNVERIFIED_SOURCE',
+        `Witness ${input.from_witness_id} has no valid attestation or verified cosignature for this checkpoint; a witness can only gossip a checkpoint it has endorsed.`,
+      );
+    }
+    let relayHopCount = 1;
+    let relayedFromEventUrn: string | undefined;
+    if (input.relayed_by_id) {
+      const relayer = await this.deps.graph.getNode(transparencyWitnessUrn(input.relayed_by_id));
+      if (!relayer || relayer.entity_type !== 'TRANSPARENCY_WITNESS') {
+        throw new RegistryCoreError(
+          'TRANSPARENCY_GOSSIP_RELAY_UNVERIFIED',
+          `Relaying witness not found: ${input.relayed_by_id}`,
+        );
+      }
+      const relayerSentEdges = await this.deps.graph.listEdgesFrom(relayer.urn, 'sg:sentGossipEvent');
+      let prior: { urn: string; hopCount: number } | null = null;
+      for (const edge of relayerSentEdges) {
+        const node = await this.deps.graph.getNode(edge.to_urn);
+        if (
+          node &&
+          node.entity_type === 'TRANSPARENCY_GOSSIP_EVENT' &&
+          node.properties['log_id'] === input.log_id &&
+          node.properties['checkpoint_artifact_urn'] === input.checkpoint_artifact_urn &&
+          node.properties['to_witness_id'] === input.from_witness_id
+        ) {
+          const hop =
+            numberOrUndefined(node.properties['relay_hop_count']) ??
+            (stringOrUndefined(node.properties['relayed_by_id']) ? 2 : 1);
+          prior = { urn: node.urn, hopCount: hop };
+          break;
+        }
+      }
+      if (!prior) {
+        throw new RegistryCoreError(
+          'TRANSPARENCY_GOSSIP_RELAY_UNVERIFIED',
+          `No prior gossip event relays this checkpoint from ${input.relayed_by_id} to ${input.from_witness_id}; relay claims must be verifiable.`,
+        );
+      }
+      relayHopCount = prior.hopCount + 1;
+      if (typeof input.relay_hop_count === 'number' && input.relay_hop_count !== relayHopCount) {
+        throw new RegistryCoreError(
+          'TRANSPARENCY_GOSSIP_RELAY_HOP_INVALID',
+          `relay_hop_count ${input.relay_hop_count} does not match the verified chain depth ${relayHopCount}.`,
+        );
+      }
+      relayedFromEventUrn = prior.urn;
+    } else if (typeof input.relay_hop_count === 'number' && input.relay_hop_count !== 1) {
+      throw new RegistryCoreError(
+        'TRANSPARENCY_GOSSIP_RELAY_HOP_INVALID',
+        'A direct gossip event has chain depth 1; relay_hop_count above 1 requires relayed_by_id with a verified chain.',
+      );
     }
     const payloadProvenance = buildCheckpointPayloadProvenance({
       checkpoint_body: checkpoint.checkpoint_body,
@@ -1399,7 +1496,8 @@ export class DefaultRegistryService implements RegistryService {
         payload_sha256: payloadProvenance.payload_sha256,
         ...(input.source_channel ? { source_channel: input.source_channel } : {}),
         ...(input.relayed_by_id ? { relayed_by_id: input.relayed_by_id } : {}),
-        ...(typeof input.relay_hop_count === 'number' ? { relay_hop_count: input.relay_hop_count } : {}),
+        relay_hop_count: relayHopCount,
+        ...(relayedFromEventUrn ? { relayed_from_event_urn: relayedFromEventUrn } : {}),
         ...((input.source_checkpoint_occurred_at ?? checkpoint.occurred_at)
           ? { source_checkpoint_occurred_at: input.source_checkpoint_occurred_at ?? checkpoint.occurred_at }
           : {}),
@@ -1423,6 +1521,14 @@ export class DefaultRegistryService implements RegistryService {
       predicate: 'sg:aboutCheckpoint',
       properties: {},
     });
+    if (relayedFromEventUrn) {
+      await this.deps.graph.upsertEdge({
+        from_urn: urn,
+        to_urn: relayedFromEventUrn,
+        predicate: 'sg:relayedFromEvent',
+        properties: {},
+      });
+    }
     return {
       gossip_event_urn: urn,
       log_id: input.log_id,
@@ -1436,7 +1542,8 @@ export class DefaultRegistryService implements RegistryService {
       payload_sha256: payloadProvenance.payload_sha256,
       ...(input.source_channel ? { source_channel: input.source_channel } : {}),
       ...(input.relayed_by_id ? { relayed_by_id: input.relayed_by_id } : {}),
-      ...(typeof input.relay_hop_count === 'number' ? { relay_hop_count: input.relay_hop_count } : {}),
+      relay_hop_count: relayHopCount,
+      ...(relayedFromEventUrn ? { relayed_from_event_urn: relayedFromEventUrn } : {}),
       ...((input.source_checkpoint_occurred_at ?? checkpoint.occurred_at)
         ? { source_checkpoint_occurred_at: input.source_checkpoint_occurred_at ?? checkpoint.occurred_at }
         : {}),
@@ -8613,6 +8720,7 @@ export class DefaultRegistryService implements RegistryService {
         const payloadSha256 = stringOrUndefined(node.properties['payload_sha256']) ?? fallbackPayloadProvenance?.payload_sha256;
         const sourceChannel = stringOrUndefined(node.properties['source_channel']);
         const relayedById = stringOrUndefined(node.properties['relayed_by_id']);
+        const relayedFromEventUrn = stringOrUndefined(node.properties['relayed_from_event_urn']);
         const relayHopCount = numberOrUndefined(node.properties['relay_hop_count']);
         const sourceCheckpointOccurredAt =
           stringOrUndefined(node.properties['source_checkpoint_occurred_at']) ?? checkpoint?.occurred_at;
@@ -8629,6 +8737,7 @@ export class DefaultRegistryService implements RegistryService {
           ...(payloadSha256 ? { payload_sha256: payloadSha256 } : {}),
           ...(sourceChannel ? { source_channel: sourceChannel } : {}),
           ...(relayedById ? { relayed_by_id: relayedById } : {}),
+          ...(relayedFromEventUrn ? { relayed_from_event_urn: relayedFromEventUrn } : {}),
           ...(typeof relayHopCount === 'number' ? { relay_hop_count: relayHopCount } : {}),
           ...(sourceCheckpointOccurredAt ? { source_checkpoint_occurred_at: sourceCheckpointOccurredAt } : {}),
         };

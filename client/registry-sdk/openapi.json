@@ -11035,6 +11035,9 @@
                           "relay_hop_count": {
                             "type": "number"
                           },
+                          "relayed_from_event_urn": {
+                            "type": "string"
+                          },
                           "source_checkpoint_occurred_at": {
                             "type": "string"
                           }
@@ -11158,6 +11161,9 @@
                           },
                           "relay_hop_count": {
                             "type": "number"
+                          },
+                          "relayed_from_event_urn": {
+                            "type": "string"
                           },
                           "source_checkpoint_occurred_at": {
                             "type": "string"

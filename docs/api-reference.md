@@ -145,6 +145,17 @@ const verification = await client.getSkillVerification('skill:example', 1);
 | POST | `/v1/transparency-logs/reconcile` | Reconcile a publication against the native companion log |
 | POST | `/v1/transparency-logs/{logId}/gossip-events` | Record gossip event |
 
+**Gossip provenance is fail-closed.** Gossip requires both witnesses to be
+attached to the log (`TRANSPARENCY_GOSSIP_UNTRUSTED_WITNESS`), the source
+witness to hold cryptographic evidence for the checkpoint — a valid
+attestation or verified note cosignature (`TRANSPARENCY_GOSSIP_UNVERIFIED_SOURCE`)
+— and relay claims to be verifiable: `relayed_by_id` must resolve to a prior
+gossip event delivering the same checkpoint to the source witness
+(`TRANSPARENCY_GOSSIP_RELAY_UNVERIFIED`) and `relay_hop_count`, when
+provided, must equal the verified chain depth (`TRANSPARENCY_GOSSIP_RELAY_HOP_INVALID`;
+direct gossip is depth 1). Verified chains are recorded as
+`relayed_from_event_urn` and surfaced on the log timeline.
+
 Checkpoint submissions accept either a `signed_note` (a transparency-dev
 signed note — spec Ed25519 notes and the legacy SPKI-hint format are both
 verified) or a detached `checkpoint_body` + `checkpoint_signature` pair. For

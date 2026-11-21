@@ -4857,6 +4857,7 @@ export interface paths {
                                 relay_from_type?: "log" | "witness" | "distributor" | "peer";
                                 relay_from_id?: string;
                                 relay_hop_count?: number;
+                                relayed_from_event_urn?: string;
                                 source_checkpoint_occurred_at?: string;
                             }[];
                             disagreements: {
@@ -4888,6 +4889,7 @@ export interface paths {
                                 source_channel?: string;
                                 relayed_by_id?: string;
                                 relay_hop_count?: number;
+                                relayed_from_event_urn?: string;
                                 source_checkpoint_occurred_at?: string;
                             }[];
                             /** @enum {string} */
