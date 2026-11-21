@@ -108,7 +108,7 @@ Implemented now:
 - canonical RDF (RDFC-1.0) projection of publication graphs with semantic digests recorded at publish and certify
 - dual signatures: detached signatures over canonical JSON (operational) or canonical RDF (semantic) bytes with cross-verification
 - semantic compiler ingestion: markdown frontmatter and tool-manifest parsing into normalized capability claims, interfaces, and constraints (`POST /v1/compile/skill`)
-- de facto vocabulary store with human-reviewed promotion into new normative ontology versions (`/v1/de-facto-terms*`)
+- de facto vocabulary store with human-reviewed promotion into new normative ontology versions (`/v1/de-facto-terms*`) plus read-only corpus mining (`GET /v1/de-facto-terms/analysis[?ontology_version]`): every capability claim across skill/agent version snapshots is classified bound/unbound against its resolved skill-area ontology, with per-term occurrences, bound/unbound ontology versions, example version urns, and per-ontology drift stats — recording and promotion stay at validation time / human review (no writes)
 - advisory LLM validation layer (model-agnostic port, heuristic default, HTTP seam) emitting scorecard/prompt/confidence evidence via `sg:validatedBy`
 - human review workflow: `review_evidence` artifacts via `sg:reviewedBy`, policy-driven `require_human_review` gating at publish/certify, pending-review queue (`/v1/reviews/pending`)
 - policy-driven publication trust gates: `require_validation` at publish, and `require_signature`, `require_trusted_publisher`, `require_build_provenance`, `require_sbom` at certification (verified signatures owned by the publisher, and verified SLSA/SBOM attestations), each with explicit rejection codes
@@ -121,7 +121,6 @@ Implemented now:
 
 Proposed next:
 - SHACL node expressions and `sh:js` (refused at registration; no execution semantics implemented), and an in-process SHACL-AF engine (graph mutation needs an inference-stage design)
-- richer de facto ontology mining (runtime observations, corpus analysis)
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures over provenance graphs)
 - deeper witness-network semantics across multiple independent parties
 - richer multi-signature observation/gossip provenance

@@ -245,7 +245,9 @@ Ingestion and vocabulary:
   normative ontology versions (`/v1/de-facto-terms*`): within the source's
   authoring format (authored-OWL sources promote into new authored-OWL
   versions via the deterministic writer) or one-way cross-format legacy
-  JSON → authored OWL via `target_ontology_format`
+  JSON → authored OWL via `target_ontology_format`; read-only corpus
+  mining (`GET /v1/de-facto-terms/analysis`) classifies every claim across
+  version snapshots as bound/unbound with occurrence and drift stats
 
 Storage and operations:
 - content-addressed artifact storage (filesystem or S3)
@@ -261,8 +263,6 @@ Proposed next (not implemented yet):
 - SHACL node expressions and `sh:js` (refused at registration; no
   execution semantics implemented), and an in-process SHACL-AF engine
   (graph mutation needs an inference-stage design)
-- subclass-aware claim binding semantics, richer de facto ontology mining
-  (runtime observations, corpus analysis)
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures over
   provenance graphs)
 - richer LLM backends for the advisory validation layer

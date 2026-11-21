@@ -6694,6 +6694,127 @@ export class DefaultRegistryService implements RegistryService {
     return { terms };
   }
 
+  /**
+   * Read-only corpus analysis for ontology curation: every capability claim
+   * across skill/agent version snapshots is classified as bound or unbound
+   * against the version's resolved skill-area ontology (exact concept-id
+   * binding — the rule validation enforces). Versions without a resolvable
+   * ontology contribute to the totals but cannot be classified. No writes:
+   * de facto candidates are still recorded at validation time and promotion
+   * remains human-reviewed.
+   */
+  async analyzeDeFactoVocabulary(
+    input?: { ontology_version?: string },
+  ): Promise<import('../ports/registry-service.js').RegistryDeFactoVocabularyAnalysis> {
+    const versionNodes = [
+      ...(await this.deps.graph.listNodesByType('SKILL_VERSION')),
+      ...(await this.deps.graph.listNodesByType('AGENT_VERSION')),
+    ].sort((left, right) => left.urn.localeCompare(right.urn));
+
+    const ontologyCache = new Map<string, OntologyDocument | null>();
+    const resolveOntologyDocument = async (ontologyVersion: string): Promise<OntologyDocument | null> => {
+      if (!ontologyCache.has(ontologyVersion)) {
+        const resolved = await this.resolveSkillAreaOntology(ontologyVersion);
+        ontologyCache.set(ontologyVersion, resolved.document);
+      }
+      return ontologyCache.get(ontologyVersion) ?? null;
+    };
+
+    const totals = {
+      versions_analyzed: 0,
+      versions_with_claims: 0,
+      versions_without_ontology: 0,
+      claims_total: 0,
+      distinct_claims: 0,
+      bound_claims: 0,
+      unbound_claims: 0,
+    };
+    const distinctClaims = new Set<string>();
+    const candidates = new Map<
+      string,
+      { occurrences: number; bound: Set<string>; unbound: Set<string>; examples: string[] }
+    >();
+    const perOntology = new Map<
+      string,
+      { versions: number; claims_total: number; distinct: Set<string>; unbound_claims: number; unbound_terms: Set<string> }
+    >();
+
+    for (const node of versionNodes) {
+      const ontologyVersion = stringOrUndefined(node.properties['ontology_version']);
+      if (input?.ontology_version && ontologyVersion !== input.ontology_version) continue;
+      totals.versions_analyzed += 1;
+      const ontologyStats = ontologyVersion
+        ? (perOntology.get(ontologyVersion) ?? {
+            versions: 0,
+            claims_total: 0,
+            distinct: new Set<string>(),
+            unbound_claims: 0,
+            unbound_terms: new Set<string>(),
+          })
+        : null;
+      if (ontologyVersion && ontologyStats) {
+        ontologyStats.versions += 1;
+        perOntology.set(ontologyVersion, ontologyStats);
+      }
+      const claims = Array.isArray(node.properties['capability_claims'])
+        ? (node.properties['capability_claims'] as unknown[]).filter((claim): claim is string => typeof claim === 'string')
+        : [];
+      if (claims.length === 0) continue;
+      totals.versions_with_claims += 1;
+      const document = ontologyVersion ? await resolveOntologyDocument(ontologyVersion) : null;
+      if (!document) totals.versions_without_ontology += 1;
+      const known = document ? new Set(document.concepts.map((concept) => concept.id)) : null;
+      for (const claim of [...claims].sort()) {
+        totals.claims_total += 1;
+        distinctClaims.add(claim);
+        const entry = candidates.get(claim) ?? { occurrences: 0, bound: new Set<string>(), unbound: new Set<string>(), examples: [] };
+        entry.occurrences += 1;
+        if (entry.examples.length < 3) entry.examples.push(node.urn);
+        if (known && ontologyVersion) {
+          if (known.has(claim)) {
+            totals.bound_claims += 1;
+            entry.bound.add(ontologyVersion);
+          } else {
+            totals.unbound_claims += 1;
+            entry.unbound.add(ontologyVersion);
+          }
+        }
+        candidates.set(claim, entry);
+        if (ontologyStats) {
+          ontologyStats.claims_total += 1;
+          ontologyStats.distinct.add(claim);
+          if (known && !known.has(claim)) {
+            ontologyStats.unbound_claims += 1;
+            ontologyStats.unbound_terms.add(claim);
+          }
+        }
+      }
+    }
+
+    return {
+      totals: { ...totals, distinct_claims: distinctClaims.size },
+      candidates: [...candidates.entries()]
+        .map(([term, entry]) => ({
+          term,
+          occurrences: entry.occurrences,
+          bound_in: [...entry.bound].sort(),
+          unbound_in: [...entry.unbound].sort(),
+          example_version_urns: entry.examples,
+        }))
+        .sort((left, right) => right.occurrences - left.occurrences || left.term.localeCompare(right.term)),
+      ontology_versions: [...perOntology.entries()]
+        .map(([ontology_version, stats]) => ({
+          ontology_version,
+          versions_analyzed: stats.versions,
+          claims_total: stats.claims_total,
+          distinct_claims: stats.distinct.size,
+          unbound_claims: stats.unbound_claims,
+          unbound_terms: [...stats.unbound_terms].sort(),
+        }))
+        .sort((left, right) => left.ontology_version.localeCompare(right.ontology_version)),
+    };
+  }
+
   private toDeFactoTermDetails(node: { urn: string; properties: Record<string, unknown> }): import('../ports/registry-service.js').RegistryDeFactoTermDetails {
     const status = node.properties['status'];
     return {

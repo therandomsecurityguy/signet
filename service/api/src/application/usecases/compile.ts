@@ -43,6 +43,10 @@ export class DeFactoTermsUseCase {
     return await this.registry.listDeFactoTerms(input);
   }
 
+  async analyze(input?: { ontology_version?: string }) {
+    return await this.registry.analyzeDeFactoVocabulary(input);
+  }
+
   async review(input: { term: string } & ReviewDeFactoTermInput) {
     return await this.registry.reviewDeFactoTerm({
       term: input.term,

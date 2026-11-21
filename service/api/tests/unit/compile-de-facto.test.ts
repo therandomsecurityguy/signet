@@ -328,6 +328,90 @@ describe('semantic compiler ingestion', () => {
     });
   });
 
+  it('analyzes the corpus for de facto vocabulary demand', async () => {
+    const { app, token } = await buildTestApp();
+    await registerOntology(app, token);
+
+    const draft = async (skillKey: string, claims: string[], governance?: Record<string, unknown>) =>
+      await app.request(`/v1/skills/${encodeURIComponent(skillKey)}/drafts`, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({
+          author: 'pablo',
+          capability_claims: claims,
+          artifact: { content: '# x', original_path: `skills/${skillKey}.md` },
+          ...(governance ? { governance } : {}),
+        }),
+      });
+
+    expect((await draft('skill:analysis-a', ['data-processing', 'teleportation'], { ontology_version: 'skill-area/v1' })).status).toBe(200);
+    expect((await draft('skill:analysis-b', ['reporting', 'holodeck'], { ontology_version: 'skill-area/v1' })).status).toBe(200);
+    // No resolvable ontology: contributes to totals but cannot be classified.
+    expect((await draft('skill:analysis-c', ['teleportation'])).status).toBe(200);
+
+    const analysis = await app.request('/v1/de-facto-terms/analysis');
+    expect(analysis.status).toBe(200);
+    const body = (await analysis.json()) as {
+      totals: Record<string, number>;
+      candidates: Array<{
+        term: string;
+        occurrences: number;
+        bound_in: string[];
+        unbound_in: string[];
+        example_version_urns: string[];
+      }>;
+      ontology_versions: Array<Record<string, unknown>>;
+    };
+    expect(body.totals).toMatchObject({
+      versions_analyzed: 3,
+      versions_with_claims: 3,
+      versions_without_ontology: 1,
+      claims_total: 5,
+      distinct_claims: 4,
+      bound_claims: 2,
+      unbound_claims: 2,
+    });
+    // Ordering: occurrences desc, then term ascending.
+    expect(body.candidates.map((candidate) => candidate.term)).toEqual([
+      'teleportation',
+      'data-processing',
+      'holodeck',
+      'reporting',
+    ]);
+    const teleportation = body.candidates[0] as (typeof body.candidates)[number];
+    expect(teleportation.occurrences).toBe(2);
+    expect(teleportation.bound_in).toEqual([]);
+    expect(teleportation.unbound_in).toEqual(['skill-area/v1']);
+    expect(teleportation.example_version_urns).toHaveLength(2);
+    expect(body.ontology_versions).toEqual([
+      {
+        ontology_version: 'skill-area/v1',
+        versions_analyzed: 2,
+        claims_total: 4,
+        distinct_claims: 4,
+        unbound_claims: 2,
+        unbound_terms: ['holodeck', 'teleportation'],
+      },
+    ]);
+
+    // Filtering by ontology version restricts the analyzed set.
+    const filtered = await app.request('/v1/de-facto-terms/analysis?ontology_version=skill-area%2Fv1');
+    const filteredBody = (await filtered.json()) as typeof body;
+    expect(filteredBody.totals).toMatchObject({
+      versions_analyzed: 2,
+      versions_without_ontology: 0,
+      claims_total: 4,
+      unbound_claims: 2,
+    });
+    expect((filteredBody.candidates[0] as (typeof body.candidates)[number]).occurrences).toBe(1);
+
+    const unknown = await app.request('/v1/de-facto-terms/analysis?ontology_version=nope%2Fv1');
+    const unknownBody = (await unknown.json()) as typeof body;
+    expect(unknownBody.totals).toMatchObject({ versions_analyzed: 0, claims_total: 0 });
+    expect(unknownBody.candidates).toEqual([]);
+    expect(unknownBody.ontology_versions).toEqual([]);
+  });
+
   it('refuses promoting an authored OWL source into a legacy JSON target', async () => {
     const { app, token } = await buildTestApp();
     const owlSource = await app.request('/v1/ontology-packages', {
