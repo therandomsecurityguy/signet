@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.77](https://github.com/therandomsecurityguy/signet/compare/v0.1.76...v0.1.77) (2026-11-21)
+
+
+### Features
+
+* **registry:** fail-closed gossip provenance (attachment, source evidence, verified relay chains) ([362fd6e](https://github.com/therandomsecurityguy/signet/commit/362fd6ea3c29c9fbae3e5d7e30f2936275d3a6ae))
+* **registry:** fail-closed gossip provenance (attachment, source evidence, verified relay chains) ([101643f](https://github.com/therandomsecurityguy/signet/commit/101643fd490d8b3c93d16769e267da32a003c7a2))
+
+
+### Bug Fixes
+
+* **registry-cli:** seed a direct gossip event (relay claims are now verified) ([2d41cd8](https://github.com/therandomsecurityguy/signet/commit/2d41cd8cab62de263c424ba752a0f6147b9cd7a2))
+
 ## [0.1.76](https://github.com/therandomsecurityguy/signet/compare/v0.1.75...v0.1.76) (2026-11-21)
 
 
