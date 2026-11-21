@@ -71,7 +71,7 @@ Implemented now:
 - cryptographic publication signature verification
 - transparency checkpoint registration, checkpoint history, and consistency-proof validation
 - witness attestations, quorum checks, checkpoint observations, and disagreement evidence; waxing-style witness cosignatures on signed notes are verified against attached witnesses (name-bound spec hint for Ed25519 keys, SPKI hint for legacy PEMs) — invalid or ambiguous matches fail closed (`CHECKPOINT_COSIGNATURE_INVALID`) and quorum counts DISTINCT witnesses across attestations and cosignatures (one witness can never satisfy a quorum alone; details expose `valid_witness_count`)
-- witness gossip events and transparency timeline/provenance views
+- witness gossip events and transparency timeline/provenance views: gossip provenance is fail-closed — only witnesses attached to the log may gossip, the source witness must hold cryptographic evidence for the checkpoint (valid attestation or verified cosignature), and relay claims (`relayed_by_id`/`relay_hop_count`) must resolve to a verified prior event with a consistent chain depth (`TRANSPARENCY_GOSSIP_UNTRUSTED_WITNESS` / `UNVERIFIED_SOURCE` / `RELAY_UNVERIFIED` / `RELAY_HOP_INVALID`); verified chains are stored as `relayed_from_event_urn` (`sg:relayedFromEvent` edges) and surfaced on the timeline
 - minimal signed-note checkpoint ingestion seam that verifies BOTH key-identity conventions: the legacy SPKI-hint format and the transparency-dev spec note format (Ed25519: key hash = bigendian32(SHA256(origin + "\n" + 0x01||pubkey))[:4], pure-Ed25519 note signatures, `<name>+<hash8hex>+<base64>` verifier keys) — signed-note submissions for Ed25519 trusted keys must bind to the name-bound spec hint (fail-closed `CHECKPOINT_NOTE_KEY_HINT_MISMATCH`), reconciliation accepts `TESSERA_LOG_NOTE_VERIFIER` as the spec alternative to `TESSERA_LOG_PUBLIC_KEY` (mutually exclusive), and a fixture generated with the real x/mod note library is verified by both the Go runtime tests and the registry's TypeScript tests; the native sidecar emits spec notes in note mode (`TESSERA_LOG_NOTE_KEY`, byte-identical fixture-verified Ed25519 signing, mutually exclusive with the legacy PEM, key name pinned to `TESSERA_LOG_ORIGIN`)
 - RFC 8785 (JCS) canonical JSON for publication envelopes and governance events, with per-publication `canonicalization_algorithm` and legacy fallback
 - publication envelope provenance, revocation, and supersession references
@@ -123,6 +123,5 @@ Proposed next:
 - SHACL node expressions and `sh:js` (refused at registration; no execution semantics implemented), and an in-process SHACL-AF engine (graph mutation needs an inference-stage design)
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures over provenance graphs)
 - deeper witness-network semantics across multiple independent parties
-- richer multi-signature observation/gossip provenance
 
 Do not overclaim future guarantees as present behavior.

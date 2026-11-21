@@ -653,7 +653,7 @@ These are target-state capabilities, not current claims:
 - cryptographic trust-chain and key-rotation policy enforcement
 - full signed-note / checkpoint ecosystem compatibility where needed across transparency backends (waxing-style witness cosignatures are verified against attached witnesses with distinct-witness quorum counting, and the native sidecar serves the C2SP tlog-tiles read API — checkpoint, hash tiles, entry bundles — fixture-verified against transparency-dev's layout packages)
 - richer checkpoint-chain and historical consistency analysis beyond the currently registered checkpoint lineage
-- witness gossip and multi-party checkpoint exchange beyond the current quorum-attestation model
+- automated gossip transport between witnesses (exchange is API-recorded and verified — attached witnesses, source checkpoint evidence, verified relay chains — but not scheduled/dialed by the registry)
 - stronger split-view forensics and checkpoint-source provenance over a broader observation network
 - transparency-log inclusion-proof validation against Trillian/Tessera, beyond the current trusted-log plus checkpoint-signature and Merkle-proof verification model
 - full WORM/transparency integration with Trillian/Tessera (the internal Merkle log covers generation and replay; external reconciliation remains)

@@ -214,7 +214,6 @@ export async function seedTransparencySampleGraph(
       checkpoint_artifact_urn: checkpointTwoArtifactUrn,
       occurred_at: spec.gossipOccurredAt,
       source_channel: 'witness_rpc',
-      relayed_by_id: 'relay-gateway-1',
       relay_hop_count: 1,
       source_checkpoint_occurred_at: spec.sourceCheckpointOccurredAt,
     },

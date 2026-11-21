@@ -152,6 +152,8 @@ export type RegistryTransparencyGossipEvent = {
   checkpoint_artifact_urn: string;
   occurred_at: string;
   event_type: 'checkpoint_gossip';
+  /** Verified prior gossip event this one relays from (chain provenance). */
+  relayed_from_event_urn?: string;
   note_format?: 'raw_signed_note' | 'normalized_checkpoint';
   parse_strategy?: 'signed_note' | 'checkpoint_body_signature';
   payload_sha256?: string;

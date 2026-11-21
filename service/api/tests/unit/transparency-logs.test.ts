@@ -629,7 +629,7 @@ describe('transparency log routes', () => {
       keyRef: 'kms://registry/checkpoint-provenance',
       owner: 'security-team',
     });
-    await createTrustedKey(app, token, {
+    const witnessAlphaKey = await createTrustedKey(app, token, {
       keyRef: 'kms://registry/witness-provenance-alpha',
       owner: 'witness-ops',
     });
@@ -677,6 +677,14 @@ describe('transparency log routes', () => {
       headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({
         signed_note: note,
+        // Gossip provenance requires the source witness to have endorsed the
+        // checkpoint: alpha attests here so it may gossip it below.
+        witness_attestations: [
+          {
+            witness_id: 'witness-alpha',
+            signature: `base64:${signBytes(null, Buffer.from(body, 'utf8'), witnessAlphaKey).toString('base64')}`,
+          },
+        ],
       }),
     });
     expect(createCheckpoint.status).toBe(200);
@@ -724,8 +732,6 @@ describe('transparency log routes', () => {
         checkpoint_artifact_urn: checkpointArtifactUrn,
         occurred_at: '2026-01-02T00:11:00.000Z',
         source_channel: 'witness_rpc',
-        relayed_by_id: 'relay-gateway-1',
-        relay_hop_count: 3,
         source_checkpoint_occurred_at: '2026-01-02T00:00:00.000Z',
       }),
     });
@@ -737,8 +743,7 @@ describe('transparency log routes', () => {
       parse_strategy: 'signed_note',
       payload_sha256: expectedPayloadSha,
       source_channel: 'witness_rpc',
-      relayed_by_id: 'relay-gateway-1',
-      relay_hop_count: 3,
+      relay_hop_count: 1,
       source_checkpoint_occurred_at: '2026-01-02T00:00:00.000Z',
     });
 
@@ -768,9 +773,178 @@ describe('transparency log routes', () => {
           parse_strategy: 'signed_note',
           payload_sha256: expectedPayloadSha,
           source_channel: 'witness_rpc',
-          relayed_by_id: 'relay-gateway-1',
-          relay_hop_count: 3,
+          relay_hop_count: 1,
           source_checkpoint_occurred_at: '2026-01-02T00:00:00.000Z',
+        }),
+      ]),
+    });
+  });
+
+  it('verifies gossip provenance fail-closed: attachment, source evidence, and relay chains', async () => {
+    const { app, token } = await buildTestApp();
+    const checkpointKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/checkpoint-gossip',
+      owner: 'security-team',
+    });
+    const alphaKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/witness-gossip-alpha',
+      owner: 'witness-ops',
+    });
+    const betaKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/witness-gossip-beta',
+      owner: 'witness-ops',
+    });
+    const gatewayKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/witness-gossip-gateway',
+      owner: 'witness-ops',
+    });
+    await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/witness-gossip-gamma',
+      owner: 'witness-ops',
+    });
+    await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/witness-gossip-outsider',
+      owner: 'stranger',
+    });
+    const createLog = await app.request('/v1/transparency-logs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        log_id: 'sg-gossip-log',
+        origin: 'sg-gossip-log',
+        checkpoint_key_ref: 'kms://registry/checkpoint-gossip',
+      }),
+    });
+    expect(createLog.status).toBe(201);
+    for (const [witnessId, keyRef] of [
+      ['witness-gossip-alpha', 'kms://registry/witness-gossip-alpha'],
+      ['witness-gossip-beta', 'kms://registry/witness-gossip-beta'],
+      ['witness-gossip-gateway', 'kms://registry/witness-gossip-gateway'],
+      ['witness-gossip-gamma', 'kms://registry/witness-gossip-gamma'],
+    ] as const) {
+      const attach = await app.request('/v1/transparency-logs/sg-gossip-log/witnesses', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ witness_id: witnessId, key_ref: keyRef }),
+      });
+      expect(attach.status).toBe(201);
+    }
+
+    const root = `base64:${leafHash('entry-gossip').toString('base64')}`;
+    const body = checkpointBody('sg-gossip-log', 1, root);
+    const detachedSignature = `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`;
+    const attest = (key: KeyObject) => `base64:${signBytes(null, Buffer.from(body, 'utf8'), key).toString('base64')}`;
+    const createCheckpoint = await app.request('/v1/transparency-logs/sg-gossip-log/checkpoints', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        checkpoint_body: body,
+        checkpoint_signature: detachedSignature,
+        witness_attestations: [
+          { witness_id: 'witness-gossip-alpha', signature: attest(alphaKey) },
+          { witness_id: 'witness-gossip-beta', signature: attest(betaKey) },
+          { witness_id: 'witness-gossip-gateway', signature: attest(gatewayKey) },
+        ],
+      }),
+    });
+    expect(createCheckpoint.status).toBe(200);
+    const checkpointUrn = ((await createCheckpoint.json()) as { checkpoint_artifact_urn: string }).checkpoint_artifact_urn;
+
+    const gossip = (fields: Record<string, unknown>) =>
+      app.request('/v1/transparency-logs/sg-gossip-log/gossip-events', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ checkpoint_artifact_urn: checkpointUrn, ...fields }),
+      });
+
+    // A registered witness of a DIFFERENT log may not gossip for this one.
+    const otherLog = await app.request('/v1/transparency-logs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        log_id: 'sg-other-gossip-log',
+        origin: 'sg-other-gossip-log',
+        checkpoint_key_ref: 'kms://registry/checkpoint-gossip',
+      }),
+    });
+    expect(otherLog.status).toBe(201);
+    const attachOutsider = await app.request('/v1/transparency-logs/sg-other-gossip-log/witnesses', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        witness_id: 'witness-gossip-outsider',
+        key_ref: 'kms://registry/witness-gossip-outsider',
+      }),
+    });
+    expect(attachOutsider.status).toBe(201);
+
+    // Witnesses not attached to the log may not gossip.
+    const outsider = await gossip({ from_witness_id: 'witness-gossip-outsider', to_witness_id: 'witness-gossip-beta' });
+    expect(outsider.status).toBe(409);
+    await expect(outsider.json()).resolves.toMatchObject({ error: { code: 'TRANSPARENCY_GOSSIP_UNTRUSTED_WITNESS' } });
+
+    // Attached but without checkpoint evidence (gamma never attested).
+    const unverified = await gossip({ from_witness_id: 'witness-gossip-gamma', to_witness_id: 'witness-gossip-beta' });
+    expect(unverified.status).toBe(409);
+    await expect(unverified.json()).resolves.toMatchObject({ error: { code: 'TRANSPARENCY_GOSSIP_UNVERIFIED_SOURCE' } });
+
+    // Direct gossip: chain depth 1.
+    const first = await gossip({ from_witness_id: 'witness-gossip-gateway', to_witness_id: 'witness-gossip-alpha' });
+    expect(first.status).toBe(200);
+    const firstBody = (await first.json()) as { gossip_event_urn: string; relay_hop_count: number };
+    expect(firstBody.relay_hop_count).toBe(1);
+
+    // Verified relay: gateway handed it to alpha, alpha relays to beta.
+    const second = await gossip({
+      from_witness_id: 'witness-gossip-alpha',
+      to_witness_id: 'witness-gossip-beta',
+      relayed_by_id: 'witness-gossip-gateway',
+      relay_hop_count: 2,
+    });
+    expect(second.status).toBe(200);
+    await expect(second.json()).resolves.toMatchObject({
+      relay_hop_count: 2,
+      relayed_by_id: 'witness-gossip-gateway',
+      relayed_from_event_urn: firstBody.gossip_event_urn,
+    });
+
+    // Hop counts must match the verified chain.
+    const wrongHop = await gossip({
+      from_witness_id: 'witness-gossip-alpha',
+      to_witness_id: 'witness-gossip-beta',
+      relayed_by_id: 'witness-gossip-gateway',
+      relay_hop_count: 5,
+    });
+    expect(wrongHop.status).toBe(409);
+    await expect(wrongHop.json()).resolves.toMatchObject({ error: { code: 'TRANSPARENCY_GOSSIP_RELAY_HOP_INVALID' } });
+
+    // Relayer without a prior event for this checkpoint cannot be claimed.
+    const unlinked = await gossip({
+      from_witness_id: 'witness-gossip-alpha',
+      to_witness_id: 'witness-gossip-beta',
+      relayed_by_id: 'witness-gossip-gamma',
+    });
+    expect(unlinked.status).toBe(409);
+    await expect(unlinked.json()).resolves.toMatchObject({ error: { code: 'TRANSPARENCY_GOSSIP_RELAY_UNVERIFIED' } });
+
+    // Direct gossip cannot claim a multi-hop depth.
+    const inflated = await gossip({
+      from_witness_id: 'witness-gossip-beta',
+      to_witness_id: 'witness-gossip-alpha',
+      relay_hop_count: 4,
+    });
+    expect(inflated.status).toBe(409);
+    await expect(inflated.json()).resolves.toMatchObject({ error: { code: 'TRANSPARENCY_GOSSIP_RELAY_HOP_INVALID' } });
+
+    // The chain is exposed on the log's timeline.
+    const getLog = await app.request('/v1/transparency-logs/sg-gossip-log');
+    await expect(getLog.json()).resolves.toMatchObject({
+      gossip_events: expect.arrayContaining([
+        expect.objectContaining({
+          from_witness_id: 'witness-gossip-alpha',
+          to_witness_id: 'witness-gossip-beta',
+          relay_hop_count: 2,
+          relayed_from_event_urn: firstBody.gossip_event_urn,
         }),
       ]),
     });
