@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.9](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.8...registry-sdk-v0.1.9) (2026-11-21)
+
+
+### Features
+
+* **registry:** read-only de-facto vocabulary corpus analysis ([9063ddf](https://github.com/therandomsecurityguy/signet/commit/9063ddf7ca47b00f846fa6b0b76ac88216845785))
+* **registry:** read-only de-facto vocabulary corpus analysis ([1fc680f](https://github.com/therandomsecurityguy/signet/commit/1fc680f9b270f9235a4b211e7b09b9a7d896d5e7))
+
 ## [0.1.8](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.7...registry-sdk-v0.1.8) (2026-11-20)
 
 
