@@ -94,6 +94,11 @@ export function buildAppDependencies(env: Env) {
     ...(env.TESSERA_SIDECAR_URL ? { transparency_append_url: env.TESSERA_SIDECAR_URL } : {}),
     ...(env.TESSERA_SIDECAR_AUTH_TOKEN ? { transparency_append_token: env.TESSERA_SIDECAR_AUTH_TOKEN } : {}),
     ...(env.SHACL_RUNTIME_URL ? { shacl_runtime_url: env.SHACL_RUNTIME_URL } : {}),
+    ...(env.LLM_VALIDATOR_URL ? { llm_validator_url: env.LLM_VALIDATOR_URL } : {}),
+    ...(env.LLM_VALIDATOR_MODEL ? { llm_validator_model: env.LLM_VALIDATOR_MODEL } : {}),
+    ...(env.LLM_VALIDATOR_PROVIDER !== 'http' ? { llm_validator_provider: env.LLM_VALIDATOR_PROVIDER } : {}),
+    ...(env.LLM_VALIDATOR_API_KEY ? { llm_validator_api_key: env.LLM_VALIDATOR_API_KEY } : {}),
+    ...(env.LLM_VALIDATOR_JSON_MODE ? { llm_validator_json_mode: true } : {}),
     ...(env.SHACL_RUNTIME_TOKEN ? { shacl_runtime_token: env.SHACL_RUNTIME_TOKEN } : {}),
     ...(env.KEYLESS_TRUSTED_ROOTS && env.KEYLESS_ALLOWED_ISSUERS && env.KEYLESS_ALLOWED_SUBJECTS
       ? {

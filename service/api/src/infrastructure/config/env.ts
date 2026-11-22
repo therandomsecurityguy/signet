@@ -86,6 +86,21 @@ const EnvSchema = z.object({
   // TESSERA_LOG_PUBLIC_KEY. Preferred: binds signatures to key identity per
   // the signed-note spec.
   TESSERA_LOG_NOTE_VERIFIER: z.string().optional(),
+  // Optional advisory LLM validation backend (never blocks validation; the
+  // deterministic heuristic is the always-on fallback).
+  // - llm_validator_provider: 'http' (generic {prompt,input} JSON seam) or
+  //   'openai-compatible' (Chat Completions: OpenAI, vLLM, Ollama /v1, ...)
+  // - llm_validator_api_key: bearer token for the endpoint (secret; never
+  //   logged or recorded in evidence)
+  // - llm_validator_json_mode: request response_format json_object
+  LLM_VALIDATOR_URL: z.string().url().optional(),
+  LLM_VALIDATOR_MODEL: z.string().optional(),
+  LLM_VALIDATOR_PROVIDER: z.enum(['http', 'openai-compatible']).default('http'),
+  LLM_VALIDATOR_API_KEY: z.string().optional(),
+  LLM_VALIDATOR_JSON_MODE: z
+    .string()
+    .optional()
+    .transform((value) => value === 'true'),
   TIME_AWARE_GRAPH_BACKEND: z.enum(['json_file', 'memory', 'sparql']).default('json_file'),
   TIME_AWARE_GRAPH_STATE_FILE: z.string().default('../../data/registry/graph/time-aware-state.json'),
   TIME_AWARE_SPARQL_QUERY_URL: z.string().optional(),
@@ -117,6 +132,18 @@ const EnvSchema = z.object({
   // '*' (dev only); production must set an explicit allowlist.
   CORS_ALLOWED_ORIGINS: z.string().optional(),
 }).superRefine((env, ctx) => {
+  if (env.LLM_VALIDATOR_PROVIDER !== 'http' && !env.LLM_VALIDATOR_URL) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'LLM_VALIDATOR_PROVIDER requires LLM_VALIDATOR_URL to be set.',
+    });
+  }
+  if (env.LLM_VALIDATOR_API_KEY && !env.LLM_VALIDATOR_URL) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'LLM_VALIDATOR_API_KEY requires LLM_VALIDATOR_URL to be set.',
+    });
+  }
   if (env.TESSERA_LOG_PUBLIC_KEY && env.TESSERA_LOG_NOTE_VERIFIER) {
     ctx.addIssue({
       code: 'custom',
