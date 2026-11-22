@@ -58,6 +58,7 @@ import {
   type OntologyDocument,
 } from './ontology-validator.js';
 import { computeMerkleRoot, generateInclusionProof } from './merkle-log.js';
+import { computeWitnessTrustScoring } from './witness-trust-scoring.js';
 import { computeCanonicalRdf, projectPublicationGraphToNQuads } from './rdf-projection.js';
 import { verifyKeylessBundle, type KeylessTrustPolicy } from './keyless-verification.js';
 import {
@@ -1577,7 +1578,9 @@ export class DefaultRegistryService implements RegistryService {
    * or verified cosignature), per log and in total. Read-only observability
    * for the witness network — no scoring, no writes.
    */
-  async getTransparencyWitnessCoverage(): Promise<import('../ports/registry-service.js').RegistryTransparencyWitnessCoverage> {
+  async getTransparencyWitnessCoverage(
+    input?: { include_scoring?: boolean },
+  ): Promise<import('../ports/registry-service.js').RegistryTransparencyWitnessCoverage> {
     const logIds = [
       ...new Set(
         (await this.deps.graph.listNodesByType('TRANSPARENCY_LOG'))
@@ -1593,12 +1596,19 @@ export class DefaultRegistryService implements RegistryService {
         last?: string;
       }
     >();
+    const perLogCheckpointCounts = new Map<string, number>();
+    let newestCheckpointAt: string | undefined;
     for (const logId of logIds) {
       const log = await this.getTransparencyLog({ log_id: logId });
       if (!log) continue;
       const checkpoints = [...log.checkpoints].sort((left, right) =>
         left.checkpoint_artifact_urn.localeCompare(right.checkpoint_artifact_urn),
       );
+      perLogCheckpointCounts.set(logId, checkpoints.length);
+      for (const checkpoint of checkpoints) {
+        const occurredAt = checkpoint.occurred_at;
+        if (occurredAt && (!newestCheckpointAt || occurredAt > newestCheckpointAt)) newestCheckpointAt = occurredAt;
+      }
       const witnesses = [...log.witnesses].sort((left, right) => left.witness_id.localeCompare(right.witness_id));
       for (const witness of witnesses) {
         const entry = coverage.get(witness.witness_id) ?? { logs: [], checkpoints: 0 };
@@ -1630,6 +1640,25 @@ export class DefaultRegistryService implements RegistryService {
         ...(entry.last ? { last_witnessed_at: entry.last } : {}),
       }))
       .sort((left, right) => left.witness_id.localeCompare(right.witness_id));
+    if (input?.include_scoring) {
+      for (const witness of witnesses) {
+        const checkpointsAvailable = witness.logs.reduce(
+          (sum, log) => sum + (perLogCheckpointCounts.get(log.log_id) ?? 0),
+          0,
+        );
+        Object.assign(witness, {
+          scoring: computeWitnessTrustScoring({
+            logs_attached: witness.logs.length,
+            logs_total: logIds.length,
+            logs_witnessed: witness.logs_witnessed,
+            checkpoints_witnessed: witness.checkpoints_witnessed,
+            checkpoints_available: checkpointsAvailable,
+            ...(witness.last_witnessed_at ? { last_witnessed_at: witness.last_witnessed_at } : {}),
+            ...(newestCheckpointAt ? { newest_checkpoint_at: newestCheckpointAt } : {}),
+          }),
+        });
+      }
+    }
     return {
       totals: {
         logs: logIds.length,

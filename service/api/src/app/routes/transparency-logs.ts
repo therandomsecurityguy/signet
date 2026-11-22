@@ -42,8 +42,12 @@ const listTransparencyLogsRoute = createRoute({
 const getWitnessCoverageRoute = createRoute({
   method: 'get',
   path: '/v1/transparency-logs/witness/coverage',
+  request: {
+    query: z.object({ include_scoring: z.enum(['true', 'false']).optional() }),
+  },
   responses: {
-    200: { content: { 'application/json': { schema: z.any() } }, description: 'Cross-log witness coverage' },
+    200: { content: { 'application/json': { schema: z.any() } }, description: 'Cross-log witness coverage (advisory scoring opt-in)' },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid query parameters' },
   },
 });
 
@@ -202,7 +206,14 @@ export function registerTransparencyLogRoutes(
   });
 
   app.openapi(getWitnessCoverageRoute, async (c) => {
-    return c.json(await deps.getTransparencyWitnessCoverage.execute(), 200);
+    const includeScoring = c.req.query('include_scoring');
+    if (includeScoring !== undefined && includeScoring !== 'true' && includeScoring !== 'false') {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'include_scoring must be true or false.' } }, 400);
+    }
+    return c.json(
+      await deps.getTransparencyWitnessCoverage.execute(includeScoring === 'true' ? { include_scoring: true } : undefined),
+      200,
+    );
   });
 
   app.openapi(getTransparencyLogRoute, async (c) => {

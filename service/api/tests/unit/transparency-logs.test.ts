@@ -1509,6 +1509,12 @@ describe('transparency log routes', () => {
         logs_witnessed: number;
         checkpoints_witnessed: number;
         last_witnessed_at?: string;
+        scoring?: {
+          score: number;
+          components: { breadth: number; participation: number; recency: number };
+          weights: { breadth: number; participation: number; recency: number };
+          evidence: Record<string, unknown>;
+        };
       }>;
     };
     expect(body.totals).toEqual({ logs: 2, witnesses: 2, cross_log_witnesses: 1 });
@@ -1525,5 +1531,28 @@ describe('transparency log routes', () => {
     expect(beta.logs_witnessed).toBe(0);
     expect(beta.checkpoints_witnessed).toBe(0);
     expect(beta.last_witnessed_at).toBeUndefined();
+    // Coverage is unscored by default; scoring is advisory and opt-in.
+    expect(alpha.scoring).toBeUndefined();
+    expect(beta.scoring).toBeUndefined();
+
+    const scored = await app.request('/v1/transparency-logs/witness/coverage?include_scoring=true');
+    expect(scored.status).toBe(200);
+    const scoredBody = (await scored.json()) as typeof body;
+    const scoredAlpha = scoredBody.witnesses[0] as (typeof body.witnesses)[number];
+    expect(scoredAlpha.scoring?.score).toBe(100);
+    expect(scoredAlpha.scoring?.components).toEqual({ breadth: 1, participation: 1, recency: 1 });
+    expect(scoredAlpha.scoring?.weights).toEqual({ breadth: 0.4, participation: 0.4, recency: 0.2 });
+    expect(scoredAlpha.scoring?.evidence).toMatchObject({
+      logs_attached: 2,
+      logs_total: 2,
+      logs_witnessed: 2,
+      checkpoints_witnessed: 2,
+      checkpoints_available: 2,
+    });
+    const scoredBeta = scoredBody.witnesses[1] as (typeof body.witnesses)[number];
+    expect(scoredBeta.scoring?.score).toBe(0);
+
+    const invalid = await app.request('/v1/transparency-logs/witness/coverage?include_scoring=maybe');
+    expect(invalid.status).toBe(400);
   });
 });

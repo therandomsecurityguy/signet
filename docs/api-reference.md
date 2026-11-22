@@ -189,7 +189,13 @@ same key may witness different logs.
 to any log with per-log and total counts of checkpoints it holds
 cryptographic evidence for (valid attestation or verified cosignature),
 last-witnessed recency, and cross-log witness totals. It performs no
-scoring and writes nothing.
+scoring by default and writes nothing. Passing `?include_scoring=true` adds
+per-witness advisory trust scoring: deterministic components (breadth =
+logs witnessed / logs; participation = checkpoints witnessed / checkpoints
+available across attached logs; recency = 1 - age/30d against the newest
+checkpoint in the network, never wall clock), documented weights
+(0.4/0.4/0.2), and the raw evidence — nothing in validation, quorum, or
+gating reads it.
 | GET | `/v1/governance-log` | Internal governance Merkle log |
 | GET | `/v1/governance-log/proofs/{leafIndex}` | Inclusion proof |
 | GET | `/v1/governance-log/replay` | Verifier replay |
