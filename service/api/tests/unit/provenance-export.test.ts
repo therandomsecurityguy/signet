@@ -181,4 +181,60 @@ describe('provenance export', () => {
       expect(result.nquads).toContain('\\"reviewer\\"\\nsecond line');
     });
   });
+
+  it('emits revision lineage for same-entity derivations and specialization for versions', () => {
+    const triples = buildProvenanceTriples(provenance());
+    const hasIri = (subject: string, predicate: string, object: string) =>
+      triples.some(
+        (triple) =>
+          triple.subject === subject &&
+          triple.predicate === predicate &&
+          triple.object.kind === 'iri' &&
+          triple.object.value === object,
+      );
+    const v1 = 'urn:sg:skill-version:skill:demo@v1';
+    const v2 = 'urn:sg:skill-version:skill:demo@v2';
+    const logical = 'urn:sg:skill:skill:demo';
+    expect(hasIri(v2, `${PROV}wasRevisionOf`, v1)).toBe(true);
+    expect(hasIri(v1, `${PROV}wasRevisionOf`, v2)).toBe(false);
+    expect(hasIri(v1, `${PROV}specializationOf`, logical)).toBe(true);
+    expect(hasIri(v2, `${PROV}specializationOf`, logical)).toBe(true);
+    // derive the JSON-LD projection from the same list (bijection).
+    const jsonLd = projectProvenanceToJsonLd(provenance());
+    const v2Node = jsonLd['@graph'].find((node) => node['@id'] === v2);
+    expect(v2Node?.['prov:wasRevisionOf']).toEqual([{ '@id': v1 }]);
+    expect(v2Node?.['prov:specializationOf']).toEqual([{ '@id': logical }]);
+  });
+
+  it('does not flag cross-entity derivations as revisions', () => {
+    const input = provenance({
+      derivation_chain: [
+        {
+          version_urn: 'urn:sg:skill-version:skill:demo@v1',
+          was_derived_from: ['urn:sg:agent-version:agent:helper@v1'],
+          activities: [],
+        },
+        { version_urn: 'urn:sg:agent-version:agent:helper@v1', was_derived_from: [], activities: [] },
+      ],
+    });
+    const triples = buildProvenanceTriples(input);
+    expect(triples.filter((triple) => triple.predicate === `${PROV}wasRevisionOf`)).toEqual([]);
+    const hasIri = (subject: string, predicate: string, object: string) =>
+      triples.some(
+        (triple) =>
+          triple.subject === subject &&
+          triple.predicate === predicate &&
+          triple.object.kind === 'iri' &&
+          triple.object.value === object,
+      );
+    expect(
+      hasIri('urn:sg:skill-version:skill:demo@v1', `${PROV}wasDerivedFrom`, 'urn:sg:agent-version:agent:helper@v1'),
+    ).toBe(true);
+    expect(
+      hasIri('urn:sg:skill-version:skill:demo@v1', `${PROV}specializationOf`, 'urn:sg:skill:skill:demo'),
+    ).toBe(true);
+    expect(
+      hasIri('urn:sg:agent-version:agent:helper@v1', `${PROV}specializationOf`, 'urn:sg:agent:agent:helper'),
+    ).toBe(true);
+  });
 });
