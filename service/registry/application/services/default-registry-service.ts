@@ -1571,8 +1571,76 @@ export class DefaultRegistryService implements RegistryService {
     };
   }
 
-  async getTransparencyLogVerification(input: { log_id: string }): Promise<import('../ports/registry-service.js').RegistryTransparencyLogVerification | null> {
-    const log = await this.getTransparencyLog({ log_id: input.log_id });
+  /**
+   * Cross-log witness coverage: for every witness attached to any log, how
+   * many checkpoints it holds cryptographic evidence for (valid attestation
+   * or verified cosignature), per log and in total. Read-only observability
+   * for the witness network — no scoring, no writes.
+   */
+  async getTransparencyWitnessCoverage(): Promise<import('../ports/registry-service.js').RegistryTransparencyWitnessCoverage> {
+    const logIds = [
+      ...new Set(
+        (await this.deps.graph.listNodesByType('TRANSPARENCY_LOG'))
+          .map((node) => stringOrUndefined(node.properties['log_id']))
+          .filter((logId): logId is string => Boolean(logId)),
+      ),
+    ].sort();
+    const coverage = new Map<
+      string,
+      {
+        logs: Array<{ log_id: string; checkpoints_witnessed: number; last_witnessed_at?: string }>;
+        checkpoints: number;
+        last?: string;
+      }
+    >();
+    for (const logId of logIds) {
+      const log = await this.getTransparencyLog({ log_id: logId });
+      if (!log) continue;
+      const checkpoints = [...log.checkpoints].sort((left, right) =>
+        left.checkpoint_artifact_urn.localeCompare(right.checkpoint_artifact_urn),
+      );
+      const witnesses = [...log.witnesses].sort((left, right) => left.witness_id.localeCompare(right.witness_id));
+      for (const witness of witnesses) {
+        const entry = coverage.get(witness.witness_id) ?? { logs: [], checkpoints: 0 };
+        let witnessed = 0;
+        let last: string | undefined;
+        for (const checkpoint of checkpoints) {
+          if (await this.witnessHasCheckpointEvidence(witness.witness_id, checkpoint.checkpoint_artifact_urn)) {
+            witnessed += 1;
+            const occurredAt = checkpoint.occurred_at;
+            if (occurredAt && (!last || occurredAt > last)) last = occurredAt;
+          }
+        }
+        entry.logs.push({
+          log_id: logId,
+          checkpoints_witnessed: witnessed,
+          ...(last ? { last_witnessed_at: last } : {}),
+        });
+        entry.checkpoints += witnessed;
+        if (last && (!entry.last || last > entry.last)) entry.last = last;
+        coverage.set(witness.witness_id, entry);
+      }
+    }
+    const witnesses = [...coverage.entries()]
+      .map(([witness_id, entry]) => ({
+        witness_id,
+        logs: entry.logs,
+        logs_witnessed: entry.logs.filter((log) => log.checkpoints_witnessed > 0).length,
+        checkpoints_witnessed: entry.checkpoints,
+        ...(entry.last ? { last_witnessed_at: entry.last } : {}),
+      }))
+      .sort((left, right) => left.witness_id.localeCompare(right.witness_id));
+    return {
+      totals: {
+        logs: logIds.length,
+        witnesses: witnesses.length,
+        cross_log_witnesses: witnesses.filter((witness) => witness.logs_witnessed >= 2).length,
+      },
+      witnesses,
+    };
+  }
+
+  async getTransparencyLogVerification(input: { log_id: string }): Promise<import('../ports/registry-service.js').RegistryTransparencyLogVerification | null> {    const log = await this.getTransparencyLog({ log_id: input.log_id });
     if (!log) return null;
     const checkpoint = log.current_checkpoint;
     const checkpointKeyRef = stringOrUndefined(log.transparency_log.properties['checkpoint_key_ref']);
@@ -8555,6 +8623,9 @@ export class DefaultRegistryService implements RegistryService {
       ...(toOptionalStringProp('sha256', parseArtifactSha256(checkpointArtifactUrn))),
       tree_size: treeSize,
       root_hash: rootHash,
+      ...(stringOrUndefined(artifactNode.properties['occurred_at'])
+        ? { occurred_at: String(artifactNode.properties['occurred_at']) }
+        : {}),
       checkpoint_body: body,
       checkpoint_signature: signature,
       checkpoint_signature_valid: artifactNode.properties['checkpoint_signature_valid'] === true,

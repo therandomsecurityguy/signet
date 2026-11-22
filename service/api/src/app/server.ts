@@ -211,6 +211,7 @@ export function buildApp(deps: AppDependencies) {
   registerTransparencyLogRoutes(app, {
     listTransparencyLogs: deps.listTransparencyLogs,
     getTransparencyLog: deps.getTransparencyLog,
+    getTransparencyWitnessCoverage: deps.getTransparencyWitnessCoverage,
     createTransparencyLog: deps.createTransparencyLog,
     createTransparencyObservation: deps.createTransparencyObservation,
     createTransparencyGossipEvent: deps.createTransparencyGossipEvent,

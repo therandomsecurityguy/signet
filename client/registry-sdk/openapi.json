@@ -10504,6 +10504,22 @@
         }
       }
     },
+    "/v1/transparency-logs/witness/coverage": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Cross-log witness coverage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "nullable": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/transparency-logs/{logId}": {
       "get": {
         "parameters": [
