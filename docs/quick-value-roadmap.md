@@ -64,7 +64,7 @@ Human value:
 Today the project also provides a real first transparency/governance trust layer:
 - trusted `PUBLIC_KEY`, `TRANSPARENCY_LOG`, and `TRANSPARENCY_WITNESS` records
 - checkpoint registration, checkpoint history, and append-only consistency validation
-- witness attestations and quorum-aware verification
+- witness attestations and quorum-aware verification (distinct-witness counting; per-log key independence enforced — one key material per party, same key across different logs allowed)
 - observed checkpoints, disagreement evidence, and split-view-style detection surfaces
 - witness gossip events and timeline-style provenance views (fail-closed: attached witnesses only, source checkpoint evidence required, verified relay chains with consistent hop depths surfaced as `relayed_from_event_urn`)
 - signed-note checkpoint ingestion that preserves raw note bytes while normalizing the checkpoint, with fail-closed transparency-dev spec key-identity binding (Ed25519 name-bound key hash) alongside the legacy SPKI-hint format; the native sidecar emits spec notes in note mode (fixture-verified against golang's note library)

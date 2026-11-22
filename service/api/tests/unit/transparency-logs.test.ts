@@ -1392,4 +1392,52 @@ describe('transparency log routes', () => {
       ],
     });
   });
+
+  it('enforces witness independence: one key material per log', async () => {
+    const { app, token } = await buildTestApp();
+    const registerKey = async (keyRef: string, publicKeyPem: string) =>
+      await app.request('/v1/public-keys', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ key_ref: keyRef, algorithm: 'ed25519', public_key_pem: publicKeyPem, owner: 'witness-ops' }),
+      });
+    const primaryPem = generateKeyPairSync('ed25519').publicKey.export({ type: 'spki', format: 'pem' }).toString();
+    const checkpointPem = generateKeyPairSync('ed25519').publicKey.export({ type: 'spki', format: 'pem' }).toString();
+    expect((await registerKey('kms://registry/independence-k1', primaryPem)).status).toBe(201);
+    // Same key material under a DIFFERENT reference still counts as one party.
+    expect((await registerKey('kms://registry/independence-k2', primaryPem)).status).toBe(201);
+    expect((await registerKey('kms://registry/independence-checkpoint', checkpointPem)).status).toBe(201);
+
+    const createLog = async (logId: string) =>
+      await app.request('/v1/transparency-logs', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ log_id: logId, origin: logId, checkpoint_key_ref: 'kms://registry/independence-checkpoint' }),
+      });
+    expect((await createLog('sg-independence-log')).status).toBe(201);
+    expect((await createLog('sg-independence-other')).status).toBe(201);
+
+    const attach = async (logId: string, witnessId: string, keyRef: string) =>
+      await app.request(`/v1/transparency-logs/${logId}/witnesses`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ witness_id: witnessId, key_ref: keyRef }),
+      });
+
+    expect((await attach('sg-independence-log', 'witness-one', 'kms://registry/independence-k1')).status).toBe(201);
+    const sameRef = await attach('sg-independence-log', 'witness-two', 'kms://registry/independence-k1');
+    expect(sameRef.status).toBe(409);
+    await expect(sameRef.json()).resolves.toMatchObject({ error: { code: 'TRANSPARENCY_WITNESS_DUPLICATE_KEY' } });
+    const samePem = await attach('sg-independence-log', 'witness-three', 'kms://registry/independence-k2');
+    expect(samePem.status).toBe(409);
+    await expect(samePem.json()).resolves.toMatchObject({ error: { code: 'TRANSPARENCY_WITNESS_DUPLICATE_KEY' } });
+    // A genuinely distinct key attaches fine.
+    expect(
+      (await attach('sg-independence-log', 'witness-four', 'kms://registry/independence-checkpoint')).status,
+    ).toBe(201);
+    // The same key may witness a DIFFERENT log (independence is per log).
+    expect((await attach('sg-independence-other', 'witness-five', 'kms://registry/independence-k1')).status).toBe(201);
+    // Idempotent re-attach of an existing witness stays a no-op.
+    expect((await attach('sg-independence-log', 'witness-one', 'kms://registry/independence-k1')).status).toBe(200);
+  });
 });
