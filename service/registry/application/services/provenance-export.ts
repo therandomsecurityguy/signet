@@ -18,9 +18,12 @@
  * wasDerivedFrom/wasGeneratedBy/used/wasAssociatedWith) plus revision
  * lineage — `prov:wasRevisionOf` between versions of the same logical
  * entity and `prov:specializationOf` from each version to its logical
- * entity URN — plus the registry's own `urn:sg:` property/entity-type
- * encodings (shared with the canonical publication projection via
- * `sg-vocabulary.ts`).
+ * entity URN — activity qualification (`prov:qualifiedAssociation` to
+ * deterministic `prov:Association` nodes carrying `prov:agent` and
+ * `prov:hadRole`, since association edges carry roles) and revocation
+ * invalidation (`prov:wasInvalidatedBy` to a completed revoke activity) —
+ * plus the registry's own `urn:sg:` property/entity-type encodings (shared
+ * with the canonical publication projection via `sg-vocabulary.ts`).
  */
 
 import type { RegistryPublicationProvenance } from '../ports/registry-service.js';
@@ -43,6 +46,17 @@ const PROV = 'http://www.w3.org/ns/prov#';
  * `urn:sg:skill:{key}`, agent likewise); null for anything else. Used for
  * PROV-O revision lineage (wasRevisionOf / specializationOf).
  */
+/**
+ * Deterministic IRI for a PROV-O qualified association (no blank nodes in
+ * the triple model): `urn:sg:prov-association:{task} :{agent}` with the
+ * registry prefixes stripped when present.
+ */
+export function associationUrnFor(taskUrn: string, agentUrn: string): string {
+  const task = taskUrn.startsWith('urn:sg:task:') ? taskUrn.slice('urn:sg:task:'.length) : taskUrn;
+  const agent = agentUrn.startsWith('urn:sg:prov-agent:') ? agentUrn.slice('urn:sg:prov-agent:'.length) : agentUrn;
+  return `urn:sg:prov-association:${task}:${agent}`;
+}
+
 export function logicalUrnForVersion(versionUrn: string): string | null {
   for (const [versionPrefix, logicalPrefix] of [
     ['urn:sg:skill-version:', 'urn:sg:skill:'],
@@ -139,6 +153,20 @@ export function buildProvenanceTriples(provenance: ProvenanceExportInput): Prove
         if (agent.role) {
           triples.push(property(agent.urn, 'role', agent.role));
         }
+        // Qualified association: a real PROV-O Association node carrying the
+        // agent and (when known) the role, alongside the simplified edge.
+        const association = associationUrnFor(activity.task_urn, agent.urn);
+        triples.push({ subject: activity.task_urn, predicate: `${PROV}qualifiedAssociation`, object: iri(association) });
+        triples.push({ subject: association, predicate: RDF_TYPE, object: iri(`${PROV}Association`) });
+        triples.push({ subject: association, predicate: `${PROV}agent`, object: iri(agent.urn) });
+        if (agent.role) {
+          triples.push({ subject: association, predicate: `${PROV}hadRole`, object: iri(`urn:sg:role:${agent.role}`) });
+        }
+      }
+      // Revocation invalidation: a completed revoke activity invalidated the
+      // version it targeted.
+      if (activity.operation === 'revoke' && activity.status === 'completed') {
+        triples.push({ subject: entry.version_urn, predicate: `${PROV}wasInvalidatedBy`, object: iri(activity.task_urn) });
       }
     }
   }
