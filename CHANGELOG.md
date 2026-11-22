@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.78](https://github.com/therandomsecurityguy/signet/compare/v0.1.77...v0.1.78) (2026-11-22)
+
+
+### Features
+
+* **registry:** PROV-O revision lineage in the canonical provenance export ([5458501](https://github.com/therandomsecurityguy/signet/commit/5458501e7172ed007a5fc4c85634ee2f1017b8fd))
+* **registry:** PROV-O revision lineage in the canonical provenance export ([2e6d08b](https://github.com/therandomsecurityguy/signet/commit/2e6d08b278f9b517144aac12b29f0570d5c45fb3))
+
 ## [0.1.77](https://github.com/therandomsecurityguy/signet/compare/v0.1.76...v0.1.77) (2026-11-21)
 
 
