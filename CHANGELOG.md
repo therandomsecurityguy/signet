@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.79](https://github.com/therandomsecurityguy/signet/compare/v0.1.78...v0.1.79) (2026-11-22)
+
+
+### Features
+
+* **registry:** PROV-O qualified associations and revocation invalidation edges ([543bdaf](https://github.com/therandomsecurityguy/signet/commit/543bdafcdc4eaaa194d6231888c71e77a0ff8439))
+* **registry:** PROV-O qualified associations and revocation invalidation edges ([fc240ee](https://github.com/therandomsecurityguy/signet/commit/fc240ee3d389a27d5d5cf7f050ca4ffd1b7d1706))
+
 ## [0.1.78](https://github.com/therandomsecurityguy/signet/compare/v0.1.77...v0.1.78) (2026-11-22)
 
 
