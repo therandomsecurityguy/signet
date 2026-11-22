@@ -144,6 +144,36 @@ export type RegistryTransparencyWitnessSummary = {
   trust_status?: string;
 };
 
+export type RegistryTransparencyWitnessLogCoverage = {
+  log_id: string;
+  checkpoints_witnessed: number;
+  last_witnessed_at?: string;
+};
+
+export type RegistryTransparencyWitnessCoverageEntry = {
+  witness_id: string;
+  logs: RegistryTransparencyWitnessLogCoverage[];
+  /** Logs where this witness holds evidence for at least one checkpoint. */
+  logs_witnessed: number;
+  checkpoints_witnessed: number;
+  last_witnessed_at?: string;
+};
+
+/**
+ * Cross-log witness coverage: read-only observability for the witness
+ * network — per witness, how many checkpoints across which logs it holds
+ * cryptographic evidence for (valid attestation or verified cosignature).
+ * No scoring, no writes.
+ */
+export type RegistryTransparencyWitnessCoverage = {
+  totals: {
+    logs: number;
+    witnesses: number;
+    cross_log_witnesses: number;
+  };
+  witnesses: RegistryTransparencyWitnessCoverageEntry[];
+};
+
 export type RegistryTransparencyGossipEvent = {
   gossip_event_urn: string;
   log_id: string;
@@ -1242,6 +1272,7 @@ export interface RegistryService {
   ): Promise<RegistryTransparencyCheckpointObservation>;
   createTransparencyGossipEvent(input: CreateTransparencyGossipEventInput): Promise<RegistryTransparencyGossipEvent>;
   getTransparencyLogVerification(input: { log_id: string }): Promise<RegistryTransparencyLogVerification | null>;
+  getTransparencyWitnessCoverage(): Promise<RegistryTransparencyWitnessCoverage>;
   getTransparencyLogTimeline(input: { log_id: string }): Promise<{ events: RegistryTransparencyTimelineEvent[] } | null>;
   reconcilePublicationTransparency(input: {
     publication_urn: string;

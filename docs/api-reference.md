@@ -135,6 +135,7 @@ const verification = await client.getSkillVerification('skill:example', 1);
 | POST | `/v1/public-keys` | Register trusted public key |
 | POST | `/v1/public-keys/{keyRef}/revoke` | Revoke trusted public key |
 | GET | `/v1/transparency-logs` | List transparency logs |
+| GET | `/v1/transparency-logs/witness/coverage` | Cross-log witness coverage from cryptographic evidence |
 | GET | `/v1/transparency-logs/{logId}` | Get transparency log |
 | GET | `/v1/transparency-logs/{logId}/verification` | Log verification |
 | GET | `/v1/transparency-logs/{logId}/timeline` | Log timeline |
@@ -182,6 +183,13 @@ quorum alone. Witness independence is enforced at attachment: a second
 witness id bound to the same key material (same key reference or identical
 PEM) on one log is rejected with `TRANSPARENCY_WITNESS_DUPLICATE_KEY`; the
 same key may witness different logs.
+
+**Cross-log witness coverage** is read-only observability:
+`GET /v1/transparency-logs/witness/coverage` lists every witness attached
+to any log with per-log and total counts of checkpoints it holds
+cryptographic evidence for (valid attestation or verified cosignature),
+last-witnessed recency, and cross-log witness totals. It performs no
+scoring and writes nothing.
 | GET | `/v1/governance-log` | Internal governance Merkle log |
 | GET | `/v1/governance-log/proofs/{leafIndex}` | Inclusion proof |
 | GET | `/v1/governance-log/replay` | Verifier replay |

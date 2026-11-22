@@ -21,6 +21,7 @@ import type { CreateTransparencyLogUseCase } from '../../application/usecases/cr
 import type { CreateTransparencyObservationUseCase } from '../../application/usecases/create-transparency-observation.js';
 import type { CreateTransparencyWitnessUseCase } from '../../application/usecases/create-transparency-witness.js';
 import type { GetTransparencyLogUseCase } from '../../application/usecases/get-transparency-log.js';
+import type { GetTransparencyWitnessCoverageUseCase } from '../../application/usecases/get-transparency-witness-coverage.js';
 import type { GetTransparencyLogTimelineUseCase } from '../../application/usecases/get-transparency-log-timeline.js';
 import type { GetTransparencyLogVerificationUseCase } from '../../application/usecases/get-transparency-log-verification.js';
 import type { ListTransparencyLogsUseCase } from '../../application/usecases/list-transparency-logs.js';
@@ -35,6 +36,14 @@ const listTransparencyLogsRoute = createRoute({
   responses: {
     200: { content: { 'application/json': { schema: ListTransparencyLogsOutputSchema } }, description: 'List transparency logs' },
     400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid query parameters' },
+  },
+});
+
+const getWitnessCoverageRoute = createRoute({
+  method: 'get',
+  path: '/v1/transparency-logs/witness/coverage',
+  responses: {
+    200: { content: { 'application/json': { schema: z.any() } }, description: 'Cross-log witness coverage' },
   },
 });
 
@@ -168,6 +177,7 @@ export function registerTransparencyLogRoutes(
   deps: {
     listTransparencyLogs: ListTransparencyLogsUseCase;
     getTransparencyLog: GetTransparencyLogUseCase;
+    getTransparencyWitnessCoverage: GetTransparencyWitnessCoverageUseCase;
     createTransparencyLog: CreateTransparencyLogUseCase;
     createTransparencyObservation: CreateTransparencyObservationUseCase;
     createTransparencyGossipEvent: CreateTransparencyGossipEventUseCase;
@@ -189,6 +199,10 @@ export function registerTransparencyLogRoutes(
       ...(typeof parsed.data.offset === 'number' ? { offset: parsed.data.offset } : {}),
     });
     return c.json(body, 200);
+  });
+
+  app.openapi(getWitnessCoverageRoute, async (c) => {
+    return c.json(await deps.getTransparencyWitnessCoverage.execute(), 200);
   });
 
   app.openapi(getTransparencyLogRoute, async (c) => {

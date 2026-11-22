@@ -271,8 +271,9 @@ Proposed next (not implemented yet):
   out-of-process — decided in `docs/shacl-af-in-process-design.md`
 - richer LLM backends for the advisory validation layer
 - full WORM/transparency integration with Trillian/Tessera reconciliation
-- deeper witness-network semantics: cross-log witness coverage and trust
-  scoring across parties
+- deeper witness-network semantics: cross-log witness trust scoring across
+  parties (coverage reporting is implemented via
+  `GET /v1/transparency-logs/witness/coverage`)
 
 ### Get it to run
 

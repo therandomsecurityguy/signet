@@ -1440,4 +1440,90 @@ describe('transparency log routes', () => {
     // Idempotent re-attach of an existing witness stays a no-op.
     expect((await attach('sg-independence-log', 'witness-one', 'kms://registry/independence-k1')).status).toBe(200);
   });
+
+  it('reports cross-log witness coverage from cryptographic evidence', async () => {
+    const { app, token } = await buildTestApp();
+    const alphaKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/coverage-alpha',
+      owner: 'witness-ops',
+    });
+    const betaKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/coverage-beta',
+      owner: 'witness-ops',
+    });
+    const checkpointKey = await createTrustedKey(app, token, {
+      keyRef: 'kms://registry/coverage-checkpoint',
+      owner: 'security-team',
+    });
+    void betaKey;
+    for (const logId of ['sg-coverage-a', 'sg-coverage-b'] as const) {
+      const createLog = await app.request('/v1/transparency-logs', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ log_id: logId, origin: logId, checkpoint_key_ref: 'kms://registry/coverage-checkpoint' }),
+      });
+      expect(createLog.status).toBe(201);
+    }
+    // Alpha witnesses both logs; beta is attached to log A but never attests.
+    // Attaching an already-registered witness to another log is edge-level
+    // (the witness node exists) and returns 200 for the second log.
+    for (const [logId, witnessId, keyRef, expectedStatus] of [
+      ['sg-coverage-a', 'coverage-alpha', 'kms://registry/coverage-alpha', 201],
+      ['sg-coverage-b', 'coverage-alpha', 'kms://registry/coverage-alpha', 200],
+      ['sg-coverage-a', 'coverage-beta', 'kms://registry/coverage-beta', 201],
+    ] as const) {
+      const attach = await app.request(`/v1/transparency-logs/${logId}/witnesses`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ witness_id: witnessId, key_ref: keyRef }),
+      });
+      expect(attach.status).toBe(expectedStatus);
+    }
+    for (const logId of ['sg-coverage-a', 'sg-coverage-b'] as const) {
+      const root = `base64:${leafHash(`coverage-${logId}`).toString('base64')}`;
+      const body = checkpointBody(logId, 1, root);
+      const createCheckpoint = await app.request(`/v1/transparency-logs/${logId}/checkpoints`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          checkpoint_body: body,
+          checkpoint_signature: `base64:${signBytes(null, Buffer.from(body, 'utf8'), checkpointKey).toString('base64')}`,
+          witness_attestations: [
+            {
+              witness_id: 'coverage-alpha',
+              signature: `base64:${signBytes(null, Buffer.from(body, 'utf8'), alphaKey).toString('base64')}`,
+            },
+          ],
+        }),
+      });
+      expect(createCheckpoint.status).toBe(200);
+    }
+
+    const coverage = await app.request('/v1/transparency-logs/witness/coverage');
+    expect(coverage.status).toBe(200);
+    const body = (await coverage.json()) as {
+      totals: { logs: number; witnesses: number; cross_log_witnesses: number };
+      witnesses: Array<{
+        witness_id: string;
+        logs: Array<{ log_id: string; checkpoints_witnessed: number; last_witnessed_at?: string }>;
+        logs_witnessed: number;
+        checkpoints_witnessed: number;
+        last_witnessed_at?: string;
+      }>;
+    };
+    expect(body.totals).toEqual({ logs: 2, witnesses: 2, cross_log_witnesses: 1 });
+    const alpha = body.witnesses[0] as (typeof body.witnesses)[number];
+    expect(alpha.witness_id).toBe('coverage-alpha');
+    expect(alpha.logs.map((log) => log.log_id)).toEqual(['sg-coverage-a', 'sg-coverage-b']);
+    expect(alpha.logs.map((log) => log.checkpoints_witnessed)).toEqual([1, 1]);
+    expect(alpha.logs_witnessed).toBe(2);
+    expect(alpha.checkpoints_witnessed).toBe(2);
+    expect(alpha.last_witnessed_at).toBeTruthy();
+    const beta = body.witnesses[1] as (typeof body.witnesses)[number];
+    expect(beta.witness_id).toBe('coverage-beta');
+    expect(beta.logs).toEqual([{ log_id: 'sg-coverage-a', checkpoints_witnessed: 0 }]);
+    expect(beta.logs_witnessed).toBe(0);
+    expect(beta.checkpoints_witnessed).toBe(0);
+    expect(beta.last_witnessed_at).toBeUndefined();
+  });
 });

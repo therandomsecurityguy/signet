@@ -602,6 +602,7 @@ The project already has:
 - public-key revocation and supersession states that support trust-root lifecycle policy
 - checkpoint history with consistency-proof validation for append-only log evolution
 - witness quorum checks over checkpoint attestations for first multi-party trust; witness independence is enforced per log — one key material per party (`TRANSPARENCY_WITNESS_DUPLICATE_KEY` on duplicate attachment), with distinct-witness quorum counting and the same key allowed across different logs
+- cross-log witness coverage reporting (`GET /v1/transparency-logs/witness/coverage`): per-witness checkpoints witnessed from cryptographic evidence per log, last-witnessed recency, and cross-log totals — read-only, no scoring
 - externally observed checkpoints and disagreement surfaces for first split-view detection
 - a minimal signed-note checkpoint ingestion seam that preserves raw note bytes while normalizing the checkpoint for verification; key-identity binding is fail-closed — notes for Ed25519 trusted keys must carry the transparency-dev spec key hash (bigendian32(SHA256(origin + "\n" + 0x01||pubkey))[:4]) and reconciliation accepts a spec verifier key (`<name>+<hash8hex>+<base64>`) as the alternative to the legacy PEM
 

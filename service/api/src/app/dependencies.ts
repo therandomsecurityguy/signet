@@ -32,6 +32,7 @@ import { CreateTransparencyCheckpointUseCase } from '../application/usecases/cre
 import { GetAgentUseCase } from '../application/usecases/get-agent.js';
 import { GetPublicKeyUseCase } from '../application/usecases/get-public-key.js';
 import { GetTransparencyLogUseCase } from '../application/usecases/get-transparency-log.js';
+import { GetTransparencyWitnessCoverageUseCase } from '../application/usecases/get-transparency-witness-coverage.js';
 import { GetTransparencyLogTimelineUseCase } from '../application/usecases/get-transparency-log-timeline.js';
 import { GetTransparencyLogVerificationUseCase } from '../application/usecases/get-transparency-log-verification.js';
 import { ReconcilePublicationTransparencyUseCase } from '../application/usecases/reconcile-publication-transparency.js';
@@ -167,6 +168,7 @@ export function buildAppDependencies(env: Env) {
     revokePublicKey: new RevokePublicKeyUseCase(registryCore.service),
     listTransparencyLogs: new ListTransparencyLogsUseCase(registryCore.service),
     getTransparencyLog: new GetTransparencyLogUseCase(registryCore.service),
+    getTransparencyWitnessCoverage: new GetTransparencyWitnessCoverageUseCase(registryCore.service),
     createTransparencyLog: new CreateTransparencyLogUseCase(registryCore.service),
     createTransparencyObservation: new CreateTransparencyObservationUseCase(registryCore.service),
     createTransparencyGossipEvent: new CreateTransparencyGossipEventUseCase(registryCore.service),
