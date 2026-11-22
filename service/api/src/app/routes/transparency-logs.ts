@@ -650,6 +650,7 @@ function mapTransparencyLogError(err: unknown) {
         return new ApiError(err.code, 404, err.message);
       case 'TRANSPARENCY_WITNESS_INVALID_KEY':
       case 'TRANSPARENCY_WITNESS_CREATE_CONFLICT':
+      case 'TRANSPARENCY_WITNESS_DUPLICATE_KEY':
       case 'TRANSPARENCY_CHECKPOINT_INVALID':
       case 'TRANSPARENCY_GOSSIP_INVALID_WITNESS':
       case 'TRANSPARENCY_GOSSIP_UNTRUSTED_WITNESS':

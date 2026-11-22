@@ -178,7 +178,10 @@ invalid signature or an ambiguous match across witnesses fails the
 submission closed with `CHECKPOINT_COSIGNATURE_INVALID`. Witness quorum
 counts **distinct** witnesses across valid attestations and verified
 cosignatures (`valid_witness_count`), so one witness can never satisfy a
-quorum alone.
+quorum alone. Witness independence is enforced at attachment: a second
+witness id bound to the same key material (same key reference or identical
+PEM) on one log is rejected with `TRANSPARENCY_WITNESS_DUPLICATE_KEY`; the
+same key may witness different logs.
 | GET | `/v1/governance-log` | Internal governance Merkle log |
 | GET | `/v1/governance-log/proofs/{leafIndex}` | Inclusion proof |
 | GET | `/v1/governance-log/replay` | Verifier replay |

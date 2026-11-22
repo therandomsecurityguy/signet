@@ -824,6 +824,27 @@ export class DefaultRegistryService implements RegistryService {
         properties: {},
       });
     }
+    // Witness independence: one party is one key material per log. A second
+    // witness id bound to the same key (by reference or identical PEM) would
+    // let a single party multiply its quorum weight; reject it. The same key
+    // may witness DIFFERENT logs.
+    const attachedWitnessEdges = await this.deps.graph.listEdgesFrom(log.transparency_log.urn, 'sg:trustedByWitness');
+    for (const edge of attachedWitnessEdges) {
+      if (edge.to_urn === witnessUrn) continue; // idempotent re-attach
+      const attached = await this.deps.graph.getNode(edge.to_urn);
+      if (!attached || attached.entity_type !== 'TRANSPARENCY_WITNESS') continue;
+      const attachedKeyRef = stringOrUndefined(attached.properties['key_ref']);
+      const attachedKey = attachedKeyRef ? await this.resolveTrustedPublicKeyMaterial(attachedKeyRef) : null;
+      if (
+        attachedKeyRef === input.key_ref ||
+        (attachedKey && attachedKey.public_key_pem === key.public_key_pem)
+      ) {
+        throw new RegistryCoreError(
+          'TRANSPARENCY_WITNESS_DUPLICATE_KEY',
+          `Witness ${String(attached.properties['witness_id'] ?? attached.urn)} already covers this log with the same key material; independent witnesses require distinct keys.`,
+        );
+      }
+    }
     await this.deps.graph.upsertEdge({
       from_urn: log.transparency_log.urn,
       to_urn: witnessUrn,
