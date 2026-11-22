@@ -202,7 +202,8 @@ Transparency and provenance:
   checkpoint evidence, relay chains verified with consistent hop depths and
   exposed as `relayed_from_event_urn`); waxing-style witness cosignatures
   on signed notes are verified against attached witnesses with fail-closed
-  handling and distinct-witness quorum counting
+  handling and distinct-witness quorum counting; cross-log coverage
+  reporting with opt-in advisory trust scoring
 - minimal signed-note checkpoint ingestion seam that verifies the
   transparency-dev spec note format (Ed25519, name-bound key hash,
   `<name>+<hash8hex>+<base64>` verifier keys) alongside the legacy
@@ -271,9 +272,6 @@ Proposed next (not implemented yet):
   out-of-process — decided in `docs/shacl-af-in-process-design.md`
 - richer LLM backends for the advisory validation layer
 - full WORM/transparency integration with Trillian/Tessera reconciliation
-- deeper witness-network semantics: cross-log witness trust scoring across
-  parties (coverage reporting is implemented via
-  `GET /v1/transparency-logs/witness/coverage`)
 
 ### Get it to run
 

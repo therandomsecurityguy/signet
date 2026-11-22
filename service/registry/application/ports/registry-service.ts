@@ -150,6 +150,27 @@ export type RegistryTransparencyWitnessLogCoverage = {
   last_witnessed_at?: string;
 };
 
+/**
+ * Advisory, deterministic trust scoring derived only from coverage
+ * evidence (see the registry's witness-trust-scoring module for the
+ * documented components and weights). Nothing in validation, quorum, or
+ * gating reads it.
+ */
+export type RegistryTransparencyWitnessScoring = {
+  score: number;
+  components: { breadth: number; participation: number; recency: number };
+  weights: { breadth: number; participation: number; recency: number };
+  evidence: {
+    logs_attached: number;
+    logs_total: number;
+    logs_witnessed: number;
+    checkpoints_witnessed: number;
+    checkpoints_available: number;
+    last_witnessed_at?: string;
+    newest_checkpoint_at?: string;
+  };
+};
+
 export type RegistryTransparencyWitnessCoverageEntry = {
   witness_id: string;
   logs: RegistryTransparencyWitnessLogCoverage[];
@@ -157,6 +178,8 @@ export type RegistryTransparencyWitnessCoverageEntry = {
   logs_witnessed: number;
   checkpoints_witnessed: number;
   last_witnessed_at?: string;
+  /** Present only when requested with include_scoring=true. */
+  scoring?: RegistryTransparencyWitnessScoring;
 };
 
 /**
@@ -1272,7 +1295,7 @@ export interface RegistryService {
   ): Promise<RegistryTransparencyCheckpointObservation>;
   createTransparencyGossipEvent(input: CreateTransparencyGossipEventInput): Promise<RegistryTransparencyGossipEvent>;
   getTransparencyLogVerification(input: { log_id: string }): Promise<RegistryTransparencyLogVerification | null>;
-  getTransparencyWitnessCoverage(): Promise<RegistryTransparencyWitnessCoverage>;
+  getTransparencyWitnessCoverage(input?: { include_scoring?: boolean }): Promise<RegistryTransparencyWitnessCoverage>;
   getTransparencyLogTimeline(input: { log_id: string }): Promise<{ events: RegistryTransparencyTimelineEvent[] } | null>;
   reconcilePublicationTransparency(input: {
     publication_urn: string;

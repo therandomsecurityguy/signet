@@ -4662,20 +4662,36 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    include_scoring?: "true" | "false";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description Cross-log witness coverage */
+                /** @description Cross-log witness coverage (advisory scoring opt-in) */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": unknown;
+                    };
+                };
+                /** @description Invalid query parameters */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
                     };
                 };
             };

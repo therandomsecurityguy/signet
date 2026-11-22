@@ -3,7 +3,7 @@ import type { RegistryService } from '../../../../registry/application/ports/reg
 export class GetTransparencyWitnessCoverageUseCase {
   constructor(private readonly registry: RegistryService) {}
 
-  async execute() {
-    return await this.registry.getTransparencyWitnessCoverage();
+  async execute(input?: { include_scoring?: boolean }) {
+    return await this.registry.getTransparencyWitnessCoverage(input);
   }
 }

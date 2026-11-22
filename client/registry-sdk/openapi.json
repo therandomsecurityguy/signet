@@ -10506,13 +10506,57 @@
     },
     "/v1/transparency-logs/witness/coverage": {
       "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "include_scoring",
+            "in": "query"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "Cross-log witness coverage",
+            "description": "Cross-log witness coverage (advisory scoring opt-in)",
             "content": {
               "application/json": {
                 "schema": {
                   "nullable": true
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
                 }
               }
             }
