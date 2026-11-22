@@ -237,4 +237,76 @@ describe('provenance export', () => {
       hasIri('urn:sg:agent-version:agent:helper@v1', `${PROV}specializationOf`, 'urn:sg:agent:agent:helper'),
     ).toBe(true);
   });
+
+  it('emits qualified associations with roles and invalidation edges for completed revokes', () => {
+    const input = provenance({
+      derivation_chain: [
+        {
+          version_urn: 'urn:sg:skill-version:skill:demo@v1',
+          was_derived_from: [],
+          activities: [
+            {
+              task_urn: 'urn:sg:task:t1',
+              operation: 'publish',
+              status: 'completed',
+              actor: 'pablo',
+              used: [],
+              associated_agents: [{ urn: 'urn:sg:prov-agent:pablo', agent_name: 'Pablo', role: 'publisher' }],
+            },
+            {
+              task_urn: 'urn:sg:task:t2',
+              operation: 'revoke',
+              status: 'completed',
+              actor: 'dana',
+              used: [],
+              associated_agents: [{ urn: 'urn:sg:prov-agent:dana', agent_name: 'Dana' }],
+            },
+            {
+              task_urn: 'urn:sg:task:t3',
+              operation: 'revoke',
+              status: 'failed',
+              actor: 'dana',
+              used: [],
+              associated_agents: [],
+            },
+          ],
+        },
+      ],
+    });
+    const triples = buildProvenanceTriples(input);
+    const hasIri = (subject: string, predicate: string, object: string) =>
+      triples.some(
+        (triple) =>
+          triple.subject === subject &&
+          triple.predicate === predicate &&
+          triple.object.kind === 'iri' &&
+          triple.object.value === object,
+      );
+
+    // Qualified association with role alongside the simplified edge.
+    const pabloAssociation = 'urn:sg:prov-association:t1:pablo';
+    expect(hasIri('urn:sg:task:t1', `${PROV}qualifiedAssociation`, pabloAssociation)).toBe(true);
+    expect(hasIri(pabloAssociation, RDF_TYPE, `${PROV}Association`)).toBe(true);
+    expect(hasIri(pabloAssociation, `${PROV}agent`, 'urn:sg:prov-agent:pablo')).toBe(true);
+    expect(hasIri(pabloAssociation, `${PROV}hadRole`, 'urn:sg:role:publisher')).toBe(true);
+    expect(hasIri('urn:sg:task:t1', `${PROV}wasAssociatedWith`, 'urn:sg:prov-agent:pablo')).toBe(true);
+
+    // Role-less agents still get an association node, without hadRole.
+    const danaAssociation = 'urn:sg:prov-association:t2:dana';
+    expect(hasIri('urn:sg:task:t2', `${PROV}qualifiedAssociation`, danaAssociation)).toBe(true);
+    expect(triples.some((triple) => triple.subject === danaAssociation && triple.predicate === `${PROV}hadRole`)).toBe(
+      false,
+    );
+
+    // Invalidation only for completed revokes.
+    expect(hasIri('urn:sg:skill-version:skill:demo@v1', `${PROV}wasInvalidatedBy`, 'urn:sg:task:t2')).toBe(true);
+    expect(
+      triples.some(
+        (triple) =>
+          triple.predicate === `${PROV}wasInvalidatedBy` &&
+          triple.object.kind === 'iri' &&
+          triple.object.value === 'urn:sg:task:t3',
+      ),
+    ).toBe(false);
+  });
 });
