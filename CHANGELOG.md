@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.80](https://github.com/therandomsecurityguy/signet/compare/v0.1.79...v0.1.80) (2026-11-22)
+
+
+### Features
+
+* **registry:** witness key independence — one key material per party per log ([087a809](https://github.com/therandomsecurityguy/signet/commit/087a809ad543476e84c9e0c4f8149b8031fea8aa))
+
 ## [0.1.79](https://github.com/therandomsecurityguy/signet/compare/v0.1.78...v0.1.79) (2026-11-22)
 
 
