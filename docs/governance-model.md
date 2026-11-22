@@ -647,7 +647,7 @@ Examples:
 These are target-state capabilities, not current claims:
 - full normative registry ontology encoded as first-class RDF/OWL vocabulary (current ontology packages use a JSON document format)
 - runtime observation feeds for de facto vocabulary demand (corpus mining is implemented via `GET /v1/de-facto-terms/analysis`)
-- richer SHACL engine coverage beyond Core constraint components (SHACL-SPARQL constraints, SHACL-AF rules) and stored validation reports as standardized RDF artifacts
+- SHACL node expressions and `sh:js` (refused at registration; no execution semantics implemented); AF execution intentionally stays out-of-process — the in-process engine question is settled in `docs/shacl-af-in-process-design.md` (an inference stage, function/component dispatch, parity evidence, and resource-budget parity would all be required, and the sidecar already provides the guarantees)
 - richer PROV-O coverage (JSON-LD export, canonical RDF signatures over provenance graphs)
 - richer trust-root policy modeling beyond the current trusted public-key registry objects
 - cryptographic trust-chain and key-rotation policy enforcement
