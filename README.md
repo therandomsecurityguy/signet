@@ -267,11 +267,12 @@ Storage and operations:
 
 Proposed next (not implemented yet):
 - SHACL node expressions and `sh:js` (refused at registration; no
-  execution semantics implemented), and an in-process SHACL-AF engine
-  (graph mutation needs an inference-stage design)
+  execution semantics implemented); AF execution intentionally stays
+  out-of-process — decided in `docs/shacl-af-in-process-design.md`
 - richer LLM backends for the advisory validation layer
 - full WORM/transparency integration with Trillian/Tessera reconciliation
-- deeper witness-network semantics across multiple independent parties
+- deeper witness-network semantics: cross-log witness coverage and trust
+  scoring across parties
 
 ### Get it to run
 
@@ -592,6 +593,7 @@ Signet is designed to be available to every agent workflow. The current surfaces
 - off-platform migration/cutover: `docs/runbooks/migration-cutover.md`
 - service boundaries: `docs/service-map.md`
 - registry domain/storage model: `docs/registry-model.md`
+- SHACL-AF execution boundary (in-process vs sidecar): `docs/shacl-af-in-process-design.md`
 - API reference: `docs/api-reference.md`
 - MCP onboarding: `docs/mcp-onboarding.md`
 - beta-v1 readiness and scope: `docs/beta-v1-readiness.md`
