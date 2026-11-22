@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.81](https://github.com/therandomsecurityguy/signet/compare/v0.1.80...v0.1.81) (2026-11-22)
+
+
+### Features
+
+* **registry:** cross-log witness coverage reporting ([ca100a8](https://github.com/therandomsecurityguy/signet/commit/ca100a8c0fc7a3a2274529daf1190d3243a145cc))
+* **registry:** cross-log witness coverage reporting ([4c8feb5](https://github.com/therandomsecurityguy/signet/commit/4c8feb58afa132f2701a97964824cd106002607e))
+
 ## [0.1.80](https://github.com/therandomsecurityguy/signet/compare/v0.1.79...v0.1.80) (2026-11-22)
 
 
