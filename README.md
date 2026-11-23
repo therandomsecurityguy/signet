@@ -164,7 +164,9 @@ Validation (five layers):
   IRIs + subclass taxonomy) so policies can use `sh:class` with hierarchy
   semantics
 - advisory LLM validation (model-agnostic port, deterministic heuristic
-  default, HTTP model seam) emitting scorecard/prompt/confidence evidence
+  default) with a generic HTTP JSON seam and an OpenAI-compatible Chat
+  Completions backend (sanitized model responses; any failure falls back
+  to the heuristic) emitting scorecard/prompt/confidence evidence
 - human review workflow: review decisions as first-class
   `review_evidence` artifacts via `sg:reviewedBy`, policy-driven
   `require_human_review` gating at publish/certify, and a pending-review
@@ -270,7 +272,6 @@ Proposed next (not implemented yet):
 - SHACL node expressions and `sh:js` (refused at registration; no
   execution semantics implemented); AF execution intentionally stays
   out-of-process — decided in `docs/shacl-af-in-process-design.md`
-- richer LLM backends for the advisory validation layer
 - full WORM/transparency integration with Trillian/Tessera reconciliation
 
 ### Get it to run

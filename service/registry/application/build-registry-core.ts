@@ -9,7 +9,7 @@ import { JsonFileGraphStore } from '../domain/signet/db/graph/freeform/registry/
 import { SparqlGraphStore } from '../domain/signet/db/graph/freeform/registry/sparql-graph-store.js';
 import { DefaultRegistryService } from './services/default-registry-service.js';
 import { fetchWithRetry } from './services/fetch-with-retry.js';
-import { HeuristicLlmValidator, HttpLlmValidator } from './services/llm-validator.js';
+import { HeuristicLlmValidator, HttpLlmValidator, OpenAiCompatibleLlmValidator } from './services/llm-validator.js';
 
 export type RegistryCoreConfig = {
   graph_backend: 'memory' | 'json_file' | 'sparql';
@@ -53,6 +53,10 @@ export type RegistryCoreConfig = {
   tessera_log_note_verifier?: string;
   llm_validator_url?: string;
   llm_validator_model?: string;
+  /** Advisory backend selection: generic JSON seam or OpenAI-compatible Chat Completions. */
+  llm_validator_provider?: 'http' | 'openai-compatible';
+  llm_validator_api_key?: string;
+  llm_validator_json_mode?: boolean;
 };
 
 export function buildRegistryCore(cfg: RegistryCoreConfig) {
@@ -83,15 +87,24 @@ export function buildRegistryCore(cfg: RegistryCoreConfig) {
         }
       : undefined;
   // Advisory LLM validation: deterministic heuristic validator by
-  // default; an HTTP model endpoint can be wired via configuration with
-  // the heuristic as fallback so validation never blocks on the model.
+  // default; a model endpoint can be wired via configuration (generic
+  // HTTP seam or OpenAI-compatible Chat Completions) with the heuristic
+  // as fallback so validation never blocks on the model.
   const heuristicValidator = new HeuristicLlmValidator();
   const llmValidator = cfg.llm_validator_url
-    ? new HttpLlmValidator({
-        url: cfg.llm_validator_url,
-        ...(cfg.llm_validator_model ? { model: cfg.llm_validator_model } : {}),
-        fallback: heuristicValidator,
-      })
+    ? cfg.llm_validator_provider === 'openai-compatible'
+      ? new OpenAiCompatibleLlmValidator({
+          base_url: cfg.llm_validator_url,
+          ...(cfg.llm_validator_model ? { model: cfg.llm_validator_model } : {}),
+          ...(cfg.llm_validator_api_key ? { api_key: cfg.llm_validator_api_key } : {}),
+          ...(cfg.llm_validator_json_mode ? { json_mode: true } : {}),
+          fallback: heuristicValidator,
+        })
+      : new HttpLlmValidator({
+          url: cfg.llm_validator_url,
+          ...(cfg.llm_validator_model ? { model: cfg.llm_validator_model } : {}),
+          fallback: heuristicValidator,
+        })
     : heuristicValidator;
   const service = new DefaultRegistryService({
     graph,

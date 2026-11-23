@@ -273,6 +273,114 @@ export class HttpLlmValidator implements LlmValidator {
   }
 }
 
+/**
+ * OpenAI-compatible LLM validator: talks to any server implementing the
+ * Chat Completions API (OpenAI, vLLM, Ollama `/v1`, LiteLLM, …). The
+ * model's message content is untrusted: it must be a JSON object matching
+ * the advisory evidence schema, is parsed strictly (markdown fences are
+ * stripped for robustness), and every field is rebuilt through the same
+ * whitelist sanitizer as the generic HTTP seam. Any failure — transport,
+ * non-2xx, unparseable content — falls back to the heuristic validator;
+ * the advisory layer never blocks validation.
+ *
+ * Security notes: the base URL is operator-configured only (same SSRF
+ * posture as HttpLlmValidator), requests carry a timeout, and the API key
+ * is sent as a bearer header but never logged or echoed into evidence.
+ */
+export const LLM_OPENAI_COMPATIBLE_SYSTEM_PROMPT = [
+  'You are an advisory reviewer for a governed agent/skill registry.',
+  'Analyze the publication input for overclaiming, ambiguity, example-capability consistency, and missing ontology terms.',
+  'Respond with ONLY a JSON object of this exact shape:',
+  '{"scorecards":[{"dimension":"overclaim|ambiguity|example_consistency|term_coverage","score":0..1,"rationale":"..."}],',
+  '"confidence":0..1,"suggestions":{"missing_ontology_terms":["..."],"policy_warnings":["..."]},"warnings":["..."]}',
+  'Scores are advisory only. Do not invent capabilities; ground rationales in the provided text.',
+].join('\n');
+
+export class OpenAiCompatibleLlmValidator implements LlmValidator {
+  private readonly endpoint: string;
+  private readonly validatorId: string;
+
+  constructor(
+    private readonly deps: {
+      base_url: string;
+      model?: string;
+      api_key?: string;
+      json_mode?: boolean;
+      timeout_ms?: number;
+      fallback?: LlmValidator;
+    },
+  ) {
+    let parsed: URL;
+    try {
+      parsed = new URL(deps.base_url);
+    } catch {
+      throw new Error(`LLM validator base URL is not a valid URL: ${deps.base_url}`);
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error(`LLM validator base URL must use http: or https: (got ${parsed.protocol})`);
+    }
+    const normalized = parsed.toString().endsWith('/') ? parsed.toString() : `${parsed.toString()}/`;
+    this.endpoint = new URL('chat/completions', normalized).toString();
+    this.validatorId = `llm-openai-compatible-v1${deps.model ? `:${deps.model}` : ''}`;
+  }
+
+  async validate(input: LlmValidationInput): Promise<LlmValidationResult> {
+    const prompt = buildPrompt(input);
+    try {
+      const response = await fetch(this.endpoint, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json',
+          ...(this.deps.api_key ? { authorization: `Bearer ${this.deps.api_key}` } : {}),
+        },
+        body: JSON.stringify({
+          ...(this.deps.model ? { model: this.deps.model } : {}),
+          temperature: 0,
+          messages: [
+            { role: 'system', content: LLM_OPENAI_COMPATIBLE_SYSTEM_PROMPT },
+            { role: 'user', content: prompt },
+          ],
+          ...(this.deps.json_mode ? { response_format: { type: 'json_object' } } : {}),
+        }),
+        signal: AbortSignal.timeout(this.deps.timeout_ms ?? 10_000),
+      });
+      if (!response.ok) {
+        throw new Error(`LLM validator endpoint failed (${response.status})`);
+      }
+      const payload: unknown = await response.json();
+      const content = extractChatContent(payload);
+      if (content === null) {
+        throw new Error('LLM validator response carried no message content');
+      }
+      const parsedContent: unknown = JSON.parse(stripMarkdownFences(content));
+      return sanitizeModelResponse(parsedContent, this.validatorId, prompt);
+    } catch {
+      const fallback = this.deps.fallback ?? new HeuristicLlmValidator();
+      return await fallback.validate(input);
+    }
+  }
+}
+
+function extractChatContent(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+  const choices = (payload as Record<string, unknown>)['choices'];
+  if (!Array.isArray(choices) || choices.length === 0) return null;
+  const first = choices[0];
+  if (!first || typeof first !== 'object' || Array.isArray(first)) return null;
+  const message = (first as Record<string, unknown>)['message'];
+  if (!message || typeof message !== 'object' || Array.isArray(message)) return null;
+  const content = (message as Record<string, unknown>)['content'];
+  return typeof content === 'string' ? content : null;
+}
+
+/** Tolerate markdown-fenced JSON (````json … ````) from chat endpoints. */
+function stripMarkdownFences(content: string): string {
+  const trimmed = content.trim();
+  const fenced = /^```(?:json)?\s*\n([\s\S]*?)\n```$/.exec(trimmed);
+  return fenced ? (fenced[1] as string) : trimmed;
+}
+
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === 'string');
