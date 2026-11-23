@@ -19,7 +19,7 @@ import type { ShaclExecutionPort, ShaclValidationReport } from './shacl-executio
  * constant matches the pinned dependency in package.json so reports can
  * never claim a stale engine version.
  */
-export const RDF_VALIDATE_SHACL_ENGINE_ID = 'rdf-validate-shacl@0.6.5';
+export const RDF_VALIDATE_SHACL_ENGINE_ID = 'rdf-validate-shacl@0.7.0';
 
 const SHACL_NS = 'http://www.w3.org/ns/shacl#';
 

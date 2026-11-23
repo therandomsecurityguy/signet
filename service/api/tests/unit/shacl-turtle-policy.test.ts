@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildAppDependencies } from '../../src/app/dependencies.js';
+import { RDF_VALIDATE_SHACL_ENGINE_ID } from '../../../registry/application/services/rdf-validate-shacl-engine.js';
 import { buildApp } from '../../src/app/server.js';
 import { loadEnv } from '../../src/infrastructure/config/env.js';
 
@@ -158,7 +159,7 @@ describe('authored Turtle policy packages (end to end)', () => {
       // shacl validator field; only validation-run reports do.
       if (payload?.validator !== 'shacl-v1') continue;
       sawShaclReport = true;
-      expect(payload.engine).toBe('rdf-validate-shacl@0.6.5');
+      expect(payload.engine).toBe(RDF_VALIDATE_SHACL_ENGINE_ID);
       if (payload.conforms) continue;
       sawFailedReport = true;
       const policyLayer = payload.layers?.find((layer) => layer.layer === 'policy');

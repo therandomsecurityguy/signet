@@ -126,7 +126,7 @@ for SHA in $(echo "$V" | jq -r '.governance_artifacts[] | select(.role=="validat
         engine: .payload.engine, conforms: .payload.conforms,
         shapes: .payload.layers[0].shapes_format }'
 done
-# -> validator: "shacl-v1", engine: "rdf-validate-shacl@0.6.5", conforms: true,
+# -> validator: "shacl-v1", engine: "rdf-validate-shacl@0.7.0", conforms: true,
 #    shapes: "shacl-turtle"
 ```
 

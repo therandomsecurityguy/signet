@@ -129,7 +129,7 @@ for SHA in $(echo "$V" | jq -r '.governance_artifacts[] | select(.role=="validat
         policy_sha: .payload.layers[1].shapes_sha256[0:12],
         violation: .payload.layers[1].violations[0].message }'
 done
-# -> validator: "shacl-v1", engine: "rdf-validate-shacl@0.6.5",
+# -> validator: "shacl-v1", engine: "rdf-validate-shacl@0.7.0",
 #    policy_format: "shacl-turtle", violation: "description_required_by_demo_shacl_policy"
 
 # 4. A conforming draft passes validation, publish is gated on it, and
