@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import type { GovernanceLogUseCase } from '../../application/usecases/governance-log.js';
 import { ErrorResponseSchema } from '../../contracts/error.js';
+import { RegistryCoreError } from '../../../../registry/application/errors/registry-core-error.js';
 import type { AppEnv } from '../server.js';
 
 const getGovernanceLogStateRoute = createRoute({
@@ -33,6 +34,19 @@ const replayGovernanceLogRoute = createRoute({
   },
 });
 
+const compareGovernanceTransparencyRoute = createRoute({
+  method: 'get',
+  path: '/v1/governance-log/transparency-comparison',
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.any() } },
+      description: 'Cross-log consistency comparison against the companion transparency log',
+    },
+    409: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Companion log not configured' },
+    500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Comparison failed' },
+  },
+});
+
 export function registerGovernanceLogRoutes(
   app: OpenAPIHono<AppEnv>,
   deps: {
@@ -58,5 +72,19 @@ export function registerGovernanceLogRoutes(
 
   app.openapi(replayGovernanceLogRoute, async (c) => {
     return c.json(await deps.governanceLog.replay(), 200);
+  });
+
+  app.openapi(compareGovernanceTransparencyRoute, async (c) => {
+    try {
+      return c.json(await deps.governanceLog.compareTransparency(), 200);
+    } catch (err) {
+      if (err instanceof RegistryCoreError) {
+        if (err.code === 'TRANSPARENCY_RECONCILIATION_NOT_CONFIGURED') {
+          return c.json({ error: { code: err.code, message: err.message } }, 409);
+        }
+        return c.json({ error: { code: err.code, message: err.message } }, 500);
+      }
+      throw err;
+    }
   });
 }
