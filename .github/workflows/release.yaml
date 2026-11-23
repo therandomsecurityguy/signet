@@ -55,7 +55,7 @@ jobs:
       # secrets the job falls back to GITHUB_TOKEN and stays functional.
       RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
     steps:
-      - uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
+      - uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         id: app-token
         if: env.RELEASE_APP_ID != ''
         with:
