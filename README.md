@@ -259,7 +259,7 @@ Ingestion and vocabulary:
   version snapshots as bound/unbound with occurrence and drift stats
 
 Storage and operations:
-- content-addressed artifact storage (filesystem or S3)
+- content-addressed artifact storage (filesystem or S3) with per-artifact WORM reporting: `GET /v1/artifacts/{sha256}/retention` surfaces S3 Object Lock mode/retention/legal hold straight from the bucket, so immutability is provable per artifact
 - Fuseki-backed metadata by default, with a persistent local JSON-file
   backend for development
 - time-aware object slice: commits, refs, tags, workspaces, manifests,
@@ -272,7 +272,7 @@ Proposed next (not implemented yet):
 - SHACL node expressions and `sh:js` (refused at registration; no
   execution semantics implemented); AF execution intentionally stays
   out-of-process — decided in `docs/shacl-af-in-process-design.md`
-- full WORM/transparency integration with Trillian/Tessera reconciliation
+- legacy Trillian log backend support (Tessera is the implemented transparency backend; reconciliation, cross-log anchoring, and WORM reporting are shipped)
 
 ### Get it to run
 
@@ -590,6 +590,7 @@ Signet is designed to be available to every agent workflow. The current surfaces
 - adopting the deployed registry: `docs/adoption.md`
 - deploy runbook: `docs/runbooks/deploy.md`
 - demo data reseed: `docs/runbooks/demo-reseed.md`
+- WORM artifact storage (S3 Object Lock): `docs/runbooks/worm-artifacts.md`
 - off-platform migration/cutover: `docs/runbooks/migration-cutover.md`
 - service boundaries: `docs/service-map.md`
 - registry domain/storage model: `docs/registry-model.md`

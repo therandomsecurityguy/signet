@@ -7221,6 +7221,38 @@ export class DefaultRegistryService implements RegistryService {
     };
   }
 
+  /**
+   * Immutability report for one artifact: whether the CAS backend (S3
+   * Object Lock) currently enforces retention for the object. Read-only;
+   * file-system backends cannot enforce WORM and report null object lock.
+   */
+  async getArtifactRetention(
+    input: { sha256: string },
+  ): Promise<import('../ports/registry-service.js').RegistryArtifactRetention | null> {
+    const stored = await this.deps.cas.getBySha256(input.sha256);
+    if (!stored) return null;
+    if (!this.deps.cas.getRetention) {
+      return {
+        sha256: input.sha256,
+        present: true,
+        object_lock: null,
+        immutability_enforced: false,
+      };
+    }
+    const retention = await this.deps.cas.getRetention(input.sha256);
+    const mode = retention?.mode ?? null;
+    const retainUntil = retention?.retain_until ?? null;
+    const active =
+      mode === 'COMPLIANCE' ||
+      (mode === 'GOVERNANCE' && (!retainUntil || Date.parse(retainUntil) > Date.now()));
+    return {
+      sha256: input.sha256,
+      present: true,
+      object_lock: { mode, retain_until: retainUntil, legal_hold: retention?.legal_hold ?? null },
+      immutability_enforced: active,
+    };
+  }
+
   async getGovernanceLogProof(input: { leaf_index: number }): Promise<import('../ports/registry-service.js').RegistryGovernanceLogProof | null> {
     const node = await this.deps.graph.getNode(GOVERNANCE_LOG_URN);
     const leafHashes = node && Array.isArray(node.properties['leaf_hashes']) ? (node.properties['leaf_hashes'] as string[]) : [];

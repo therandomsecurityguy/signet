@@ -16,6 +16,7 @@ These docs are the human-readable overview layer for **Signet**.
 - recorded demo video (terminal + web console): `demo/signet-demo.mp4`
 - service boundaries and topology: `service-map.md`
 - registry graph + CAS model: `registry-model.md`
+- WORM artifact storage (S3 Object Lock): `runbooks/worm-artifacts.md`
 - API reference: `api-reference.md`
 - SHACL-AF execution boundary (in-process vs sidecar): `shacl-af-in-process-design.md`
 - MCP onboarding: `mcp-onboarding.md`

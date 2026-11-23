@@ -144,4 +144,28 @@ describe('artifact byte endpoint', () => {
     const head = await app.request(`/v1/artifacts/${sha256}`, { method: 'HEAD' });
     expect(head.status).toBe(409);
   });
+
+  it('reports artifact retention: fs backends cannot enforce WORM', async () => {
+    const { app, token } = await buildTestApp();
+    const sha256 = await publishSkillWithArtifact(app, token, {
+      skillKey: 'skill:artifact-retention',
+      artifactContent: '# Retention target\n',
+    });
+
+    const retention = await app.request(`/v1/artifacts/${sha256}/retention`);
+    expect(retention.status).toBe(200);
+    await expect(retention.json()).resolves.toEqual({
+      sha256,
+      present: true,
+      object_lock: null,
+      immutability_enforced: false,
+    });
+
+    const invalid = await app.request('/v1/artifacts/not-a-digest/retention');
+    expect(invalid.status).toBe(400);
+
+    const missing = await app.request(`/v1/artifacts/${'b'.repeat(64)}/retention`);
+    expect(missing.status).toBe(404);
+    await expect(missing.json()).resolves.toMatchObject({ error: { code: 'ARTIFACT_NOT_FOUND' } });
+  });
 });

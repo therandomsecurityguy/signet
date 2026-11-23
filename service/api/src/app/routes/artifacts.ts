@@ -35,6 +35,20 @@ const getArtifactRoute = createRoute({
   },
 });
 
+const getArtifactRetentionRoute = createRoute({
+  method: 'get',
+  path: '/v1/artifacts/{sha256}/retention',
+  request: { params: artifactParamsSchema },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.any() } },
+      description: 'Immutability report (S3 Object Lock retention) for the artifact',
+    },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid artifact digest' },
+    404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Artifact not found' },
+  },
+});
+
 export function registerArtifactRoutes(
   app: OpenAPIHono<AppEnv>,
   deps: {
@@ -60,6 +74,18 @@ export function registerArtifactRoutes(
   });
   // HEAD is served by Hono's automatic GET dispatch, which reuses these
   // headers (including Content-Length) with a null body.
+
+  app.openapi(getArtifactRetentionRoute, async (c) => {
+    const sha256 = c.req.param('sha256').toLowerCase();
+    if (!ARTIFACT_SHA256_PATTERN.test(sha256)) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid artifact digest.' } }, 400);
+    }
+    const retention = await deps.registry.getArtifactRetention({ sha256 });
+    if (!retention) {
+      return c.json({ error: { code: 'ARTIFACT_NOT_FOUND', message: 'Artifact not found.' } }, 404);
+    }
+    return c.json(retention, 200);
+  });
 }
 
 type ArtifactLoadResult =

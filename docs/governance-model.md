@@ -593,7 +593,8 @@ The project already has:
 - trusted witness identities attached to transparency logs
 - detached signature records linked to publication snapshots
 - verification endpoints that recompute envelope digests, resolve trusted public keys, and verify detached signatures cryptographically
-- frozen publication envelope artifacts with CAS digest verification on read (warn by default, `enforce` opt-in) and explicit live-drift reporting
+- frozen publication envelope artifacts with CAS digest verification on read (warn by default, `enforce` opt-in)
+- per-artifact WORM reporting for S3 Object Lock buckets (`GET /v1/artifacts/{sha256}/retention`): mode, retention window, and legal hold as enforced by the storage layer, read-only and explicit live-drift reporting
 - DSSE/in-toto attestations as first-class evidence: PAE-verified signatures against trusted `PUBLIC_KEY` roots, recorded predicate types, subject binding to publication artifacts, CAS-stored records linked `sg:attestedBy`, and aggregate verdicts in publication verification
 - generated governance artifacts for policy, validation, and certification evidence
 - explicit skill revocation and supersession states
