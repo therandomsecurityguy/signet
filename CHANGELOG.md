@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.84](https://github.com/therandomsecurityguy/signet/compare/v0.1.83...v0.1.84) (2026-11-23)
+
+
+### Features
+
+* **registry:** cross-log anchoring comparison (governance log vs companion) ([5ca3bd7](https://github.com/therandomsecurityguy/signet/commit/5ca3bd7cf8c76a28dd79f24be13b2dc93abca542))
+* **registry:** cross-log anchoring comparison (governance log vs companion) ([393c166](https://github.com/therandomsecurityguy/signet/commit/393c166af84a660ac9afb0955ef4c600abac1662))
+* **registry:** per-artifact WORM reporting (S3 Object Lock) + runbook ([a1087df](https://github.com/therandomsecurityguy/signet/commit/a1087df6f289f0dd53e3f2a14f36c49dcd823ae6))
+* **registry:** per-artifact WORM reporting (S3 Object Lock) + runbook ([82a2470](https://github.com/therandomsecurityguy/signet/commit/82a2470fe46e30617acebde94758abdbbb21b13f))
+
 ## [0.1.83](https://github.com/therandomsecurityguy/signet/compare/v0.1.82...v0.1.83) (2026-11-23)
 
 
