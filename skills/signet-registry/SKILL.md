@@ -60,6 +60,9 @@ publication graph; `Violation`-severity results (graph-shape or policy
 layer) block publication, so a certified version passed those checks. Are
 the verification verdicts clean (frozen-envelope digest match, signatures
 valid)?
+Advisory signals (for example LLM scorecards in the validation report) are
+evidence only — they never gate publication, so treat them as hints, not
+verdicts.
 If trust signals are missing, or the version is deprecated/revoked (some
 environments deny revoked reads outright), do not use it — surface that to
 the human instead.
