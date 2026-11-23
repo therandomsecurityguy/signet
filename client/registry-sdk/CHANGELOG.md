@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.12](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.11...registry-sdk-v0.1.12) (2026-11-23)
+
+
+### Features
+
+* **registry:** advisory, deterministic witness trust scoring (opt-in) ([d7e2065](https://github.com/therandomsecurityguy/signet/commit/d7e2065339816f5eda85cbe7f865528b3f1229b5))
+
 ## [0.1.11](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.10...registry-sdk-v0.1.11) (2026-11-22)
 
 
