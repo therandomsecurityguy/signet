@@ -11,7 +11,7 @@
     "@sigstore/core": "^4.0.1",
     "n3": "^2.13.12",
     "rdf-canonize": "^5.0.0",
-    "rdf-validate-shacl": "^0.6.5",
+    "rdf-validate-shacl": "^0.7.0",
     "re2js": "^2.10.0",
     "shacl-engine": "^1.1.3"
   },
