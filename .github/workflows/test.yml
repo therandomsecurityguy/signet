@@ -157,6 +157,58 @@ jobs:
         env:
           COGNITIVE_LAYER_ENABLED: 'true'
 
+  # The human-facing webapp previously had no CI coverage. It is a canonical
+  # boundary and the registry's browser surface, so it gets the same gate as
+  # the other services: typecheck, lint, tests, and a production-build boot
+  # smoke. Its tests are self-contained (the registry API is mocked), so no
+  # cross-package installs are needed.
+  knowledge-manager:
+    name: service/webapp/knowledge-manager (human-facing webapp)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: service/webapp/knowledge-manager/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: service/webapp/knowledge-manager
+
+      - name: Typecheck
+        run: npm run typecheck
+        working-directory: service/webapp/knowledge-manager
+
+      - name: Lint
+        run: npm run lint
+        working-directory: service/webapp/knowledge-manager
+
+      - name: Test
+        run: npx vitest run
+        working-directory: service/webapp/knowledge-manager
+
+      - name: Production build boot smoke
+        run: |
+          npm run build
+          NODE_ENV=test LOG_LEVEL=silent PORT=3299 DATABASE_URL=file:/tmp/webapp-boot.db \
+            node dist/src/server/main.js > /tmp/webapp-boot.log 2>&1 &
+          pid=$!
+          rc=1
+          for i in $(seq 1 20); do
+            sleep 1
+            if curl -sf -o /dev/null http://127.0.0.1:3299/healthz; then rc=0; break; fi
+          done
+          kill $pid 2>/dev/null || true
+          if [ "$rc" -ne 0 ]; then cat /tmp/webapp-boot.log; exit 1; fi
+        working-directory: service/webapp/knowledge-manager
+
   tessera-sidecar:
     name: service/tessera-sidecar
     runs-on: ubuntu-latest
