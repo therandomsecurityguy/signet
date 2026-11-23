@@ -155,6 +155,71 @@ paths, and `sh:pattern` that compiles under RE2 (linear-time execution,
 no backreferences/lookarounds); explicit node targeting is rejected. See
 `docs/api-reference.md` for both policy formats.
 
+## Witness network walkthrough (verified)
+
+Reads the transparency sample graph seeded by `scripts/demo-local.sh seed`
+(which seeds it alongside the demo catalog) — two witnesses, checkpoint
+attestations and a cosignature, observations, and a gossip event — and
+shows the read-only witness views. Every step below is copy-paste runnable
+against `scripts/demo-local.sh demo` state.
+
+```bash
+API=http://localhost:3100
+TOK=<api token from the seed output>   # or mint one:
+# (cd service/api && DATABASE_URL="file:$PWD/../../data/api/signet-api.db" \
+#   NODE_ENV=development node --import tsx scripts/create-api-key.ts \
+#   --owner-label demo --scopes read,write,lifecycle)
+
+# 1. The seeded log ships with two witnesses, two checkpoints, and a
+#    verified witness-alpha -> witness-beta gossip event (depth 1).
+curl -s -H "authorization: Bearer $TOK" \
+  "$API/v1/transparency-logs/sg-transparency-sample-log" \
+  | jq '{witnesses: [.witnesses[].witness_id], checkpoints: (.checkpoints | length),
+         gossip: [.gossip_events[] | {from_witness_id, to_witness_id, relay_hop_count}]}'
+# -> witnesses: ["witness-alpha", "witness-beta"], checkpoints: 2,
+#    gossip: [{from_witness_id: "witness-alpha", to_witness_id: "witness-beta", relay_hop_count: 1}]
+
+# 2. Quorum verification reads attestations AND note cosignatures
+#    (fail-closed: a witness can only gossip what it has endorsed).
+curl -s -H "authorization: Bearer $TOK" \
+  "$API/v1/transparency-logs/sg-transparency-sample-log/verification" \
+  | jq '{checkpoint_signature_valid, witness_quorum_required, witness_quorum_met,
+         checks: [.witness_checks[] | {witness_id, verification_status}]}'
+# -> checkpoint_signature_valid: true, witness_quorum_required: 2,
+#    witness_quorum_met: true, checks: witness-alpha/witness-beta "verified"
+
+# 3. Cross-log coverage comes from cryptographic evidence only.
+curl -s -H "authorization: Bearer $TOK" \
+  "$API/v1/transparency-logs/witness/coverage" \
+  | jq '{totals, witnesses: [.witnesses[] | {witness_id, logs_witnessed, checkpoints_witnessed}]}'
+# -> totals: {logs: 1, witnesses: 2, cross_log_witnesses: 0},
+#    witness-alpha: 1 log / 2 checkpoints, witness-beta: 1 log / 1 checkpoint
+
+# 4. Advisory, deterministic scoring is opt-in — components, weights, and
+#    evidence ship with the score; nothing in validation, quorum, or
+#    gating reads it, and recency is data-relative (never wall clock).
+curl -s -H "authorization: Bearer $TOK" \
+  "$API/v1/transparency-logs/witness/coverage?include_scoring=true" \
+  | jq '[.witnesses[] | {witness_id, score: .scoring.score, components: .scoring.components}]'
+# -> witness-alpha: score 100 {breadth: 1, participation: 1, recency: 1},
+#    witness-beta:  score 80  {breadth: 1, participation: 0.5, recency: 1}
+
+# 5. The timeline projects the same evidence as events.
+curl -s -H "authorization: Bearer $TOK" \
+  "$API/v1/transparency-logs/sg-transparency-sample-log/timeline" \
+  | jq '[.events[] | select(.kind == "gossip") | {occurred_at, summary}]'
+# -> occurred_at: "2026-01-03T00:13:00.000Z",
+#    summary: "Witness witness-alpha gossiped checkpoint to witness-beta."
+```
+
+Governance notes: gossip provenance is fail-closed (only witnesses
+attached to the log may gossip, the source must hold a valid attestation
+or verified cosignature for the checkpoint, and relay claims must resolve
+to a verified prior event with a consistent chain depth); witness
+independence is enforced per log — one key material per party
+(`TRANSPARENCY_WITNESS_DUPLICATE_KEY` on duplicate attachment), with the
+same key allowed across different logs.
+
 ## Option 2 — Docker Compose
 
 ```bash

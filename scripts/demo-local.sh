@@ -8,7 +8,7 @@
 # Usage:
 #   scripts/demo-local.sh demo    reset state, start services, seed the demo
 #   scripts/demo-local.sh up      start the three services (keep existing state)
-#   scripts/demo-local.sh seed    seed the blessed demo against running services
+#   scripts/demo-local.sh seed    seed the blessed demo (catalog + transparency sample) against running services
 #   scripts/demo-local.sh down    stop the services
 #   scripts/demo-local.sh status  show service health
 #
@@ -142,6 +142,20 @@ cmd_seed() {
     API_ORIGIN="http://localhost:$API_PORT" \
     MCP_ORIGIN="http://localhost:$MCP_PORT" \
     npm run dev -- bootstrap test --force )
+  # Seed the transparency sample graph too, so the witness-network
+  # walkthrough in docs/local-demo.md runs against seeded state. The API
+  # key is minted in the demo database (the same flow local-demo.md
+  # documents for ad-hoc curl use).
+  local demo_token
+  demo_token="$( cd "$REPO_ROOT/service/api" && \
+    DATABASE_URL="file:$REPO_ROOT/data/api/signet-api.db" \
+    NODE_ENV=development LOG_LEVEL=silent \
+    node --import tsx scripts/create-api-key.ts \
+      --owner-label demo-transparency --scopes read,write,lifecycle \
+    | node -e 'let raw="";process.stdin.on("data",(chunk)=>raw+=chunk).on("end",()=>process.stdout.write(JSON.parse(raw).token))' )"
+  ( cd "$REPO_ROOT/client/registry-cli" && \
+    API_ORIGIN="http://localhost:$API_PORT" \
+    npm run dev -- seed transparency-sample --api-token "$demo_token" )
 }
 
 cmd_status() {
