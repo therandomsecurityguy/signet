@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.85](https://github.com/therandomsecurityguy/signet/compare/v0.1.84...v0.1.85) (2026-11-23)
+
+
+### Features
+
+* **webapp:** modern dark-first knowledge-manager UI ([be3aebc](https://github.com/therandomsecurityguy/signet/commit/be3aebc74dedc5ae849f1814f92663ba6329bb2a))
+* **webapp:** modern dark-first knowledge-manager UI ([7fb1876](https://github.com/therandomsecurityguy/signet/commit/7fb1876922ff656c09389545ea1d75cd81f1c8c2))
+
 ## [0.1.84](https://github.com/therandomsecurityguy/signet/compare/v0.1.83...v0.1.84) (2026-11-23)
 
 
