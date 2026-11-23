@@ -38,8 +38,17 @@ Its first job is local-first bootstrap:
   — downloads the bytes from `GET /v1/artifacts/{sha256}` and re-hashes them,
   including the `Content-Digest` header when present; exits non-zero on
   mismatch.
+- `registry-operator verify provenance (--skill <key> | --agent <key>) --version <n> [--strict]`
+  — re-verifies detached provenance signatures over the canonical RDF export
+  and re-derives the signed export digest locally; `stale` marks signatures
+  made before the trail grew (the signed export stays fetchable at its digest).
+- `registry-operator verify report-signatures (--skill <key> | --agent <key>) --version <n> [--strict]`
+  — reproduces validated-report signature verdicts locally against the
+  canonical report RDF.
 - `registry-operator verify okta-config`
 - `registry-operator verify browser-session`
+- `registry-operator sign keyless` — sign-then-publish in CI (Fulcio via
+  OIDC; optional Rekor upload)
 - `registry-operator bootstrap test`
 
 ### Install / use as a CLI

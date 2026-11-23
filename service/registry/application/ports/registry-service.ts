@@ -848,6 +848,25 @@ export type RegistryDeFactoVocabularyAnalysis = {
   ontology_versions: RegistryDeFactoOntologyAnalysis[];
 };
 
+export type RegistryGovernanceTransparencyComparison = {
+  log_id: string;
+  internal_tree_size: number;
+  companion_tree_size: number;
+  /** Internal events anchored by a companion record (same index + urn). */
+  internal_events_anchored: number;
+  missing_anchors: Array<{ leaf_index: number; event_artifact_urn: string }>;
+  missing_anchor_count: number;
+  /** Companion entries whose claimed leaf hash equals the re-derived one. */
+  companion_records_verified: number;
+  companion_record_mismatches: Array<{
+    companion_leaf_index: number;
+    companion_leaf_hash: string;
+    derived_leaf_hash: string;
+  }>;
+  status: 'consistent' | 'companion_empty' | 'divergent';
+  compared_at: string;
+};
+
 export type RegistryGovernanceLogState = {
   log_id: string;
   tree_size: number;
@@ -1376,6 +1395,7 @@ export interface RegistryService {
   }): Promise<RegistryDeFactoTermDetails>;
   getArtifactRetention(input: { sha256: string }): Promise<RegistryArtifactRetention | null>;
   getGovernanceLogState(): Promise<RegistryGovernanceLogState>;
+  compareGovernanceTransparencyLog(): Promise<RegistryGovernanceTransparencyComparison>;
   getGovernanceLogProof(input: { leaf_index: number }): Promise<RegistryGovernanceLogProof | null>;
   replayGovernanceLog(): Promise<RegistryGovernanceLogReplay>;
   getSkillPublicationVerification(input: { skill_key: string; version: number }): Promise<RegistryPublicationVerification | null>;

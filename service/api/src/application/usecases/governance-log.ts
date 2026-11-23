@@ -14,4 +14,8 @@ export class GovernanceLogUseCase {
   async replay() {
     return await this.registry.replayGovernanceLog();
   }
+
+  async compareTransparency() {
+    return await this.registry.compareGovernanceTransparencyLog();
+  }
 }

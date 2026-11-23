@@ -58,6 +58,7 @@ import {
   type OntologyDocument,
 } from './ontology-validator.js';
 import { computeMerkleRoot, generateInclusionProof } from './merkle-log.js';
+import { summarizeGovernanceTransparencyComparison } from './governance-transparency-comparison.js';
 import { computeWitnessTrustScoring } from './witness-trust-scoring.js';
 import { computeCanonicalRdf, projectPublicationGraphToNQuads } from './rdf-projection.js';
 import { verifyKeylessBundle, type KeylessTrustPolicy } from './keyless-verification.js';
@@ -130,7 +131,11 @@ export class DefaultRegistryService implements RegistryService {
       public_key_pem?: string;
       /** Spec verifier key (`<name>+<hash8hex>+<base64>`); preferred when set. */
       note_verifier_key?: string;
+      /** Companion log id (TRANSPARENCY_APPEND_LOG_ID); comparison needs it. */
+      log_id?: string;
       fetchLogEntry(input: { log_id: string; entry_index: number }): Promise<Record<string, unknown>>;
+      /** Companion log state (tree size + root); comparison needs it. */
+      fetchLogState?(input: { log_id: string }): Promise<Record<string, unknown>>;
     };
       keyless?: KeylessTrustPolicy;
       llmValidator?: LlmValidator;
@@ -7251,6 +7256,76 @@ export class DefaultRegistryService implements RegistryService {
       object_lock: { mode, retain_until: retainUntil, legal_hold: retention?.legal_hold ?? null },
       immutability_enforced: active,
     };
+  }
+
+  /**
+   * Cross-log consistency comparison: the internal governance Merkle log vs
+   * the companion Tessera log. Both receive the same records in order
+   * (staging is best-effort, so the companion may be behind — never silently
+   * misaligned). Companion leaves are re-derived from the record bytes they
+   * served; roots are compared at the common size. Read-only.
+   */
+  async compareGovernanceTransparencyLog(): Promise<
+    import('../ports/registry-service.js').RegistryGovernanceTransparencyComparison
+  > {
+    const reconciler = this.deps.transparencyReconciler;
+    const logId = reconciler?.log_id;
+    if (!reconciler || !logId || !reconciler.fetchLogState) {
+      throw new RegistryCoreError(
+        'TRANSPARENCY_RECONCILIATION_NOT_CONFIGURED',
+        'Governance transparency comparison requires TESSERA_SIDECAR_URL, TRANSPARENCY_APPEND_LOG_ID, and a companion log with the native API enabled.',
+      );
+    }
+    const state = await this.getGovernanceLogState();
+    const internalEvents = state.leaves
+      .map((leaf, index) => ({
+        leaf_index: index,
+        event_artifact_urn: leaf.event_artifact_urn ?? '',
+      }))
+      .filter((event) => event.event_artifact_urn.length > 0);
+
+    const companionState = await reconciler.fetchLogState({ log_id: logId });
+    const companionTreeSize = numberOrUndefined(companionState['tree_size']) ?? 0;
+
+    const companionEntries: Array<{
+      leaf_hash: string;
+      record_leaf_hash: string;
+      payload?: { log_leaf_index?: number; event_artifact_urn?: string };
+    }> = [];
+    for (let index = 0; index < companionTreeSize; index += 1) {
+      const entry = await reconciler.fetchLogEntry({ log_id: logId, entry_index: index });
+      const leafHash = stringOrUndefined(entry['leaf_hash']) ?? '';
+      const recordB64 = stringOrUndefined(entry['record_b64']) ?? '';
+      const recordBytes = recordB64 ? Buffer.from(recordB64, 'base64') : Buffer.alloc(0);
+      const recordLeafHash = rfc6962LeafHashBytes(recordBytes).toString('hex');
+      let payload: { log_leaf_index?: number; event_artifact_urn?: string } | undefined;
+      try {
+        const parsed = JSON.parse(recordBytes.toString('utf8')) as { payload?: Record<string, unknown> };
+        const rawPayload = parsed && typeof parsed === 'object' ? parsed.payload : undefined;
+        if (rawPayload && typeof rawPayload === 'object') {
+          const eventArtifactUrn = stringOrUndefined(rawPayload['event_artifact_urn']);
+          const logLeafIndex = numberOrUndefined(rawPayload['log_leaf_index']);
+          payload = {
+            ...(typeof logLeafIndex === 'number' ? { log_leaf_index: logLeafIndex } : {}),
+            ...(eventArtifactUrn ? { event_artifact_urn: eventArtifactUrn } : {}),
+          };
+        }
+      } catch {
+        // Non-JSON or non-intent records simply cannot anchor internal events.
+      }
+      companionEntries.push({
+        leaf_hash: leafHash,
+        record_leaf_hash: recordLeafHash,
+        ...(payload ? { payload } : {}),
+      });
+    }
+
+    return summarizeGovernanceTransparencyComparison({
+      log_id: logId,
+      internal_events: internalEvents,
+      companion_entries: companionEntries,
+      compared_at: nowIso(),
+    });
   }
 
   async getGovernanceLogProof(input: { leaf_index: number }): Promise<import('../ports/registry-service.js').RegistryGovernanceLogProof | null> {

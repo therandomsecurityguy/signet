@@ -199,6 +199,20 @@ gating reads it.
 | GET | `/v1/governance-log` | Internal governance Merkle log |
 | GET | `/v1/governance-log/proofs/{leafIndex}` | Inclusion proof |
 | GET | `/v1/governance-log/replay` | Verifier replay |
+| GET | `/v1/governance-log/transparency-comparison` | Cross-log anchoring comparison against the companion transparency log |
+
+**Cross-log comparison** (`GET /v1/governance-log/transparency-comparison`,
+read-only): the internal governance Merkle log hashes canonical
+governance-event bytes while the companion stages append-intent records, so
+the trees are not byte-comparable; the checkable invariant is **anchoring** —
+every internal event (log position + `event_artifact_urn`) must appear in a
+companion record carrying the same position and urn. Companion leaf hashes
+are additionally re-derived from the record bytes served, so a lying hash is
+reported (`companion_record_mismatches`) rather than trusted. Verdicts:
+`consistent`, `companion_empty` (nothing staged), or `divergent`
+(missing/mis-indexed anchors or record mismatches); 409 when the companion
+log is not configured.
+| GET | `/v1/governance-log/transparency-comparison` | Cross-log anchoring comparison against the companion transparency log |
 
 Publication verification responses include frozen-envelope fields:
 `publication_envelope_artifact_present`,
