@@ -74,6 +74,7 @@ export function buildRegistryCore(cfg: RegistryCoreConfig) {
       ? {
           ...(cfg.tessera_log_public_key_pem ? { public_key_pem: cfg.tessera_log_public_key_pem } : {}),
           ...(cfg.tessera_log_note_verifier ? { note_verifier_key: cfg.tessera_log_note_verifier } : {}),
+          log_id: transparencyAppendLogId,
           fetchLogEntry: async ({ log_id, entry_index }: { log_id: string; entry_index: number }) => {
             const response = await fetchWithRetry(
               new URL(`/v1/logs/${encodeURIComponent(log_id)}/entries/${entry_index}`, transparencyAppendUrl),
@@ -81,6 +82,16 @@ export function buildRegistryCore(cfg: RegistryCoreConfig) {
             );
             if (!response.ok) {
               throw new Error(`Transparency log entry fetch failed (${response.status})`);
+            }
+            return (await response.json()) as Record<string, unknown>;
+          },
+          fetchLogState: async ({ log_id }: { log_id: string }) => {
+            const response = await fetchWithRetry(
+              new URL(`/v1/logs/${encodeURIComponent(log_id)}`, transparencyAppendUrl),
+              { headers: { accept: 'application/json', ...transparencyAuthHeaders } },
+            );
+            if (!response.ok) {
+              throw new Error(`Transparency log state fetch failed (${response.status})`);
             }
             return (await response.json()) as Record<string, unknown>;
           },
