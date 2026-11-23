@@ -31,6 +31,32 @@ function csrfHiddenField(page?: PageChromeInput): string {
   return token ? `<input type="hidden" name="_csrf" value="${escapeHtml(token)}" />` : '';
 }
 
+// --- shared visual helpers -------------------------------------------------
+
+const SEAL_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.6"/><path d="M8.6 12.4l2.3 2.3 4.5-4.9"/></svg>`;
+
+function icon(path: string, size = 16): string {
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+}
+
+const ICONS = {
+  arrow: icon('<path d="M5 12h13"/><path d="M13 6.5l5.5 5.5-5.5 5.5"/>'),
+  copy: icon('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5.5A1.5 1.5 0 0 1 6.5 4H15"/>', 14),
+  agents: icon('<rect x="5" y="7.5" width="14" height="10.5" rx="2.5"/><path d="M12 7.5V4"/><path d="M9 12.5h.01M15 12.5h.01" stroke-width="2.6"/>'),
+  skills: icon('<path d="M12 3.5l1.8 4.9 4.9 1.8-4.9 1.8L12 16.9l-1.8-4.9-4.9-1.8 4.9-1.8L12 3.5z"/><path d="M18.5 16.5l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7.7-1.9z"/>'),
+  graph: icon('<circle cx="6" cy="6.5" r="2.5"/><circle cx="18" cy="6.5" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8.2 7.9l2.5 7.3M15.8 7.9l-2.5 7.3M8.5 6.5h7"/>'),
+  ontology: icon('<path d="M5 5h10.5A2.5 2.5 0 0 1 18 7.5V19a2 2 0 0 0-2-2H5z"/><path d="M5 5v12"/>'),
+  fuseki: icon('<ellipse cx="12" cy="6" rx="6.5" ry="2.8"/><path d="M5.5 6v6c0 1.5 2.9 2.8 6.5 2.8s6.5-1.3 6.5-2.8V6"/><path d="M5.5 12v6c0 1.5 2.9 2.8 6.5 2.8s6.5-1.3 6.5-2.8v-6"/>'),
+} as const;
+
+function copyButton(value: string): string {
+  return `<button type="button" class="copy-btn" data-copy="${escapeHtml(value)}" aria-label="Copy value" title="Copy">${ICONS.copy}</button>`;
+}
+
+function isMonoValue(text: string): boolean {
+  return text.length > 60 || text.startsWith('urn:') || /^[0-9a-f]{16,}$/i.test(text) || text.startsWith('agk_') || text.startsWith('sha256:');
+}
+
 export function renderHome(input: {
   apiOrigin: string;
   vocbenchUiUrl?: string;
@@ -39,18 +65,35 @@ export function renderHome(input: {
   counts?: { agents?: number | undefined; skills?: number | undefined };
   page?: PageChromeInput;
 }) {
-  const card = (label: string, value: number | undefined, href: string, hint: string) =>
-    `<a class="metric" href="${href}"><span class="value">${typeof value === 'number' ? value : '→'}</span><span class="label">${escapeHtml(label)}</span><br /><small class="label">${escapeHtml(hint)}</small></a>`;
+  const tile = (options: {
+    href: string;
+    icon: string;
+    value?: number | undefined;
+    label: string;
+    hint: string;
+  }) => `
+    <a class="metric" href="${options.href}">
+      <div class="metric-top">
+        <span class="metric-icon">${options.icon}</span>
+        ${
+          typeof options.value === 'number'
+            ? `<span class="value">${options.value}</span>`
+            : `<span class="metric-arrow">${ICONS.arrow}</span>`
+        }
+      </div>
+      <span class="label">${escapeHtml(options.label)}</span>
+      <small>${escapeHtml(options.hint)}</small>
+    </a>`;
   return renderPage(
     'Knowledge Manager',
     `
-      <p class="muted">Registry admin and ontology-authoring launchpad for the internal beta.</p>
+      <p class="hero-sub">Registry admin and ontology-authoring launchpad for the internal beta.</p>
       <div class="dashboard">
-        ${card('Agents', input.counts?.agents, '/agents', 'registered')}
-        ${card('Skills', input.counts?.skills, '/skills', 'registered')}
-        ${card('Graph', undefined, '/graph', 'explore links')}
-        ${card('Ontology projects', undefined, '/ontology-projects', 'VocBench')}
-        ${card('Fuseki queries', undefined, '/fuseki-queries', 'SPARQL shortcuts')}
+        ${tile({ href: '/agents', icon: ICONS.agents, value: input.counts?.agents, label: 'Agents', hint: 'registered' })}
+        ${tile({ href: '/skills', icon: ICONS.skills, value: input.counts?.skills, label: 'Skills', hint: 'registered' })}
+        ${tile({ href: '/graph', icon: ICONS.graph, label: 'Graph', hint: 'explore links' })}
+        ${tile({ href: '/ontology-projects', icon: ICONS.ontology, label: 'Ontology projects', hint: 'VocBench' })}
+        ${tile({ href: '/fuseki-queries', icon: ICONS.fuseki, label: 'Fuseki queries', hint: 'SPARQL shortcuts' })}
       </div>
       <div class="button-row">
         <a role="button" href="/agents/new">Register agent</a>
@@ -58,7 +101,7 @@ export function renderHome(input: {
         ${input.apiDocsUrl ? `<a role="button" class="outline" href="${escapeHtml(input.apiDocsUrl)}">API docs</a>` : ''}
         ${input.mcpUrl ? `<a role="button" class="outline" href="${escapeHtml(input.mcpUrl)}">MCP endpoint</a>` : ''}
       </div>
-      <p><strong>Registry API:</strong> <code>${escapeHtml(input.apiOrigin)}</code></p>
+      <p><strong>Registry API:</strong> <code>${escapeHtml(input.apiOrigin)}</code> ${copyButton(input.apiOrigin)}</p>
       ${input.vocbenchUiUrl ? `<p><strong>VocBench UI:</strong> <a href="${escapeHtml(input.vocbenchUiUrl)}">${escapeHtml(input.vocbenchUiUrl)}</a></p>` : '<p class="muted">Ontology authoring (VocBench / Semantic Turkey) is not enabled in this environment.</p>'}
     `,
     input.page,
@@ -113,6 +156,10 @@ export function renderAgentDetails(input: {
   page?: PageChromeInput;
 }) {
   const agentUrn = input.details.agent.urn;
+  const agentKey = String(input.details.agent.properties.agent_key ?? input.details.agent.urn);
+  const displayName = String(input.details.agent.properties.display_name ?? '');
+  const description = String(input.details.agent.properties.description ?? '');
+  const harnessName = String(input.details.agent.properties.harness_name ?? '');
   const detailLink = graphEntityDetailHref({
     urn: input.details.agent.urn,
     entity_type: 'AGENT',
@@ -121,38 +168,67 @@ export function renderAgentDetails(input: {
   return renderPage(
     `Agent ${String(input.details.agent.properties.agent_key ?? input.details.agent.urn)}`,
     `
-      <p><a href="/agents">Back to agents</a></p>
+      <p class="breadcrumb"><a href="/agents">← Back to agents</a></p>
       ${renderFlash(input.flash)}
-      <p><a href="/graph?root_urn=${encodeURIComponent(agentUrn)}&depth=3">View graph</a></p>
-      ${detailLink ? `<p><a href="${escapeHtml(detailLink)}">Open canonical detail page</a></p>` : ''}
-      <h2>Properties</h2>
-      ${renderPropertiesTable(input.details.agent.properties)}
-      <h2>Active Version</h2>
-      ${
-        input.details.active_version
-          ? `
-            <p><strong>Agent Version URN:</strong> <code>${escapeHtml(input.details.active_version.agent_version.urn)}</code></p>
-            ${renderPropertiesTable(input.details.active_version.agent_version.properties)}
-          `
-          : '<p>No active version.</p>'
-      }
-      <h2>Harnesses</h2>
-      ${renderTable(
-        ['Harness URN', 'Harness Name'],
-        input.details.harnesses.map((harness) => [escapeHtml(harness.harness_urn), escapeHtml(harness.harness_name ?? '')]),
-      )}
-      <h2>Skills</h2>
-      ${renderTable(
-        ['Skill URN', 'Skill Key'],
-        input.details.skills.map((skill) => [
-          escapeHtml(skill.skill_urn),
-          skill.skill_key
-            ? `<a href="/skills/${encodeURIComponent(skill.skill_key)}">${escapeHtml(skill.skill_key)}</a>`
-            : '',
-        ]),
-      )}
-      <h2>Artifacts</h2>
-      ${renderArtifactsTable(input.details.artifacts)}
+      <section class="detail-hero">
+        <div class="detail-main">
+          <div class="detail-keys">
+            <span class="detail-key-chip"><code>${escapeHtml(agentKey)}</code></span>
+            ${harnessName ? `<span class="chip">harness: ${escapeHtml(harnessName)}</span>` : ''}
+            ${displayName ? `<span class="chip">${escapeHtml(displayName)}</span>` : ''}
+          </div>
+          ${description ? `<p class="detail-desc">${escapeHtml(description)}</p>` : ''}
+          <p class="detail-urn">URN <code>${escapeHtml(agentUrn)}</code> ${copyButton(agentUrn)}</p>
+        </div>
+        <div class="detail-actions">
+          <a role="button" class="secondary" href="/graph?root_urn=${encodeURIComponent(agentUrn)}&depth=3">View graph</a>
+          ${detailLink ? `<a role="button" class="secondary" href="${escapeHtml(detailLink)}">Open canonical detail page</a>` : ''}
+        </div>
+      </section>
+      <div class="tabs-wrap">
+        <div class="tabs" role="tablist" aria-label="Agent sections">
+          <button class="tab-btn" role="tab" type="button" data-tab="overview" aria-selected="true">Overview</button>
+          <button class="tab-btn" role="tab" type="button" data-tab="skills" aria-selected="false">Skills<span class="tab-count">${input.details.skills.length}</span></button>
+          <button class="tab-btn" role="tab" type="button" data-tab="harnesses" aria-selected="false">Harnesses<span class="tab-count">${input.details.harnesses.length}</span></button>
+          <button class="tab-btn" role="tab" type="button" data-tab="artifacts" aria-selected="false">Artifacts<span class="tab-count">${input.details.artifacts.length}</span></button>
+        </div>
+        <section class="tab-panel" role="tabpanel" data-tab-panel="overview">
+          <h2>Properties</h2>
+          ${renderPropertiesTable(input.details.agent.properties)}
+          <h2>Active Version</h2>
+          ${
+            input.details.active_version
+              ? `
+                <p><strong>Agent Version URN:</strong> <code>${escapeHtml(input.details.active_version.agent_version.urn)}</code> ${copyButton(input.details.active_version.agent_version.urn)}</p>
+                ${renderPropertiesTable(input.details.active_version.agent_version.properties)}
+              `
+              : '<p>No active version.</p>'
+          }
+        </section>
+        <section class="tab-panel" role="tabpanel" data-tab-panel="skills" hidden>
+          <h2>Skills</h2>
+          ${renderTable(
+            ['Skill URN', 'Skill Key'],
+            input.details.skills.map((skill) => [
+              escapeHtml(skill.skill_urn),
+              skill.skill_key
+                ? `<a href="/skills/${encodeURIComponent(skill.skill_key)}">${escapeHtml(skill.skill_key)}</a>`
+                : '',
+            ]),
+          )}
+        </section>
+        <section class="tab-panel" role="tabpanel" data-tab-panel="harnesses" hidden>
+          <h2>Harnesses</h2>
+          ${renderTable(
+            ['Harness URN', 'Harness Name'],
+            input.details.harnesses.map((harness) => [escapeHtml(harness.harness_urn), escapeHtml(harness.harness_name ?? '')]),
+          )}
+        </section>
+        <section class="tab-panel" role="tabpanel" data-tab-panel="artifacts" hidden>
+          <h2>Artifacts</h2>
+          ${renderArtifactsTable(input.details.artifacts)}
+        </section>
+      </div>
     `,
     input.page,
   );
@@ -168,7 +244,7 @@ export function renderNewAgentForm(input?: {
   return renderPage(
     'Register Agent',
     `
-      <p><a href="/">Back</a></p>
+      <p class="breadcrumb"><a href="/">← Back</a></p>
       ${renderError(input?.error)}
       <form method="post" action="/agents/new">
         ${csrfHiddenField(input?.page)}
@@ -229,6 +305,8 @@ export function renderSkillDetails(input: {
 }) {
   const skillKey = String(input.details.skill.properties.skill_key ?? input.details.skill.urn);
   const skillUrn = input.details.skill.urn;
+  const displayName = String(input.details.skill.properties.display_name ?? '');
+  const description = String(input.details.skill.properties.description ?? '');
   const detailLink = graphEntityDetailHref({
     urn: input.details.skill.urn,
     entity_type: 'SKILL',
@@ -239,59 +317,88 @@ export function renderSkillDetails(input: {
   return renderPage(
     `Skill ${skillKey}`,
     `
-      <p><a href="/skills">Back to skills</a></p>
+      <p class="breadcrumb"><a href="/skills">← Back to skills</a></p>
       ${renderFlash(input.flash)}
       ${renderError(input.error)}
-      <p><a href="/graph?root_urn=${encodeURIComponent(skillUrn)}&depth=3">View graph</a></p>
-      ${detailLink ? `<p><a href="${escapeHtml(detailLink)}">Open canonical detail page</a></p>` : ''}
-      ${
-        input.usedByAgents && input.usedByAgents.length > 0
-          ? `<p><strong>Used by agents:</strong> ${input.usedByAgents
-              .map((key) => `<a href="/agents/${encodeURIComponent(key)}">${escapeHtml(key)}</a>`)
-              .join(', ')}</p>`
-          : ''
-      }
-      <h2>Properties</h2>
-      ${renderPropertiesTable(input.details.skill.properties)}
-      <h2>Artifacts</h2>
-      ${renderArtifactsTable(input.details.artifacts)}
-      <h2>Active Version</h2>
-      ${input.activeVersion ? renderSkillVersionCard(input.activeVersion) : '<p>No active version.</p>'}
-      <h2>Versions</h2>
-      ${renderSkillVersionsList({
-        skillKey,
-        versions: input.versions,
-        defaults: {
-          author: values.author ?? '',
-          note: values.note ?? '',
-        },
-        ...(input.page ? { page: input.page } : {}),
-      })}
-      ${
-        input.lifecycleResult
-          ? `
-            <h2>Last Operation Result</h2>
-            <p><strong>Task URN:</strong> <code>${escapeHtml(input.lifecycleResult.task.task.urn)}</code></p>
-            ${renderSkillVersionCard(input.lifecycleResult.result)}
-          `
-          : ''
-      }
-      <h2>Create Draft</h2>
-      <p>This uses the lifecycle API and writes a new skill version task plus version metadata.</p>
-      <form method="post" action="/skills/${encodeURIComponent(skillKey)}/drafts">
-        ${csrfHiddenField(input.page)}
-        ${renderTextInput('author', 'Author', values.author ?? '', 'text', true)}
-        ${renderTextInput('display_name', 'Display name', values.display_name ?? '')}
-        ${renderTextArea('description', 'Description', values.description ?? '')}
-        ${renderTextInput('source_path', 'Source path', values.source_path ?? '')}
-        ${renderTextInput('commit_sha', 'Commit SHA', values.commit_sha ?? '')}
-        ${renderTextInput('git_tag', 'Git tag', values.git_tag ?? '')}
-        ${renderTextInput('artifact_signature', 'Artifact signature', values.artifact_signature ?? '')}
-        ${renderTextInput('artifact_original_path', 'Artifact original path', values.artifact_original_path ?? '')}
-        ${renderTextInput('artifact_media_type', 'Artifact media type', values.artifact_media_type ?? 'text/markdown')}
-        ${renderTextArea('artifact_content', 'Artifact content', values.artifact_content ?? '', true)}
-        <button type="submit">Create draft</button>
-      </form>
+      <section class="detail-hero">
+        <div class="detail-main">
+          <div class="detail-keys">
+            <span class="detail-key-chip"><code>${escapeHtml(skillKey)}</code></span>
+            ${displayName ? `<span class="chip">${escapeHtml(displayName)}</span>` : ''}
+            ${input.activeVersion ? renderStateBadge(skillLifecycleStatus(input.activeVersion)) : ''}
+          </div>
+          ${description ? `<p class="detail-desc">${escapeHtml(description)}</p>` : ''}
+          <p class="detail-urn">URN <code>${escapeHtml(skillUrn)}</code> ${copyButton(skillUrn)}</p>
+          ${
+            input.usedByAgents && input.usedByAgents.length > 0
+              ? `<div class="detail-chips"><span class="muted">Used by agents:</span> ${input.usedByAgents
+                  .map((key) => `<span class="chip"><a href="/agents/${encodeURIComponent(key)}">${escapeHtml(key)}</a></span>`)
+                  .join(' ')}</div>`
+              : ''
+          }
+        </div>
+        <div class="detail-actions">
+          <a role="button" class="secondary" href="/graph?root_urn=${encodeURIComponent(skillUrn)}&depth=3">View graph</a>
+          ${detailLink ? `<a role="button" class="secondary" href="${escapeHtml(detailLink)}">Open canonical detail page</a>` : ''}
+        </div>
+      </section>
+      <div class="tabs-wrap">
+        <div class="tabs" role="tablist" aria-label="Skill sections">
+          <button class="tab-btn" role="tab" type="button" data-tab="overview" aria-selected="true">Overview</button>
+          <button class="tab-btn" role="tab" type="button" data-tab="versions" aria-selected="false">Versions<span class="tab-count">${input.versions.length}</span></button>
+          <button class="tab-btn" role="tab" type="button" data-tab="artifacts" aria-selected="false">Artifacts<span class="tab-count">${input.details.artifacts.length}</span></button>
+          <button class="tab-btn" role="tab" type="button" data-tab="actions" aria-selected="false">Actions</button>
+        </div>
+        <section class="tab-panel" role="tabpanel" data-tab-panel="overview">
+          <h2>Properties</h2>
+          ${renderPropertiesTable(input.details.skill.properties)}
+          <h2>Active Version</h2>
+          ${input.activeVersion ? renderSkillVersionCard(input.activeVersion) : '<p>No active version.</p>'}
+        </section>
+        <section class="tab-panel" role="tabpanel" data-tab-panel="versions" hidden>
+          <h2>Versions</h2>
+          ${renderSkillVersionsList({
+            skillKey,
+            versions: input.versions,
+            defaults: {
+              author: values.author ?? '',
+              note: values.note ?? '',
+            },
+            ...(input.page ? { page: input.page } : {}),
+          })}
+        </section>
+        <section class="tab-panel" role="tabpanel" data-tab-panel="artifacts" hidden>
+          <h2>Artifacts</h2>
+          ${renderArtifactsTable(input.details.artifacts)}
+        </section>
+        <section class="tab-panel" role="tabpanel" data-tab-panel="actions" hidden>
+          ${
+            input.lifecycleResult
+              ? `
+                <h2>Last Operation Result</h2>
+                <p><strong>Task URN:</strong> <code>${escapeHtml(input.lifecycleResult.task.task.urn)}</code> ${copyButton(input.lifecycleResult.task.task.urn)}</p>
+                ${renderSkillVersionCard(input.lifecycleResult.result)}
+              `
+              : ''
+          }
+          <h2>Create Draft</h2>
+          <p>This uses the lifecycle API and writes a new skill version task plus version metadata.</p>
+          <form method="post" action="/skills/${encodeURIComponent(skillKey)}/drafts">
+            ${csrfHiddenField(input.page)}
+            ${renderTextInput('author', 'Author', values.author ?? '', 'text', true)}
+            ${renderTextInput('display_name', 'Display name', values.display_name ?? '')}
+            ${renderTextArea('description', 'Description', values.description ?? '')}
+            ${renderTextInput('source_path', 'Source path', values.source_path ?? '')}
+            ${renderTextInput('commit_sha', 'Commit SHA', values.commit_sha ?? '')}
+            ${renderTextInput('git_tag', 'Git tag', values.git_tag ?? '')}
+            ${renderTextInput('artifact_signature', 'Artifact signature', values.artifact_signature ?? '')}
+            ${renderTextInput('artifact_original_path', 'Artifact original path', values.artifact_original_path ?? '')}
+            ${renderTextInput('artifact_media_type', 'Artifact media type', values.artifact_media_type ?? 'text/markdown')}
+            ${renderTextArea('artifact_content', 'Artifact content', values.artifact_content ?? '', true)}
+            <button type="submit">Create draft</button>
+          </form>
+        </section>
+      </div>
     `,
     input.page,
   );
@@ -307,7 +414,7 @@ export function renderNewSkillForm(input?: {
   return renderPage(
     'Register Skill',
     `
-      <p><a href="/">Back</a></p>
+      <p class="breadcrumb"><a href="/">← Back</a></p>
       ${renderError(input?.error)}
       <form method="post" action="/skills/new">
         ${csrfHiddenField(input?.page)}
@@ -407,12 +514,16 @@ export function renderOntologyProjects(input: {
           ? `<div class="empty"><p>Registry ontology state unavailable: ${escapeHtml(input.registryError)}</p></div>`
           : ''
       }
-      <h2>Ontology packages</h2>
-      <p class="muted">Versioned ontology packages (registry_shape / skill_area) resolved by <code>ontology_version</code>; certification binds to these.</p>
-      ${packagesTable}
-      <h2>De-facto vocabulary</h2>
-      <p class="muted">Candidate concepts observed in publications. Promoting a term records the human review; normative changes ship as new ontology packages via CI.</p>
-      ${termsTable}
+      <section class="panel">
+        <h2>Ontology packages</h2>
+        <p class="muted">Versioned ontology packages (registry_shape / skill_area) resolved by <code>ontology_version</code>; certification binds to these.</p>
+        ${packagesTable}
+      </section>
+      <section class="panel">
+        <h2>De-facto vocabulary</h2>
+        <p class="muted">Candidate concepts observed in publications. Promoting a term records the human review; normative changes ship as new ontology packages via CI.</p>
+        ${termsTable}
+      </section>
       ${legacy}
     `,
     input.page,
@@ -492,18 +603,23 @@ ORDER BY STR(?from) STR(?to)`,
   return renderPage(
     'Fuseki Query Shortcuts',
     `
-      <p><a href="/">Back</a></p>
+      <p class="breadcrumb"><a href="/">← Back</a></p>
       <p>Use these copy-paste queries in Fuseki for the current metadata backend.</p>
-      <p><strong>Fuseki UI:</strong> <a href="${escapeHtml(input.fusekiUrl)}">${escapeHtml(input.fusekiUrl)}</a> <small>(cluster-internal; reachable from inside the cluster, not a browser in production)</small></p>
+      <p><strong>Fuseki UI:</strong> <a href="${escapeHtml(input.fusekiUrl)}">${escapeHtml(input.fusekiUrl)}</a> <small class="muted">(cluster-internal; reachable from inside the cluster, not a browser in production)</small></p>
       <p><strong>Dataset:</strong> <code>${escapeHtml(input.datasetName)}</code></p>
       <p><strong>Full query pack:</strong> <code>docs/fuseki-query-pack.md</code></p>
       ${queries
         .map(
           (item) => `
-            <section class="panel">
-              <h2>${escapeHtml(item.title)}</h2>
-              <p>${escapeHtml(item.description)}</p>
-              <pre>${escapeHtml(item.query)}</pre>
+            <section class="panel code-panel">
+              <div class="code-panel-head">
+                <h2>${escapeHtml(item.title)}</h2>
+                <button type="button" class="copy-btn" aria-label="Copy query" title="Copy query">${ICONS.copy}</button>
+              </div>
+              <div class="code-panel-body">
+                <p>${escapeHtml(item.description)}</p>
+                <pre>${escapeHtml(item.query)}</pre>
+              </div>
             </section>
           `,
         )
@@ -537,16 +653,19 @@ export function renderGraphPage(input: {
   return renderPage(
     'Graph Explorer',
     `
-      <p><a href="/">Back</a></p>
+      <p class="breadcrumb"><a href="/">← Back</a></p>
       ${renderError(input.error)}
       ${suggestions}
       <p>Thin visual explorer for the current registry graph read model. This view is rooted and curated through <code>service/api</code>, not a raw browser-to-Fuseki integration.</p>
-      <form method="get" action="/graph">
-        ${renderTextInput('root_urn', 'Root URN', input.defaults.rootUrn, 'text', true)}
-        ${renderTextInput('depth', 'Depth (1-5)', String(input.defaults.depth), 'number', true)}
-        <button type="submit">Load graph</button>
+      <form class="graph-controls" method="get" action="/graph">
+        <div>${renderTextInput('root_urn', 'Root URN', input.defaults.rootUrn, 'text', true)}</div>
+        <div>${renderTextInput('depth', 'Depth (1-5)', String(input.defaults.depth), 'number', true)}</div>
+        <div><button type="submit">Load graph</button></div>
       </form>
-      <p><strong>Nodes:</strong> ${escapeHtml(String(input.graph.nodes.length))} | <strong>Edges:</strong> ${escapeHtml(String(input.graph.edges.length))}</p>
+      <div class="graph-meta">
+        <span class="chip">Nodes: ${escapeHtml(String(input.graph.nodes.length))}</span>
+        <span class="chip">Edges: ${escapeHtml(String(input.graph.edges.length))}</span>
+      </div>
       <fieldset class="toolbar" id="graph-legend" aria-label="Filter node types">
         <label><input type="checkbox" data-node-type="AGENT" checked /> Agent</label>
         <label><input type="checkbox" data-node-type="SKILL" checked /> Skill</label>
@@ -555,7 +674,7 @@ export function renderGraphPage(input: {
         <label><input type="checkbox" data-node-type="HARNESS" checked /> Harness</label>
       </fieldset>
       <div class="graph-layout">
-        <div id="graph-canvas" style="height: 520px; border: 1px solid var(--gray-200); background: #fff;"></div>
+        <div id="graph-canvas" class="graph-canvas"></div>
         <aside id="graph-detail-panel" class="panel graph-detail-panel">
           <h2>Selected Node</h2>
           ${
@@ -616,6 +735,10 @@ export function renderGraphPage(input: {
               },
             })),
           ];
+          const dark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          const theme = dark
+            ? { label: '#dfe3ee', edge: '#525b6e', edgeLabelBg: '#161923', edgeLabelText: '#9ba3b4' }
+            : { label: '#334155', edge: '#94a3b8', edgeLabelBg: '#ffffff', edgeLabelText: '#475467' };
           const cy = window.cytoscape({
             container,
             elements,
@@ -629,9 +752,9 @@ export function renderGraphPage(input: {
               {
                 selector: 'node',
                 style: {
-                  'background-color': '#4a6cf7',
+                  'background-color': '#8b5cf6',
                   'label': 'data(label)',
-                  'color': '#111',
+                  'color': theme.label,
                   'text-wrap': 'wrap',
                   'text-max-width': 140,
                   'font-size': 11,
@@ -648,32 +771,33 @@ export function renderGraphPage(input: {
                   'target-arrow-shape': 'triangle',
                   'label': 'data(label)',
                   'font-size': 9,
-                  'text-background-color': '#fff',
+                  'color': theme.edgeLabelText,
+                  'text-background-color': theme.edgeLabelBg,
                   'text-background-opacity': 1,
                   'text-background-padding': 2,
-                  'line-color': '#999',
-                  'target-arrow-color': '#999',
+                  'line-color': theme.edge,
+                  'target-arrow-color': theme.edge,
                 },
               },
               {
                 selector: 'node[entityType = "AGENT"]',
-                style: { 'background-color': '#3b82f6' },
+                style: { 'background-color': '#60a5fa' },
               },
               {
                 selector: 'node[entityType = "SKILL"]',
-                style: { 'background-color': '#10b981' },
+                style: { 'background-color': '#34d399' },
               },
               {
                 selector: 'node[entityType = "SKILL_VERSION"]',
-                style: { 'background-color': '#8b5cf6' },
+                style: { 'background-color': '#a78bfa' },
               },
               {
                 selector: 'node[entityType = "ARTIFACT"]',
-                style: { 'background-color': '#f59e0b' },
+                style: { 'background-color': '#fbbf24' },
               },
               {
                 selector: 'node[entityType = "HARNESS"]',
-                style: { 'background-color': '#ef4444' },
+                style: { 'background-color': '#f87171' },
               },
             ],
           });
@@ -681,7 +805,7 @@ export function renderGraphPage(input: {
             const node = nodeMap.get(urn);
             if (!node) return;
             const props = Object.entries(node.properties || {})
-              .map(([key, value]) => '<tr><td>' + escapeHtmlHtml(key) + '</td><td>' + escapeHtmlHtml(stringifyValue(value)) + '</td></tr>')
+              .map(([key, value]) => '<div class="kv-row"><span class="kv-key">' + escapeHtmlHtml(key) + '</span><div class="kv-value">' + escapeHtmlHtml(stringifyValue(value)) + '</div></div>')
               .join('');
             const actionLink = detailHref(node);
             detailPanel.innerHTML =
@@ -693,7 +817,7 @@ export function renderGraphPage(input: {
                 ? '<p><a href="' + escapeHtmlHtml(actionLink) + '">Open canonical detail page</a></p>'
                 : '') +
               (props.length > 0
-                ? '<table><thead><tr><th>Property</th><th>Value</th></tr></thead><tbody>' + props + '</tbody></table>'
+                ? '<div class="kv">' + props + '</div>'
                 : '<p>No properties.</p>');
           };
           cy.on('tap', 'node', (event) => {
@@ -768,14 +892,14 @@ function renderPage(title: string, body: string, page?: PageChromeInput) {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(title)} · Signet</title>
     <link rel="stylesheet" href="/assets/app.css" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%234f46e5'/%3E%3Ctext x='8' y='12' font-size='10' text-anchor='middle' fill='white'%3EC%3C/text%3E%3C/svg%3E" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%237c3aed'/%3E%3Cpath d='M5.2 8.4l1.9 1.9 3.7-4.1' stroke='white' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
   </head>
   <body>
     <a class="skip-link" href="#content">Skip to content</a>
     <header class="app-header">
       <div class="container app-header-inner">
         <a class="brand" href="/">
-          <span class="brand-logo" aria-hidden="true">C</span>
+          <span class="brand-logo" aria-hidden="true">${SEAL_SVG}</span>
           <span class="brand-name">Signet</span>
         </a>
         <nav class="app-nav" aria-label="Primary">
@@ -801,7 +925,12 @@ function renderPage(title: string, body: string, page?: PageChromeInput) {
       ${page ? renderBanner(page.session) : ''}
       ${body}
     </main>
-    <footer class="container app-footer"><small>Signet registry · internal beta</small></footer>
+    <footer class="container app-footer">
+      <div class="footer-inner">
+        <small>Signet registry · internal beta</small>
+        <small class="muted">Sealed · logged · verifiable</small>
+      </div>
+    </footer>
     <script>
       // Client-side row filter for list pages (#table-filter + #filterable-table).
       (function () {
@@ -814,6 +943,63 @@ function renderPage(title: string, body: string, page?: PageChromeInput) {
           rows.forEach(function (row) {
             row.hidden = q.length > 0 && row.textContent.toLowerCase().indexOf(q) === -1;
           });
+        });
+      })();
+
+      // Copy-to-clipboard: [data-copy] buttons, or the nearest <pre> inside
+      // the button's .code-panel / .code-block ancestor.
+      (function () {
+        function write(text) {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            return navigator.clipboard.writeText(text);
+          }
+          var area = document.createElement('textarea');
+          area.value = text;
+          area.setAttribute('readonly', '');
+          area.style.position = 'fixed';
+          area.style.opacity = '0';
+          document.body.appendChild(area);
+          area.select();
+          try { document.execCommand('copy'); } finally { document.body.removeChild(area); }
+          return Promise.resolve();
+        }
+        document.addEventListener('click', function (event) {
+          var btn = event.target.closest ? event.target.closest('.copy-btn') : null;
+          if (!btn) return;
+          var text = btn.getAttribute('data-copy');
+          if (!text) {
+            var scope = btn.closest('.code-panel') || btn.closest('.code-block');
+            var pre = scope ? scope.querySelector('pre') : null;
+            text = pre ? pre.textContent : '';
+          }
+          if (!text) return;
+          write(text).then(function () {
+            btn.classList.add('copied');
+            window.setTimeout(function () { btn.classList.remove('copied'); }, 1200);
+          }).catch(function () {});
+        });
+      })();
+
+      // Lightweight tabs: [data-tab] buttons switch sibling [data-tab-panel]
+      // sections inside their .tabs-wrap. Without JS every panel stays visible.
+      (function () {
+        document.querySelectorAll('.tabs-wrap').forEach(function (wrap) {
+          var buttons = Array.prototype.slice.call(wrap.querySelectorAll('.tab-btn[data-tab]'));
+          var panels = Array.prototype.slice.call(wrap.querySelectorAll('[data-tab-panel]'));
+          if (buttons.length === 0 || panels.length === 0) return;
+          function activate(name) {
+            buttons.forEach(function (btn) {
+              btn.setAttribute('aria-selected', String(btn.getAttribute('data-tab') === name));
+            });
+            panels.forEach(function (panel) {
+              panel.hidden = panel.getAttribute('data-tab-panel') !== name;
+            });
+          }
+          buttons.forEach(function (btn) {
+            btn.addEventListener('click', function () { activate(btn.getAttribute('data-tab')); });
+          });
+          var selected = buttons.filter(function (b) { return b.getAttribute('aria-selected') === 'true'; })[0] || buttons[0];
+          if (selected) activate(selected.getAttribute('data-tab'));
         });
       })();
     </script>
@@ -850,14 +1036,33 @@ function renderTable(headers: string[], rows: string[][], emptyAction = '', tabl
 }
 
 function renderPropertiesTable(properties: Record<string, unknown>) {
-  const entries = Object.entries(properties).map(([key, value]) => [escapeHtml(key), escapeHtml(stringifyValue(value))]);
-  return renderTable(['Property', 'Value'], entries);
+  const rows = Object.entries(properties)
+    .map(([key, value]) => {
+      const text = stringifyValue(value);
+      const mono = typeof value !== 'string' || isMonoValue(text);
+      return `
+        <div class="kv-row">
+          <span class="kv-key">${escapeHtml(key)}</span>
+          <div class="kv-value${mono ? ' mono' : ''}">${escapeHtml(text)}${copyButton(text)}</div>
+        </div>
+      `;
+    })
+    .join('');
+  if (!rows) {
+    return '<div class="empty"><p>No properties.</p></div>';
+  }
+  return `<div class="kv">${rows}</div>`;
 }
 
 function renderArtifactsTable(artifacts: Array<{ artifact_urn: string; sha256?: string }>) {
   return renderTable(
     ['Artifact URN', 'SHA256'],
-    artifacts.map((artifact) => [escapeHtml(artifact.artifact_urn), escapeHtml(artifact.sha256 ?? '')]),
+    artifacts.map((artifact) => [
+      `<code>${escapeHtml(artifact.artifact_urn)}</code> ${copyButton(artifact.artifact_urn)}`,
+      artifact.sha256
+        ? `<code>${escapeHtml(artifact.sha256)}</code> ${copyButton(artifact.sha256)}`
+        : '<span class="muted">—</span>',
+    ]),
   );
 }
 
@@ -866,7 +1071,7 @@ function renderGraphNodeDetail(node: GraphSubgraph['nodes'][number]) {
   return `
     <p><strong>Label:</strong> ${escapeHtml(node.label)}</p>
     <p><strong>Entity Type:</strong> ${escapeHtml(node.entity_type)}</p>
-    <p><strong>URN:</strong> <code>${escapeHtml(node.urn)}</code></p>
+    <p><strong>URN:</strong> <code>${escapeHtml(node.urn)}</code> ${copyButton(node.urn)}</p>
     ${detailHref ? `<p><a href="${escapeHtml(detailHref)}">Open canonical detail page</a></p>` : ''}
     ${renderPropertiesTable(node.properties)}
   `;
@@ -914,8 +1119,12 @@ function renderSkillVersionsList(input: {
       const availableActions = lifecycleActions(version);
 
       return `
-        <section class="version-card">
-          <h3>Version ${escapeHtml(String(versionNumber))} ${renderStateBadge(skillLifecycleStatus(version))}${isVersionActive(version) ? ' <span class="state-badge published">active</span>' : ''}</h3>
+        <section class="version-card${isVersionActive(version) ? ' is-active' : ''}">
+          <div class="version-head">
+            <h3>Version ${escapeHtml(String(versionNumber))}</h3>
+            ${renderStateBadge(skillLifecycleStatus(version))}
+            ${isVersionActive(version) ? '<span class="state-badge published">active</span>' : ''}
+          </div>
           ${renderSkillVersionSummary(version)}
           ${renderSkillVersionCard(version)}
           ${
@@ -927,7 +1136,7 @@ function renderSkillVersionsList(input: {
                   actions: availableActions,
                   ...(input.page ? { page: input.page } : {}),
                 })
-              : '<p>No lifecycle actions available for this version.</p>'
+              : '<p class="muted">No lifecycle actions available for this version.</p>'
           }
         </section>
       `;
@@ -937,15 +1146,18 @@ function renderSkillVersionsList(input: {
 
 function renderSkillVersionCard(version: SkillVersionDetails) {
   return `
-    <p><strong>Version URN:</strong> <code>${escapeHtml(version.skill_version.urn)}</code></p>
-    ${renderPropertiesTable(version.skill_version.properties)}
-    <h3>Artifacts</h3>
-    ${renderArtifactsTable(version.artifacts)}
-    <h3>Upstream Versions</h3>
-    ${renderTable(
-      ['Skill Version URN'],
-      version.upstream_versions.map((upstream) => [escapeHtml(upstream.skill_version_urn)]),
-    )}
+    <p class="detail-urn"><strong>Version URN:</strong> <code>${escapeHtml(version.skill_version.urn)}</code> ${copyButton(version.skill_version.urn)}</p>
+    <details class="version-raw">
+      <summary>Version metadata &amp; artifacts</summary>
+      ${renderPropertiesTable(version.skill_version.properties)}
+      <h3>Artifacts</h3>
+      ${renderArtifactsTable(version.artifacts)}
+      <h3>Upstream Versions</h3>
+      ${renderTable(
+        ['Skill Version URN'],
+        version.upstream_versions.map((upstream) => [`<code>${escapeHtml(upstream.skill_version_urn)}</code>`]),
+      )}
+    </details>
   `;
 }
 
@@ -974,10 +1186,12 @@ function renderLifecycleActionForm(input: {
   page?: PageChromeInput;
 }) {
   return `
-    <form method="post" action="/skills/${encodeURIComponent(input.skillKey)}/versions/${input.versionNumber}/${input.actions[0]}">
+    <form class="lifecycle-form" method="post" action="/skills/${encodeURIComponent(input.skillKey)}/versions/${input.versionNumber}/${input.actions[0]}">
       ${csrfHiddenField(input.page)}
-      ${renderTextInput('author', 'Author', input.defaults.author ?? '', 'text', true)}
-      ${renderTextArea('note', 'Note', input.defaults.note ?? '')}
+      <div class="form-inline">
+        ${renderTextInput('author', 'Author', input.defaults.author ?? '', 'text', true)}
+        ${renderTextArea('note', 'Note', input.defaults.note ?? '')}
+      </div>
       <div class="button-row">
         ${input.actions
           .map(
@@ -1003,9 +1217,14 @@ export function renderLoginPage(input: { page?: PageChromeInput }) {
   const session = input.page?.session;
   return renderPage(
     'Sign in',
-    session
-      ? renderUnauthenticatedSessionPanel(session)
-      : '<p>Sign in is not configured.</p>',
+    `
+      <div class="auth-shell">
+        <div class="auth-card">
+          <span class="auth-logo" aria-hidden="true">${SEAL_SVG}</span>
+          ${session ? renderUnauthenticatedSessionPanel(session) : '<p>Sign in is not configured.</p>'}
+        </div>
+      </div>
+    `,
     input.page,
   );
 }
@@ -1013,7 +1232,8 @@ export function renderLoginPage(input: { page?: PageChromeInput }) {
 function renderUnauthenticatedSessionPanel(input: PageChromeInput['session']) {
   if (input.authMode === 'api_key') {
     return `
-      <p>Local API-key mode is enabled. Sign in with a bearer token minted by <code>service/api</code>. The webapp stores it server-side behind an HttpOnly cookie.</p>
+      <h2>Sign in to Signet</h2>
+      <p class="auth-hint">Local API-key mode is enabled. Sign in with a bearer token minted by <code>service/api</code>. The webapp stores it server-side behind an HttpOnly cookie.</p>
       <form method="post" action="/session/login">
         <input type="hidden" name="return_to" value="${escapeHtml(input.returnTo)}" />
         ${renderTextInput('api_token', 'API bearer token', '', 'password', true)}
@@ -1024,7 +1244,8 @@ function renderUnauthenticatedSessionPanel(input: PageChromeInput['session']) {
 
   if (input.oktaMode === 'mock') {
     return `
-      <p>Mock Okta mode is enabled. Start a simulated internal-user session over the same <code>service/api</code> auth boundary.</p>
+      <h2>Sign in to Signet</h2>
+      <p class="auth-hint">Mock Okta mode is enabled. Start a simulated internal-user session over the same <code>service/api</code> auth boundary.</p>
       <form method="post" action="/session/login">
         <input type="hidden" name="return_to" value="${escapeHtml(input.returnTo)}" />
         <button type="submit">Start mock Okta session</button>
@@ -1033,7 +1254,8 @@ function renderUnauthenticatedSessionPanel(input: PageChromeInput['session']) {
   }
 
   return `
-    <p>Use the internal Okta login path to acquire a browser session aligned to the <code>service/api</code> access-token flow.</p>
+    <h2>Sign in to Signet</h2>
+    <p class="auth-hint">Use the internal Okta login path to acquire a browser session aligned to the <code>service/api</code> access-token flow.</p>
     <form method="post" action="/session/login">
       <input type="hidden" name="return_to" value="${escapeHtml(input.returnTo)}" />
       <button type="submit">Sign in with Okta</button>
