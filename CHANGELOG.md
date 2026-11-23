@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.82](https://github.com/therandomsecurityguy/signet/compare/v0.1.81...v0.1.82) (2026-11-22)
+
+
+### Features
+
+* **registry:** advisory, deterministic witness trust scoring (opt-in) ([d7e2065](https://github.com/therandomsecurityguy/signet/commit/d7e2065339816f5eda85cbe7f865528b3f1229b5))
+
 ## [0.1.81](https://github.com/therandomsecurityguy/signet/compare/v0.1.80...v0.1.81) (2026-11-22)
 
 
