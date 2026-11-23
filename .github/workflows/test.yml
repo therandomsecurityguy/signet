@@ -161,7 +161,9 @@ jobs:
   # boundary and the registry's browser surface, so it gets the same gate as
   # the other services: typecheck, lint, tests, and a production-build boot
   # smoke. Its tests are self-contained (the registry API is mocked), so no
-  # cross-package installs are needed.
+  # cross-package installs are needed. Browser-only behavior (tabs,
+  # clipboard, list filtering, graph rendering) additionally runs in a real
+  # headless Chromium via the gated interaction smoke.
   knowledge-manager:
     name: service/webapp/knowledge-manager (human-facing webapp)
     runs-on: ubuntu-latest
@@ -192,6 +194,16 @@ jobs:
 
       - name: Test
         run: npx vitest run
+        working-directory: service/webapp/knowledge-manager
+
+      # Browser-level interactions in real headless Chromium; a separate
+      # step so the unit suite stays browser-free.
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: service/webapp/knowledge-manager
+
+      - name: Interaction smoke (headless chromium)
+        run: npm run test:interactions
         working-directory: service/webapp/knowledge-manager
 
       - name: Production build boot smoke

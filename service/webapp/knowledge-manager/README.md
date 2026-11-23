@@ -214,3 +214,13 @@ npm run lint
 npm run typecheck
 npm test
 ```
+
+Browser-level interaction smoke (skill-detail tabs, copy-to-clipboard, list
+filtering, graph canvas, login card) against the real HTTP app with a real
+headless Chromium — the registry API is stubbed with fixtures, no external
+services needed:
+
+```bash
+npx playwright install chromium   # once per machine
+npm run test:interactions
+```
