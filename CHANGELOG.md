@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.83](https://github.com/therandomsecurityguy/signet/compare/v0.1.82...v0.1.83) (2026-11-23)
+
+
+### Features
+
+* **registry:** OpenAI-compatible LLM validator backend with env wiring ([e6f063e](https://github.com/therandomsecurityguy/signet/commit/e6f063e7d1e7153924867c6eef5830cc0c44f527))
+
+
+### Bug Fixes
+
+* **registry:** record rdf-validate-shacl@0.7.0 as the engine id ([4e4f26d](https://github.com/therandomsecurityguy/signet/commit/4e4f26d522e70d93449859194efe8ea2e1d01be8))
+
 ## [0.1.82](https://github.com/therandomsecurityguy/signet/compare/v0.1.81...v0.1.82) (2026-11-22)
 
 
