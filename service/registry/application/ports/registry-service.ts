@@ -340,6 +340,20 @@ export type RegistryTransparencyLogDetails = {
   gossip_events: RegistryTransparencyGossipEvent[];
 };
 
+export type RegistryArtifactRetention = {
+  sha256: string;
+  /** True when the artifact exists in the CAS (route 404s otherwise). */
+  present: boolean;
+  /** Backend immutability reporting (S3 Object Lock); null on backends that cannot enforce WORM. */
+  object_lock: {
+    mode: 'GOVERNANCE' | 'COMPLIANCE' | null;
+    retain_until: string | null;
+    legal_hold: boolean | null;
+  } | null;
+  /** True when an active lock retention is reported (COMPLIANCE, or GOVERNANCE within its window). */
+  immutability_enforced: boolean;
+};
+
 export type RegistryTrustedPublicKey = {
   public_key: {
     urn: string;
@@ -1379,6 +1393,7 @@ export interface RegistryService {
     source_ontology_version?: string;
     target_ontology_version?: string;
   }): Promise<RegistryDeFactoTermDetails>;
+  getArtifactRetention(input: { sha256: string }): Promise<RegistryArtifactRetention | null>;
   getGovernanceLogState(): Promise<RegistryGovernanceLogState>;
   compareGovernanceTransparencyLog(): Promise<RegistryGovernanceTransparencyComparison>;
   getGovernanceLogProof(input: { leaf_index: number }): Promise<RegistryGovernanceLogProof | null>;

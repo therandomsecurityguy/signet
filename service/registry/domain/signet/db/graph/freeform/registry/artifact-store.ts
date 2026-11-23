@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, GetObjectLegalHoldCommand, GetObjectRetentionCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
@@ -66,7 +66,22 @@ export type S3ArtifactStoreConfig = {
 export interface ArtifactStore {
   put(input: PutArtifactInput): Promise<ArtifactRecord>;
   getBySha256(sha256: string): Promise<GetArtifactResult | null>;
+  /**
+   * Object-lock retention reported by the backend for one object, when the
+   * backend supports immutability reporting (S3 Object Lock). File-system
+   * stores omit this method: they cannot enforce WORM.
+   */
+  getRetention?(sha256: string): Promise<ArtifactRetention | null>;
 }
+
+export type ArtifactRetention = {
+  /** S3 Object Lock mode, or null when no lock retention is configured. */
+  mode: 'GOVERNANCE' | 'COMPLIANCE' | null;
+  /** ISO timestamp until which the object is locked. */
+  retain_until?: string;
+  /** S3 legal hold status, when the backend reports one. */
+  legal_hold?: boolean;
+};
 
 export class FsCasArtifactStore implements ArtifactStore {
   private readonly integrityMode: ArtifactIntegrityMode;
@@ -226,6 +241,41 @@ export class S3CasArtifactStore implements ArtifactStore {
       }
       throw err;
     }
+  }
+
+  async getRetention(sha256: string): Promise<ArtifactRetention | null> {
+    if (!SHA256_PATTERN.test(sha256)) {
+      return null;
+    }
+    const key = this.objectKey(sha256);
+    const retention: ArtifactRetention = { mode: null };
+    try {
+      const response = (await this.client.send(
+        new GetObjectRetentionCommand({ Bucket: this.bucket, Key: key }),
+      )) as { Retention?: { Mode?: string; RetainUntilDate?: Date | string } };
+      const mode = response.Retention?.Mode;
+      if (mode === 'GOVERNANCE' || mode === 'COMPLIANCE') {
+        retention.mode = mode;
+      }
+      const retainUntil = response.Retention?.RetainUntilDate;
+      if (retainUntil) {
+        retention.retain_until = new Date(retainUntil).toISOString();
+      }
+    } catch {
+      // NoSuchObjectLockConfiguration, missing object, or an endpoint without
+      // Object Lock: report "no retention" rather than failing the read.
+    }
+    try {
+      const hold = (await this.client.send(
+        new GetObjectLegalHoldCommand({ Bucket: this.bucket, Key: key }),
+      )) as { LegalHold?: { Status?: string } };
+      if (hold.LegalHold?.Status === 'ON' || hold.LegalHold?.Status === 'OFF') {
+        retention.legal_hold = hold.LegalHold.Status === 'ON';
+      }
+    } catch {
+      // Optional; undocumented when absent.
+    }
+    return retention;
   }
 
   private objectKey(sha256: string): string {

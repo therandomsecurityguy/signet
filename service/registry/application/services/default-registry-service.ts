@@ -7227,6 +7227,38 @@ export class DefaultRegistryService implements RegistryService {
   }
 
   /**
+   * Immutability report for one artifact: whether the CAS backend (S3
+   * Object Lock) currently enforces retention for the object. Read-only;
+   * file-system backends cannot enforce WORM and report null object lock.
+   */
+  async getArtifactRetention(
+    input: { sha256: string },
+  ): Promise<import('../ports/registry-service.js').RegistryArtifactRetention | null> {
+    const stored = await this.deps.cas.getBySha256(input.sha256);
+    if (!stored) return null;
+    if (!this.deps.cas.getRetention) {
+      return {
+        sha256: input.sha256,
+        present: true,
+        object_lock: null,
+        immutability_enforced: false,
+      };
+    }
+    const retention = await this.deps.cas.getRetention(input.sha256);
+    const mode = retention?.mode ?? null;
+    const retainUntil = retention?.retain_until ?? null;
+    const active =
+      mode === 'COMPLIANCE' ||
+      (mode === 'GOVERNANCE' && (!retainUntil || Date.parse(retainUntil) > Date.now()));
+    return {
+      sha256: input.sha256,
+      present: true,
+      object_lock: { mode, retain_until: retainUntil, legal_hold: retention?.legal_hold ?? null },
+      immutability_enforced: active,
+    };
+  }
+
+  /**
    * Cross-log consistency comparison: the internal governance Merkle log vs
    * the companion Tessera log. Both receive the same records in order
    * (staging is best-effort, so the companion may be behind — never silently

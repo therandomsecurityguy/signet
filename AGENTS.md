@@ -77,6 +77,7 @@ Implemented now:
 - publication envelope provenance, revocation, and supersession references
 - frozen publication envelope artifacts at publish with CAS digest verification on every read (warn by default, `enforce` opt-in) and explicit live-drift reporting in publication verification
 - HTTP artifact byte access on `service/api` (`GET|HEAD /v1/artifacts/{sha256}`) with `Content-Digest` and fail-closed digest verification (unverified bytes are never transported)
+- per-artifact WORM reporting (`GET /v1/artifacts/{sha256}/retention`): S3 Object Lock mode/retention/legal-hold read straight from the bucket, with `immutability_enforced` derived from the live retention window — file-system backends report null (cannot enforce WORM; dev only)
 - MCP read gates denying revoked publications by default (`REGISTRY_READ_DENY_REVOKED`, opt out with `false`) and optionally unverified publications (`REGISTRY_READ_REQUIRE_VERIFIED`) on `registry.get_skill`/`get_agent`/`get_artifact` with explicit reason codes; verification itself is never gated
 - DSSE/in-toto attestation ingestion (`POST /v1/attestations`): signatures verified over DSSE PAE bytes against trusted keys, predicate types recorded, subjects bound to publication artifacts, stored as CAS evidence linked `sg:attestedBy`, and folded into publication verification plus the read-only `registry.get_attestations` MCP tool
 - certification state machine for skill and agent versions (`draft`, `validated`, `rejected`, `published`, `certified`, `deprecated`, `revoked`, `archived`)

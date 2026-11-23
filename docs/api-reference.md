@@ -440,6 +440,16 @@ as W3C SHACL Core and stores a machine-readable report per run
 | Method | Path | Description |
 |---|---|---|
 | GET | `/v1/artifacts/{sha256}` | Fetch content-addressed artifact bytes |
+| GET | `/v1/artifacts/{sha256}/retention` | Immutability report (S3 Object Lock mode/retention/legal hold) for the artifact |
+
+`GET /v1/artifacts/{sha256}/retention` reports what the storage backend
+enforces for one artifact: `{present, object_lock: {mode, retain_until,
+legal_hold} | null, immutability_enforced}`. `object_lock` is null on
+backends that cannot report Object Lock (file system, dev only);
+`immutability_enforced` is true for COMPLIANCE mode and for GOVERNANCE
+while its retention window is active. See
+`docs/runbooks/worm-artifacts.md` for enabling Object Lock on the artifact
+bucket.
 
 `GET /v1/artifacts/{sha256}` returns the raw object bytes with
 `Content-Digest` (RFC 9530, `sha-256=:...:`) and
