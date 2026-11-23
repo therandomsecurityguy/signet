@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.13](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.12...registry-sdk-v0.1.13) (2026-11-23)
+
+
+### Features
+
+* **registry:** cross-log anchoring comparison (governance log vs companion) ([5ca3bd7](https://github.com/therandomsecurityguy/signet/commit/5ca3bd7cf8c76a28dd79f24be13b2dc93abca542))
+* **registry:** cross-log anchoring comparison (governance log vs companion) ([393c166](https://github.com/therandomsecurityguy/signet/commit/393c166af84a660ac9afb0955ef4c600abac1662))
+
 ## [0.1.12](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.11...registry-sdk-v0.1.12) (2026-11-23)
 
 
