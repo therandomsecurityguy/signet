@@ -239,6 +239,27 @@ CAS, chart-managed dev Secret, no ingress/ESO/IRSA/sidecar, and a shared PVC
 mounted at `/workspace/data` in api + mcp so the CAS written by the
 management plane is readable by the MCP plane.
 
+### Recommended: the update script
+
+`scripts/demo-k8s-update.sh` builds the images, loads them into kind when
+needed (OrbStack shares its image store), upgrades the Helm release, waits
+for the api/mcp/webapp rollouts, and runs in-cluster `/healthz` checks. Demo
+state on the chart PVC survives updates.
+
+```bash
+scripts/demo-k8s-update.sh                     # build from the working tree
+scripts/demo-k8s-update.sh --no-build          # reuse existing :dev images
+scripts/demo-k8s-update.sh --release v0.1.85   # verify + deploy released images
+```
+
+`--release` runs `scripts/verify-release-signatures.sh` first (fail-closed)
+and pins the verified digests from the release manifest; released images are
+linux/amd64 (emulated on Apple Silicon — local builds are native). Run
+`git pull` — or check out the release tag — first: chart and values come from
+the working tree.
+
+### Manual path
+
 Build the images first (both paths):
 
 ```bash
