@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.87](https://github.com/therandomsecurityguy/signet/compare/v0.1.86...v0.1.87) (2026-11-24)
+
+
+### Features
+
+* **webapp:** review queue with evidence + fix spaced-author URN crash ([971fb17](https://github.com/therandomsecurityguy/signet/commit/971fb17d4f03232c49c7cc58b89a7910e62348f7))
+* **webapp:** review queue with evidence, version diff, and decisions ([9d260a7](https://github.com/therandomsecurityguy/signet/commit/9d260a777ceb4894558df97a5ebacc2f09d969a0))
+
+
+### Bug Fixes
+
+* **registry:** percent-encode free-text URNs for IRI-validating backends ([a79e47f](https://github.com/therandomsecurityguy/signet/commit/a79e47f0965f6fa68cc1963857f62e59863f0070))
+
 ## [0.1.86](https://github.com/therandomsecurityguy/signet/compare/v0.1.85...v0.1.86) (2026-11-24)
 
 
