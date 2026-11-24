@@ -2,6 +2,7 @@ import type {
   AgentDetails,
   AgentSummary,
   GraphSubgraph,
+  ProvenanceRecord,
   SkillVersionOperationInput,
   SkillDetails,
   SkillLifecycleOperationResult,
@@ -152,6 +153,9 @@ export function renderAgents(input: {
 
 export function renderAgentDetails(input: {
   details: AgentDetails;
+  activeEvidence?: ReviewEvidenceArtifact[];
+  evidenceErrors?: string[];
+  provenance?: ProvenanceRecord;
   flash?: string;
   page?: PageChromeInput;
 }) {
@@ -191,6 +195,7 @@ export function renderAgentDetails(input: {
           <button class="tab-btn" role="tab" type="button" data-tab="skills" aria-selected="false">Skills<span class="tab-count">${input.details.skills.length}</span></button>
           <button class="tab-btn" role="tab" type="button" data-tab="harnesses" aria-selected="false">Harnesses<span class="tab-count">${input.details.harnesses.length}</span></button>
           <button class="tab-btn" role="tab" type="button" data-tab="artifacts" aria-selected="false">Artifacts<span class="tab-count">${input.details.artifacts.length}</span></button>
+          <button class="tab-btn" role="tab" type="button" data-tab="history" aria-selected="false">History</button>
         </div>
         <section class="tab-panel" role="tabpanel" data-tab-panel="overview">
           <h2>Properties</h2>
@@ -204,6 +209,7 @@ export function renderAgentDetails(input: {
               `
               : '<p>No active version.</p>'
           }
+          ${renderEvidenceSection(input.activeEvidence ?? [], input.evidenceErrors ?? [])}
         </section>
         <section class="tab-panel" role="tabpanel" data-tab-panel="skills" hidden>
           <h2>Skills</h2>
@@ -227,6 +233,11 @@ export function renderAgentDetails(input: {
         <section class="tab-panel" role="tabpanel" data-tab-panel="artifacts" hidden>
           <h2>Artifacts</h2>
           ${renderArtifactsTable(input.details.artifacts)}
+        </section>
+        <section class="tab-panel" role="tabpanel" data-tab-panel="history" hidden>
+          <h2>History</h2>
+          <p class="muted">Recorded governance activities for this agent, from the PROV-O replay${input.provenance ? ' (canonical provenance export digest below)' : ''}.</p>
+          ${input.provenance ? renderProvenanceTimeline(input.provenance) : '<div class="empty"><p>Provenance is unavailable for this agent right now.</p></div>'}
         </section>
       </div>
     `,
@@ -297,6 +308,9 @@ export function renderSkillDetails(input: {
   versions: SkillVersionDetails[];
   activeVersion: SkillVersionDetails | null;
   usedByAgents?: string[];
+  activeEvidence?: ReviewEvidenceArtifact[];
+  evidenceErrors?: string[];
+  provenance?: ProvenanceRecord;
   flash?: string;
   lifecycleResult?: SkillLifecycleOperationResult;
   error?: string;
@@ -347,6 +361,7 @@ export function renderSkillDetails(input: {
           <button class="tab-btn" role="tab" type="button" data-tab="overview" aria-selected="true">Overview</button>
           <button class="tab-btn" role="tab" type="button" data-tab="versions" aria-selected="false">Versions<span class="tab-count">${input.versions.length}</span></button>
           <button class="tab-btn" role="tab" type="button" data-tab="artifacts" aria-selected="false">Artifacts<span class="tab-count">${input.details.artifacts.length}</span></button>
+          <button class="tab-btn" role="tab" type="button" data-tab="history" aria-selected="false">History</button>
           <button class="tab-btn" role="tab" type="button" data-tab="actions" aria-selected="false">Actions</button>
         </div>
         <section class="tab-panel" role="tabpanel" data-tab-panel="overview">
@@ -354,6 +369,7 @@ export function renderSkillDetails(input: {
           ${renderPropertiesTable(input.details.skill.properties)}
           <h2>Active Version</h2>
           ${input.activeVersion ? renderSkillVersionCard(input.activeVersion) : '<p>No active version.</p>'}
+          ${renderEvidenceSection(input.activeEvidence ?? [], input.evidenceErrors ?? [])}
         </section>
         <section class="tab-panel" role="tabpanel" data-tab-panel="versions" hidden>
           <h2>Versions</h2>
@@ -370,6 +386,11 @@ export function renderSkillDetails(input: {
         <section class="tab-panel" role="tabpanel" data-tab-panel="artifacts" hidden>
           <h2>Artifacts</h2>
           ${renderArtifactsTable(input.details.artifacts)}
+        </section>
+        <section class="tab-panel" role="tabpanel" data-tab-panel="history" hidden>
+          <h2>History</h2>
+          <p class="muted">Recorded governance activities for this skill, from the PROV-O replay${input.provenance ? ' (canonical provenance export digest below)' : ''}.</p>
+          ${input.provenance ? renderProvenanceTimeline(input.provenance) : '<div class="empty"><p>Provenance is unavailable for this skill right now.</p></div>'}
         </section>
         <section class="tab-panel" role="tabpanel" data-tab-panel="actions" hidden>
           ${
@@ -715,6 +736,8 @@ function renderShaclEvidence(payload: Record<string, unknown>, shortSha: string)
   const validatedAt = typeof payload['validated_at'] === 'string' ? payload['validated_at'] : '';
   const conforms = payload['conforms'] === true;
   const layers = Array.isArray(payload['layers']) ? payload['layers'] : [];
+  const rdf = isRecord(payload['rdf']) ? payload['rdf'] : null;
+  const reportJson = rdf && isRecord(rdf['report']) ? rdf['report'] : null;
   return `
     <section class="review-evidence">
       <div class="evidence-head">
@@ -748,8 +771,87 @@ function renderShaclEvidence(payload: Record<string, unknown>, shortSha: string)
           })
           .join('')}
       </div>
+      ${
+        reportJson
+          ? `<details class="version-raw"><summary>Standardized sh:ValidationReport (JSON-LD)</summary><pre>${escapeHtml(JSON.stringify(reportJson, null, 2))}</pre></details>`
+          : ''
+      }
     </section>
   `;
+}
+
+function renderEvidenceSection(evidence: ReviewEvidenceArtifact[], errors: string[]): string {
+  if (evidence.length === 0 && errors.length === 0) {
+    return '';
+  }
+  return `
+    <h2>Validation evidence</h2>
+    ${evidence.map((artifact) => renderReviewEvidence(artifact)).join('')}
+    ${errors.map((message) => `<p class="error">${escapeHtml(message)}</p>`).join('')}
+  `;
+}
+
+function renderProvenanceTimeline(provenance: ProvenanceRecord): string {
+  const statusChips = [
+    provenance.current_provenance_signed
+      ? '<span class="state-badge approved">signed · current</span>'
+      : '<span class="chip muted-chip">export unsigned</span>',
+    provenance.all_provenance_signatures_verified
+      ? '<span class="state-badge approved">all signatures verified</span>'
+      : provenance.provenance_signatures.length > 0
+        ? '<span class="state-badge rejected">signature issues</span>'
+        : '',
+    `<span class="chip">canonical ${escapeHtml(provenance.evidence.canonical_rdf_sha256.slice(0, 12))}… ${copyButton(provenance.evidence.canonical_rdf_sha256)}</span>`,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const items = provenance.replay
+    .map(
+      (entry) => `
+        <div class="timeline-item">
+          <span class="timeline-dot" aria-hidden="true"></span>
+          <div class="timeline-body">
+            <div class="timeline-head">
+              <strong class="timeline-op">${escapeHtml(entry.operation)}</strong>
+              ${renderStateBadge(entry.status)}
+              ${entry.occurred_at ? `<span class="muted">${escapeHtml(entry.occurred_at)}</span>` : ''}
+            </div>
+            <div class="timeline-meta">
+              ${entry.actor ? `<span>by ${escapeHtml(entry.actor)}</span>` : ''}
+              <span class="chip" title="${escapeHtml(entry.version_urn)}">${escapeHtml(shortVersionLabel(entry.version_urn))}</span>
+            </div>
+          </div>
+        </div>
+      `,
+    )
+    .join('');
+
+  const derivation = provenance.derivation_chain.filter((entry) => entry.was_derived_from.length > 0);
+  return `
+    <p class="detail-chips">${statusChips}</p>
+    ${provenance.replay.length > 0 ? `<div class="timeline">${items}</div>` : '<div class="empty"><p>No recorded activities yet.</p></div>'}
+    ${
+      derivation.length > 0
+        ? `<h3>Derivation</h3>${derivation
+            .map(
+              (entry) => `
+                <p class="detail-urn">${escapeHtml(shortVersionLabel(entry.version_urn))} ← ${entry.was_derived_from
+                  .map((urn) => `<span class="chip" title="${escapeHtml(urn)}">${escapeHtml(shortVersionLabel(urn))}</span>`)
+                  .join(' ')}</p>
+              `,
+            )
+            .join('')}`
+        : ''
+    }
+  `;
+}
+
+function shortVersionLabel(urn: string): string {
+  for (const prefix of ['urn:sg:skill-version:', 'urn:sg:agent-version:']) {
+    if (urn.startsWith(prefix)) return urn.slice(prefix.length);
+  }
+  return urn;
 }
 
 function renderAdvisoryEvidence(payload: Record<string, unknown>, shortSha: string) {

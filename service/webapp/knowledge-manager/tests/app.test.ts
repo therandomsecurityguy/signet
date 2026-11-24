@@ -4,6 +4,7 @@ import { buildApp } from '../src/server/app.js';
 import type { Env } from '../src/server/config/env.js';
 import {
   RegistryApiError,
+  type ProvenanceRecord,
   type RegistryApiClient,
   type ReviewOperationResult,
   type SkillLifecycleOperationResult,
@@ -850,6 +851,114 @@ describe('knowledge-manager app', () => {
     expect(reviewCalls).toHaveLength(0);
   });
 
+  it('renders validation evidence and provenance history on the skill detail page', async () => {
+    const shaclSha = 'b'.repeat(64);
+    const skillUrn = 'urn:sg:skill:skill:example';
+    const versionUrn = 'urn:sg:skill-version:skill:example:1';
+    const provenanceDigest = 'd'.repeat(64);
+
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        getSkill: async () => ({
+          skill: { urn: skillUrn, properties: { skill_key: 'skill:example', display_name: 'Example Skill' } },
+          artifacts: [],
+        }),
+        listSkillVersions: async () => ({
+          versions: [
+            {
+              skill_version: {
+                urn: versionUrn,
+                properties: { version: 1, lifecycle_status: 'published', active: true },
+              },
+              artifacts: [],
+              upstream_versions: [],
+              governance_artifacts: [
+                { role: 'validation_report', artifact_urn: `urn:sg:artifact:sha256:${shaclSha}`, sha256: shaclSha },
+              ],
+            },
+          ],
+        }),
+        getActiveSkillVersion: async () => ({
+          skill_version: {
+            urn: versionUrn,
+            properties: { version: 1, lifecycle_status: 'published', active: true },
+          },
+          artifacts: [],
+          upstream_versions: [],
+          governance_artifacts: [
+            { role: 'validation_report', artifact_urn: `urn:sg:artifact:sha256:${shaclSha}`, sha256: shaclSha },
+          ],
+        }),
+        getArtifactJson: async (sha256) =>
+          sha256 === shaclSha
+            ? {
+                payload: {
+                  validator: 'shacl-v1',
+                  engine: 'shacl-engine@1.1.3+sparql',
+                  conforms: true,
+                  validated_at: '2026-11-24T00:00:00.000Z',
+                  layers: [{ layer: 'graph_shape', violations: [] }],
+                  rdf: { format: 'jsonld', report: { '@type': 'sh:ValidationReport', 'sh:conforms': true } },
+                },
+              }
+            : null,
+        getSkillProvenance: async () => ({
+          entity: { urn: skillUrn, entity_type: 'SKILL' },
+          derivation_chain: [],
+          replay: [
+            {
+              occurred_at: '2026-11-20T10:00:00.000Z',
+              operation: 'create_draft',
+              actor: 'pablo',
+              version_urn: versionUrn,
+              status: 'completed',
+            },
+            {
+              occurred_at: '2026-11-20T10:05:00.000Z',
+              operation: 'validate',
+              actor: 'pablo',
+              version_urn: versionUrn,
+              status: 'completed',
+            },
+            {
+              occurred_at: '2026-11-21T09:00:00.000Z',
+              operation: 'review',
+              actor: 'Dana Reviewer',
+              version_urn: versionUrn,
+              status: 'completed',
+            },
+          ],
+          evidence: {
+            canonical_rdf_sha256: provenanceDigest,
+            canonical_rdf_artifact_urn: `urn:sg:artifact:sha256:${provenanceDigest}`,
+          },
+          provenance_signatures: [],
+          all_provenance_signatures_verified: false,
+          current_provenance_signed: false,
+        }),
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const page = await app.request('/skills/skill%3Aexample');
+    expect(page.status).toBe(200);
+    const text = await page.text();
+    // Validation evidence (SHACL report + standardized JSON-LD report).
+    expect(text).toContain('Validation evidence');
+    expect(text).toContain('graph_shape');
+    expect(text).toContain('sh:ValidationReport');
+    // Provenance timeline (History tab).
+    expect(text).toContain('data-tab="history"');
+    expect(text).toContain('create_draft');
+    expect(text).toContain('validate');
+    expect(text).toContain('Dana Reviewer');
+    expect(text).toContain(`canonical ${provenanceDigest.slice(0, 12)}`);
+  });
+
   it('exposes ontology project JSON and html views', async () => {
     const app = buildApp({
       env,
@@ -1100,7 +1209,25 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
     reviewSkillVersion: async () => defaultReviewResult(),
     reviewAgentVersion: async () => defaultReviewResult(),
     getArtifactJson: async () => null,
+    getSkillProvenance: async () => defaultProvenance(),
+    getAgentProvenance: async () => defaultProvenance('AGENT', 'urn:sg:agent:cursor:test'),
     ...overrides,
+  };
+}
+
+function defaultProvenance(entityType = 'SKILL', urn = 'urn:sg:skill:example'): ProvenanceRecord {
+  const digest = 'c'.repeat(64);
+  return {
+    entity: { urn, entity_type: entityType },
+    derivation_chain: [],
+    replay: [],
+    evidence: {
+      canonical_rdf_sha256: digest,
+      canonical_rdf_artifact_urn: `urn:sg:artifact:sha256:${digest}`,
+    },
+    provenance_signatures: [],
+    all_provenance_signatures_verified: false,
+    current_provenance_signed: false,
   };
 }
 

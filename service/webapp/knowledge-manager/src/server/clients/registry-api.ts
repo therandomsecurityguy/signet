@@ -134,6 +134,43 @@ export type ReviewOperationResult = {
   result: SkillVersionDetails | AgentVersionDetails;
 };
 
+export type ProvenanceActivity = {
+  task_urn: string;
+  operation: string;
+  status: string;
+  occurred_at?: string;
+  actor?: string;
+  used: Array<{ urn: string; entity_type?: string }>;
+  associated_agents: Array<{ urn: string; agent_name?: string; role?: string }>;
+};
+
+export type ProvenanceRecord = {
+  entity: { urn: string; entity_type: string };
+  derivation_chain: Array<{
+    version_urn: string;
+    was_derived_from: string[];
+    activities: ProvenanceActivity[];
+  }>;
+  replay: Array<{
+    occurred_at?: string;
+    operation: string;
+    actor?: string;
+    version_urn: string;
+    status: string;
+  }>;
+  evidence: {
+    canonical_rdf_sha256: string;
+    canonical_rdf_artifact_urn: string;
+  };
+  provenance_signatures: Array<{
+    signer: string;
+    verdict: 'valid' | 'invalid' | 'stale';
+    signed_at: string;
+  }>;
+  all_provenance_signatures_verified: boolean;
+  current_provenance_signed: boolean;
+};
+
 export type GraphNodeView = {
   id: string;
   urn: string;
@@ -345,6 +382,8 @@ export interface RegistryApiClient {
     apiToken: string,
   ): Promise<ReviewOperationResult>;
   getArtifactJson(sha256: string): Promise<unknown | null>;
+  getSkillProvenance(skillKey: string, version: number): Promise<ProvenanceRecord>;
+  getAgentProvenance(agentKey: string, version: number): Promise<ProvenanceRecord>;
 }
 
 export class HttpRegistryApiClient implements RegistryApiClient {
@@ -589,6 +628,18 @@ export class HttpRegistryApiClient implements RegistryApiClient {
     } catch {
       return null;
     }
+  }
+
+  async getSkillProvenance(skillKey: string, version: number): Promise<ProvenanceRecord> {
+    return await this.fetchJson(
+      `/v1/skills/${encodeURIComponent(skillKey)}/versions/${version}/provenance`,
+    );
+  }
+
+  async getAgentProvenance(agentKey: string, version: number): Promise<ProvenanceRecord> {
+    return await this.fetchJson(
+      `/v1/agents/${encodeURIComponent(agentKey)}/versions/${version}/provenance`,
+    );
   }
 
   private async postSkillVersionAction(

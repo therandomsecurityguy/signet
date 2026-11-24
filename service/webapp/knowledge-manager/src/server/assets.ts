@@ -562,7 +562,7 @@ tbody td a { font-weight: 550; }
 .state-badge.certified { background: var(--accent-soft); color: var(--accent-2); }
 .state-badge.rejected, .state-badge.revoked { background: var(--red-soft); color: var(--red); }
 .state-badge.deprecated, .state-badge.pending { background: var(--amber-soft); color: var(--amber); }
-.state-badge.approved { background: var(--green-soft); color: var(--green); }
+.state-badge.approved, .state-badge.completed { background: var(--green-soft); color: var(--green); }
 @media (prefers-color-scheme: light) { .state-badge.certified { color: var(--accent-strong); } }
 
 /* Review evidence */
@@ -582,6 +582,33 @@ tbody td a { font-weight: 550; }
 .violation { margin: 0.2rem 0; font-size: 0.8rem; color: var(--red); }
 .review-evidence .kv-value .chip { margin: 0.1rem 0.15rem 0.1rem 0; }
 .review-card .lifecycle-form { margin-top: 0.9rem; }
+
+/* Provenance timeline */
+.timeline { display: flex; flex-direction: column; margin: 0.75rem 0; }
+.timeline-item { position: relative; display: flex; gap: 0.85rem; padding: 0.45rem 0; }
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: 0.46rem;
+  top: 1.5rem;
+  bottom: -0.1rem;
+  width: 1px;
+  background: var(--border-strong);
+}
+.timeline-item:last-child::before { display: none; }
+.timeline-dot {
+  width: 0.56rem;
+  height: 0.56rem;
+  border-radius: 999px;
+  background: var(--accent);
+  margin-top: 0.34rem;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.timeline-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.timeline-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.timeline-op { font-size: 0.875rem; }
+.timeline-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; color: var(--text-3); font-size: 0.78rem; }
 
 /* Messages */
 .flash, .error {

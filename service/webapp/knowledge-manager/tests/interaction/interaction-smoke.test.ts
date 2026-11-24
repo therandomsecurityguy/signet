@@ -69,6 +69,13 @@ const tameLlamaVersion: SkillVersionDetails = {
   },
   artifacts: [tameLlamaArtifact],
   upstream_versions: [],
+  governance_artifacts: [
+    {
+      role: 'validation_report',
+      artifact_urn: `urn:sg:artifact:sha256:${'e'.repeat(64)}`,
+      sha256: 'e'.repeat(64),
+    },
+  ],
 };
 
 const tameLlamaDetails: SkillDetails = {
@@ -246,7 +253,57 @@ function makeRegistryApiClient(): RegistryApiClient {
       task: { task: { urn: 'urn:sg:task:review', properties: {} }, targets: [] },
       result: tameLlamaVersion,
     }),
-    getArtifactJson: async () => null,
+    getArtifactJson: async (sha256) =>
+      sha256 === 'e'.repeat(64)
+        ? {
+            payload: {
+              validator: 'shacl-v1',
+              engine: 'shacl-engine@1.1.3+sparql',
+              conforms: true,
+              validated_at: '2026-11-15T02:58:23.559Z',
+              layers: [{ layer: 'graph_shape', violations: [] }],
+            },
+          }
+        : null,
+    getSkillProvenance: async () => ({
+      entity: { urn: TAME_LLAMA_URN, entity_type: 'SKILL' },
+      derivation_chain: [],
+      replay: [
+        {
+          occurred_at: '2026-11-15T02:58:22.990Z',
+          operation: 'create_draft',
+          actor: 'registry-operator',
+          version_urn: 'urn:sg:skill-version:skill:tame-llama@v1',
+          status: 'completed',
+        },
+        {
+          occurred_at: '2026-11-15T02:58:23.559Z',
+          operation: 'validate',
+          actor: 'registry-operator',
+          version_urn: 'urn:sg:skill-version:skill:tame-llama@v1',
+          status: 'completed',
+        },
+      ],
+      evidence: {
+        canonical_rdf_sha256: 'f'.repeat(64),
+        canonical_rdf_artifact_urn: `urn:sg:artifact:sha256:${'f'.repeat(64)}`,
+      },
+      provenance_signatures: [],
+      all_provenance_signatures_verified: false,
+      current_provenance_signed: false,
+    }),
+    getAgentProvenance: async () => ({
+      entity: { urn: REGISTRY_AGENT_URN, entity_type: 'AGENT' },
+      derivation_chain: [],
+      replay: [],
+      evidence: {
+        canonical_rdf_sha256: 'f'.repeat(64),
+        canonical_rdf_artifact_urn: `urn:sg:artifact:sha256:${'f'.repeat(64)}`,
+      },
+      provenance_signatures: [],
+      all_provenance_signatures_verified: false,
+      current_provenance_signed: false,
+    }),
   };
 }
 
@@ -340,9 +397,14 @@ maybeDescribe('knowledge-manager interaction smoke (headless chromium)', { timeo
     const overview = page.locator('[data-tab-panel="overview"]');
     const versions = page.locator('[data-tab-panel="versions"]');
     const artifacts = page.locator('[data-tab-panel="artifacts"]');
+    const history = page.locator('[data-tab-panel="history"]');
 
     expect(await overview.isVisible()).toBe(true);
     expect(await versions.isHidden()).toBe(true);
+
+    // Validation evidence renders in the overview for the active version.
+    expect(await overview.locator('.review-evidence').count()).toBeGreaterThan(0);
+    expect(((await overview.textContent()) ?? '')).toContain('graph_shape');
 
     await page.click('.tab-btn[data-tab="versions"]');
     expect(await versions.isVisible()).toBe(true);
@@ -358,6 +420,12 @@ maybeDescribe('knowledge-manager interaction smoke (headless chromium)', { timeo
     await page.click('.tab-btn[data-tab="artifacts"]');
     expect(await artifacts.isVisible()).toBe(true);
     expect(await versions.isHidden()).toBe(true);
+
+    await page.click('.tab-btn[data-tab="history"]');
+    expect(await history.isVisible()).toBe(true);
+    expect(await history.locator('.timeline .timeline-item').count()).toBe(2);
+    expect(((await history.textContent()) ?? '')).toContain('create_draft');
+    expect(((await history.textContent()) ?? '')).toContain('registry-operator');
 
     await page.click('.detail-hero .detail-urn .copy-btn');
     await expect
