@@ -94,15 +94,20 @@ export function deFactoTermUrn(term: string): DeFactoTermUrn {
 export type ProvAgentUrn = `urn:sg:prov-agent:${string}`;
 
 export function provAgentUrn(agent_name: string): ProvAgentUrn {
-  return `urn:sg:prov-agent:${agent_name}` as const;
+  // Percent-encode the name: raw display names routinely contain spaces
+  // ("Dana Reviewer"), which produce invalid IRIs that SPARQL backends
+  // (Fuseki) reject mid-write. Space-free machine names are unchanged.
+  return `urn:sg:prov-agent:${encodeURIComponent(agent_name)}` as const;
 }
 
 export function harnessUrn(harness_name: string): HarnessUrn {
-  return `urn:sg:harness:${harness_name}` as const;
+  // Same encoding contract as provAgentUrn: harness display names may
+  // contain spaces ("Claude Code") and must stay valid IRIs.
+  return `urn:sg:harness:${encodeURIComponent(harness_name)}` as const;
 }
 
 export function toolUrn(tool_name: string): ToolUrn {
-  return `urn:sg:tool:${tool_name}` as const;
+  return `urn:sg:tool:${encodeURIComponent(tool_name)}` as const;
 }
 
 export function publicKeyUrn(key_ref: string): PublicKeyUrn {

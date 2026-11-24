@@ -400,7 +400,14 @@ function parseArtifactSha256(artifactUrn: string): string | undefined {
 
 function parseHarnessName(harnessUrn: string): string | undefined {
   const prefix = 'urn:sg:harness:';
-  return harnessUrn.startsWith(prefix) ? harnessUrn.slice(prefix.length) : undefined;
+  if (!harnessUrn.startsWith(prefix)) return undefined;
+  const encoded = harnessUrn.slice(prefix.length);
+  try {
+    // harnessUrn percent-encodes display names; decode back for display.
+    return decodeURIComponent(encoded);
+  } catch {
+    return encoded;
+  }
 }
 
 function decodeUtf8(bytes: Uint8Array): string {

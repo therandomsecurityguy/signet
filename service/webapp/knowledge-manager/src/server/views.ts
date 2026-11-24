@@ -530,6 +530,326 @@ export function renderOntologyProjects(input: {
   );
 }
 
+// --- reviews ----------------------------------------------------------------
+
+export type ReviewEvidenceArtifact = {
+  sha256: string;
+  payload: unknown;
+};
+
+export type ReviewPropertyDiff = {
+  changed: Array<{ key: string; from: string; to: string }>;
+  added: string[];
+  removed: string[];
+};
+
+export type ReviewQueueItem = {
+  entity_type: 'SKILL_VERSION' | 'AGENT_VERSION';
+  logical_key: string;
+  version: number | null;
+  publication_urn: string;
+  lifecycle_status: string;
+  review_status: string;
+  policy_version?: string;
+  detail_href?: string;
+  diff: ReviewPropertyDiff | null;
+  diff_base_version: number | null;
+  evidence: ReviewEvidenceArtifact[];
+  evidence_errors: string[];
+  artifacts: Array<{ role: string; sha256: string }>;
+  action_href: string;
+};
+
+export function renderReviews(input: {
+  items: ReviewQueueItem[];
+  flash?: string;
+  error?: string;
+  page?: PageChromeInput;
+}) {
+  const validatedCount = input.items.filter((item) => item.lifecycle_status === 'validated').length;
+  return renderPage(
+    'Reviews',
+    `
+      <p class="breadcrumb"><a href="/">Home</a> / Reviews</p>
+      ${renderFlash(input.flash)}
+      ${renderError(input.error)}
+      <p class="hero-sub">${escapeHtml(String(input.items.length))} version${input.items.length === 1 ? '' : 's'} awaiting human review across skills and agents${
+        validatedCount > 0 ? ` · ${escapeHtml(String(validatedCount))} ready to publish once approved` : ''
+      }. Approvals satisfy the policy human-review gate; decisions are recorded as review evidence artifacts.</p>
+      ${
+        input.items.length === 0
+          ? '<div class="empty"><p>Review queue is clear.</p></div>'
+          : input.items.map((item) => renderReviewCard(item, input.page)).join('')
+      }
+    `,
+    input.page,
+  );
+}
+
+function renderReviewCard(item: ReviewQueueItem, page?: PageChromeInput) {
+  const title = item.detail_href
+    ? `<a href="${escapeHtml(item.detail_href)}">${escapeHtml(item.logical_key)}</a>`
+    : escapeHtml(item.logical_key);
+  const versionLabel = item.version !== null ? `Version ${escapeHtml(String(item.version))}` : escapeHtml(item.publication_urn);
+  return `
+    <section class="panel version-card review-card">
+      <div class="version-head">
+        <h3>${title} <span class="muted">·</span> ${versionLabel}</h3>
+        ${renderStateBadge(item.lifecycle_status)}
+        ${renderStateBadge(item.review_status)}
+        ${item.policy_version ? `<span class="chip">policy: ${escapeHtml(item.policy_version)}</span>` : ''}
+      </div>
+      <p class="detail-urn">URN <code>${escapeHtml(item.publication_urn)}</code> ${copyButton(item.publication_urn)}</p>
+      ${renderReviewDiff(item)}
+      ${item.evidence.map((artifact) => renderReviewEvidence(artifact)).join('')}
+      ${item.evidence_errors.map((message) => `<p class="error">${escapeHtml(message)}</p>`).join('')}
+      ${
+        item.artifacts.length > 0
+          ? `<p class="detail-chips">${item.artifacts
+              .map(
+                (artifact) =>
+                  `<span class="chip">${escapeHtml(artifact.role)} · <code>${escapeHtml(artifact.sha256.slice(0, 10))}…</code> ${copyButton(artifact.sha256)}</span>`,
+              )
+              .join(' ')}</p>`
+          : ''
+      }
+      <form class="lifecycle-form" method="post" action="${escapeHtml(item.action_href)}">
+        ${csrfHiddenField(page)}
+        <div class="form-inline">
+          ${renderTextInput('author', 'Reviewer', '', 'text', true)}
+          ${renderTextInput('review_role', 'Review role', '', 'text')}
+        </div>
+        ${renderTextArea('note', 'Note', '')}
+        <div class="button-row">
+          <button type="submit" name="decision" value="approve">Approve</button>
+          <button type="submit" name="decision" value="reject" class="secondary">Reject</button>
+        </div>
+      </form>
+    </section>
+  `;
+}
+
+function renderReviewDiff(item: ReviewQueueItem) {
+  if (item.diff_base_version === null || !item.diff) {
+    return `
+      <details class="version-raw">
+        <summary>No previous version to compare</summary>
+        <p class="muted">This is the first recorded version of ${escapeHtml(item.logical_key)}.</p>
+      </details>
+    `;
+  }
+  const { changed, added, removed } = item.diff;
+  const summary = `Changes vs version ${escapeHtml(String(item.diff_base_version))} · ${changed.length} changed · ${added.length} added · ${removed.length} removed`;
+  const hasChanges = changed.length + added.length + removed.length > 0;
+  return `
+    <details class="version-raw"${hasChanges ? ' open' : ''}>
+      <summary>${summary}</summary>
+      ${
+        hasChanges
+          ? `
+            ${
+              changed.length > 0
+                ? `<div class="kv">${changed
+                    .map(
+                      (change) => `
+                        <div class="kv-row">
+                          <span class="kv-key">${escapeHtml(change.key)}</span>
+                          <div class="kv-value"><span class="muted" title="${escapeHtml(change.from)}">${escapeHtml(truncateText(change.from, 140))}</span> → <span title="${escapeHtml(change.to)}">${escapeHtml(truncateText(change.to, 140))}</span></div>
+                        </div>
+                      `,
+                    )
+                    .join('')}</div>`
+                : ''
+            }
+            ${added.length > 0 ? `<p class="detail-chips"><span class="muted">Added:</span> ${added.map((key) => `<span class="chip">${escapeHtml(key)}</span>`).join(' ')}</p>` : ''}
+            ${removed.length > 0 ? `<p class="detail-chips"><span class="muted">Removed:</span> ${removed.map((key) => `<span class="chip">${escapeHtml(key)}</span>`).join(' ')}</p>` : ''}
+          `
+          : '<p class="muted">Properties are identical to the previous version.</p>'
+      }
+    </details>
+  `;
+}
+
+function renderReviewEvidence(artifact: ReviewEvidenceArtifact) {
+  const unwrapped = unwrapArtifactPayload(artifact.payload);
+  const shortSha = `${artifact.sha256.slice(0, 10)}…`;
+  if (!unwrapped) {
+    return `
+      <section class="review-evidence">
+        <div class="evidence-head"><h4>Evidence artifact</h4><span class="chip">sha256:${escapeHtml(shortSha)}</span></div>
+        <p class="muted">Artifact content is not a structured report; inspect it by digest.</p>
+      </section>
+    `;
+  }
+
+  if (unwrapped['validator_kind'] === 'llm_semantic' || unwrapped['advisory'] === true || Array.isArray(unwrapped['scorecards'])) {
+    return renderAdvisoryEvidence(unwrapped, shortSha);
+  }
+
+  if (Array.isArray(unwrapped['layers']) || typeof unwrapped['conforms'] === 'boolean') {
+    return renderShaclEvidence(unwrapped, shortSha);
+  }
+
+  const fields = primitiveEntries(unwrapped);
+  return `
+    <section class="review-evidence">
+      <div class="evidence-head"><h4>Evidence artifact</h4><span class="chip">sha256:${escapeHtml(shortSha)}</span></div>
+      ${
+        fields.length > 0
+          ? `<div class="kv">${fields
+              .map(
+                ([label, value]) => `
+                  <div class="kv-row"><span class="kv-key">${escapeHtml(label)}</span><div class="kv-value">${escapeHtml(value)}</div></div>
+                `,
+              )
+              .join('')}</div>`
+          : '<p class="muted">No structured fields to display.</p>'
+      }
+    </section>
+  `;
+}
+
+function renderShaclEvidence(payload: Record<string, unknown>, shortSha: string) {
+  const validator = typeof payload['validator'] === 'string' ? payload['validator'] : 'shacl';
+  const engine = typeof payload['engine'] === 'string' ? payload['engine'] : '';
+  const validatedAt = typeof payload['validated_at'] === 'string' ? payload['validated_at'] : '';
+  const conforms = payload['conforms'] === true;
+  const layers = Array.isArray(payload['layers']) ? payload['layers'] : [];
+  return `
+    <section class="review-evidence">
+      <div class="evidence-head">
+        <h4>Validation report</h4>
+        <span class="chip">${escapeHtml(validator)}</span>
+        ${conforms ? '<span class="state-badge approved">conforms</span>' : '<span class="state-badge rejected">violations</span>'}
+        ${engine ? `<span class="chip">${escapeHtml(engine)}</span>` : ''}
+        ${validatedAt ? `<span class="chip muted-chip">${escapeHtml(validatedAt)}</span>` : ''}
+        <span class="chip">sha256:${escapeHtml(shortSha)}</span>
+      </div>
+      <div class="kv">
+        ${layers
+          .map((layer) => {
+            const record = isRecord(layer) ? layer : {};
+            const name = typeof record['layer'] === 'string' ? record['layer'] : 'layer';
+            const violations = Array.isArray(record['violations']) ? record['violations'] : [];
+            const details = primitiveEntries(record, ['layer', 'violations']);
+            return `
+              <div class="kv-row">
+                <span class="kv-key">${escapeHtml(name)}</span>
+                <div class="kv-value">
+                  ${details.length > 0 ? details.map(([label, value]) => `<span class="chip">${escapeHtml(label)}: ${escapeHtml(value)}</span>`).join(' ') : ''}
+                  ${
+                    violations.length === 0
+                      ? '<span class="muted">no violations</span>'
+                      : violations.map((violation) => `<p class="violation">${escapeHtml(describeViolation(violation))}</p>`).join('')
+                  }
+                </div>
+              </div>
+            `;
+          })
+          .join('')}
+      </div>
+    </section>
+  `;
+}
+
+function renderAdvisoryEvidence(payload: Record<string, unknown>, shortSha: string) {
+  const validator = typeof payload['validator'] === 'string' ? payload['validator'] : 'advisory';
+  const confidence = typeof payload['confidence'] === 'number' ? payload['confidence'] : null;
+  const scorecards = Array.isArray(payload['scorecards']) ? payload['scorecards'] : [];
+  const warnings = Array.isArray(payload['warnings']) ? payload['warnings'].filter((entry) => typeof entry === 'string') : [];
+  const suggestions = isRecord(payload['suggestions']) ? payload['suggestions'] : null;
+  const suggestionLines: string[] = [];
+  if (suggestions) {
+    for (const [key, value] of Object.entries(suggestions)) {
+      if (Array.isArray(value) && value.length > 0) {
+        suggestionLines.push(`${key}: ${value.map((entry) => stringifyValue(entry)).join(', ')}`);
+      }
+    }
+  }
+  return `
+    <section class="review-evidence">
+      <div class="evidence-head">
+        <h4>Advisory semantic analysis</h4>
+        <span class="chip">${escapeHtml(validator)}</span>
+        ${confidence !== null ? `<span class="chip">confidence ${escapeHtml(String(Math.round(confidence * 100)))}%</span>` : ''}
+        <span class="chip muted-chip">advisory — never blocking</span>
+        <span class="chip">sha256:${escapeHtml(shortSha)}</span>
+      </div>
+      ${
+        scorecards.length > 0
+          ? `<div class="kv">${scorecards
+              .map((scorecard) => {
+                const record = isRecord(scorecard) ? scorecard : {};
+                const dimension = typeof record['dimension'] === 'string' ? record['dimension'] : 'dimension';
+                const score = typeof record['score'] === 'number' ? record['score'] : null;
+                const rationale = typeof record['rationale'] === 'string' ? record['rationale'] : '';
+                return `
+                  <div class="kv-row">
+                    <span class="kv-key">${escapeHtml(dimension)}</span>
+                    <div class="kv-value">${score !== null ? `<strong>${escapeHtml(String(score))}</strong> · ` : ''}${escapeHtml(rationale)}</div>
+                  </div>
+                `;
+              })
+              .join('')}</div>`
+          : ''
+      }
+      ${warnings.map((warning) => `<p class="violation">warning: ${escapeHtml(warning)}</p>`).join('')}
+      ${suggestionLines.map((line) => `<p class="muted">${escapeHtml(line)}</p>`).join('')}
+    </section>
+  `;
+}
+
+function unwrapArtifactPayload(payload: unknown): Record<string, unknown> | null {
+  if (!isRecord(payload)) return null;
+  const inner = payload['payload'];
+  if (isRecord(inner)) return inner;
+  return payload;
+}
+
+function primitiveEntries(record: Record<string, unknown>, exclude: string[] = []): Array<[string, string]> {
+  const out: Array<[string, string]> = [];
+  for (const [key, value] of Object.entries(record)) {
+    if (exclude.includes(key)) continue;
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      out.push([key, stringifyValue(value)]);
+    }
+  }
+  return out.sort(([left], [right]) => left.localeCompare(right));
+}
+
+function describeViolation(violation: unknown): string {
+  if (!isRecord(violation)) return stringifyValue(violation);
+  const severity = typeof violation['severity'] === 'string' ? violation['severity'] : '';
+  const message =
+    typeof violation['message'] === 'string'
+      ? violation['message']
+      : typeof violation['result_message'] === 'string'
+        ? violation['result_message']
+        : '';
+  if (!severity && !message) {
+    return stringifyValue(violation);
+  }
+  const path = typeof violation['path'] === 'string' ? violation['path'] : '';
+  const focus =
+    typeof violation['focus_node'] === 'string'
+      ? violation['focus_node']
+      : typeof violation['focusNode'] === 'string'
+        ? violation['focusNode']
+        : '';
+  return [severity ? `${severity}:` : '', message, path ? `(${path})` : '', focus ? `@ ${focus}` : '']
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function truncateText(value: string, maxLength: number): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength)}…` : value;
+}
+
 export function renderFusekiQueries(input: {
   page?: PageChromeInput;
   fusekiUrl: string;
@@ -877,6 +1197,7 @@ function activeNavKey(path?: string): string {
   if (!path || path === '/') return 'home';
   if (path.startsWith('/agents')) return 'agents';
   if (path.startsWith('/skills')) return 'skills';
+  if (path.startsWith('/reviews')) return 'reviews';
   if (path.startsWith('/graph')) return 'graph';
   if (path.startsWith('/ontology')) return 'ontology';
   if (path.startsWith('/fuseki')) return 'fuseki';
@@ -906,6 +1227,7 @@ function renderPage(title: string, body: string, page?: PageChromeInput) {
           ${navItem('/', 'Home', active, 'home')}
           ${navItem('/agents', 'Agents', active, 'agents')}
           ${navItem('/skills', 'Skills', active, 'skills')}
+          ${navItem('/reviews', 'Reviews', active, 'reviews')}
           ${navItem('/graph', 'Graph', active, 'graph')}
           ${navItem('/ontology-projects', 'Ontology', active, 'ontology')}
           ${navItem('/fuseki-queries', 'Fuseki', active, 'fuseki')}

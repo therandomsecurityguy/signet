@@ -7,6 +7,7 @@ import type { AuditPublisher } from '../../application/ports/audit-publisher.js'
 import type { SkillLifecycleUseCase } from '../../application/usecases/skill-lifecycle.js';
 import { ApiError } from '../../domain/errors/api-error.js';
 import { RegistryCoreError } from '../../../../registry/application/errors/registry-core-error.js';
+import { logger } from '../../infrastructure/logging/pino.js';
 import {
   ActiveSkillVersionOutputSchema,
   CreateSkillDraftInputSchema,
@@ -709,6 +710,11 @@ async function handleLifecycleWrite<TInput extends Record<string, unknown>, TRes
     }
     return input.c.json(result, 200);
   } catch (err) {
+    if (!(err instanceof RegistryCoreError)) {
+      // Unknown errors would otherwise be mapped to a silent INTERNAL_ERROR;
+      // log the stack so 500s are diagnosable.
+      logger.error({ err, path: input.c.req.path }, 'unhandled skill lifecycle error');
+    }
     const mapped = mapLifecycleError(err);
     if (principal) {
       await auditApiWrite({

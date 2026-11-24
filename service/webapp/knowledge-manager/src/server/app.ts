@@ -15,8 +15,11 @@ import {
   type CreateSkillDraftInput,
   type CreateSkillInput,
   type DeFactoTermDetails,
+  type GovernanceArtifactRef,
   type OntologyPackageDetails,
+  type PendingReviewItem,
   type RegistryApiClient,
+  type ReviewVersionInput,
   type SkillDetails,
   type SkillLifecycleOperationResult,
   type SkillSummary,
@@ -29,6 +32,8 @@ import { buildAuthorizeUrl, buildPkceState, exchangeCodeForAccessToken, fetchDis
 import type { OperatorSession, OperatorSessionStore } from './session-store.js';
 import {
   type PageChromeInput,
+  type ReviewEvidenceArtifact,
+  type ReviewQueueItem,
   renderAgentDetails,
   renderAgents,
   renderGraphPage,
@@ -38,6 +43,7 @@ import {
   renderNewAgentForm,
   renderNewSkillForm,
   renderOntologyProjects,
+  renderReviews,
   renderSkillDetails,
   renderSkills,
 } from './views.js';
@@ -284,6 +290,115 @@ codeVerifier,
         page: buildPageChrome(deps.env, c.req.path, c.req.query(), await readOperatorSession(c, deps)),
       }),
     );
+  });
+
+  app.get('/reviews', async (c) => {
+    const session = await readOperatorSession(c, deps);
+    const flash = c.req.query('flash');
+    try {
+      const items = await loadReviewQueue(deps.registryApi);
+      return c.html(
+        renderReviews({
+          items,
+          ...(flash ? { flash } : {}),
+          page: buildPageChrome(deps.env, c.req.path, c.req.query(), session),
+        }),
+      );
+    } catch (err) {
+      const mapped = mapRegistryApiError(err);
+      return c.html(
+        renderReviews({
+          items: [],
+          error: mapped.message,
+          page: buildPageChrome(deps.env, c.req.path, c.req.query(), session),
+        }),
+        mapped.status,
+      );
+    }
+  });
+
+  app.post('/reviews/:entityType/:key/versions/:version', async (c) => {
+    const entityType = c.req.param('entityType');
+    const logicalKey = c.req.param('key') ?? '';
+    const rawVersion = c.req.param('version');
+    const version = rawVersion ? parseVersion(rawVersion) : null;
+    const values = await readFormValues(c);
+    const session = await readOperatorSession(c, deps);
+
+    const renderQueue = async (input: {
+      status?: 200 | 400 | 401 | 403 | 404 | 409 | 500;
+      flash?: string;
+      error?: string;
+      sessionError?: string;
+    }) => {
+      const items = await loadReviewQueue(deps.registryApi).catch(() => [] as ReviewQueueItem[]);
+      return c.html(
+        renderReviews({
+          items,
+          ...(input.flash ? { flash: input.flash } : {}),
+          ...(input.error ? { error: input.error } : {}),
+          page: buildPageChrome(
+            deps.env,
+            '/reviews',
+            c.req.query(),
+            await readOperatorSession(c, deps),
+            input.sessionError ? { sessionError: input.sessionError } : undefined,
+          ),
+        }),
+        input.status ?? 200,
+      );
+    };
+
+    if (entityType !== 'skill' && entityType !== 'agent') {
+      return await renderQueue({ status: 400, error: `Unknown review target: ${entityType}.` });
+    }
+    if (!version) {
+      return await renderQueue({ status: 400, error: 'Invalid version for review.' });
+    }
+    if (!session) {
+      return await renderQueue({
+        status: 401,
+        error: 'Sign in with an API bearer token first.',
+        sessionError: 'Sign in with an API bearer token first.',
+      });
+    }
+    if (!isAdminSession(session, deps.env)) {
+      return await renderQueue({
+        status: 403,
+        error: 'Admin access is required to review versions.',
+        sessionError: 'Admin access is required to review versions.',
+      });
+    }
+    const decision =
+      values.decision === 'approve' ? 'approve' : values.decision === 'reject' ? 'reject' : null;
+    const author = (values.author ?? '').trim();
+    if (!decision) {
+      return await renderQueue({ status: 400, error: 'Choose approve or reject.' });
+    }
+    if (!author) {
+      return await renderQueue({ status: 400, error: 'A reviewer name is required.' });
+    }
+
+    const payload: ReviewVersionInput = {
+      decision,
+      author,
+      ...(values.review_role && values.review_role.trim() ? { review_role: values.review_role.trim() } : {}),
+      ...(values.note && values.note.trim() ? { note: values.note.trim() } : {}),
+    };
+
+    try {
+      if (entityType === 'skill') {
+        await deps.registryApi.reviewSkillVersion(logicalKey, version, payload, session.apiToken);
+      } else {
+        await deps.registryApi.reviewAgentVersion(logicalKey, version, payload, session.apiToken);
+      }
+      return await renderQueue({
+        flash: `Review recorded — ${decision} for ${logicalKey} version ${version}.`,
+      });
+    } catch (err) {
+      const mapped = mapRegistryApiError(err);
+      return await renderQueue({ status: mapped.status, error: mapped.message });
+    }
   });
 
   app.get('/graph', async (c) => {
@@ -1148,6 +1263,192 @@ function parseGraphDepth(raw: string | undefined) {
   const value = Number(raw ?? DEFAULT_GRAPH_DEPTH);
   if (!Number.isFinite(value)) return DEFAULT_GRAPH_DEPTH;
   return Math.min(Math.max(Math.trunc(value), 1), 5);
+}
+
+// --- review queue ------------------------------------------------------------
+
+type ReviewCandidate = {
+  urn: string;
+  version: number | null;
+  properties: Record<string, unknown>;
+  governanceArtifacts?: GovernanceArtifactRef[];
+};
+
+async function loadReviewQueue(api: RegistryApiClient): Promise<ReviewQueueItem[]> {
+  const { pending } = await api.listPendingReviews();
+  const items: ReviewQueueItem[] = [];
+  for (const entry of pending) {
+    items.push(await buildReviewQueueItem(api, entry));
+  }
+  return items;
+}
+
+async function buildReviewQueueItem(api: RegistryApiClient, entry: PendingReviewItem): Promise<ReviewQueueItem> {
+  const evidence: ReviewEvidenceArtifact[] = [];
+  const evidenceErrors: string[] = [];
+  let version = parseVersionFromUrn(entry.publication_urn);
+  let properties: Record<string, unknown> | null = null;
+  let previousProperties: Record<string, unknown> | null = null;
+  let diffBaseVersion: number | null = null;
+  let artifacts: Array<{ role: string; sha256: string }> = [];
+  let detailHref: string | undefined;
+
+  try {
+    if (entry.entity_type === 'SKILL_VERSION') {
+      const { versions } = await api.listSkillVersions(entry.logical_key);
+      const candidates: ReviewCandidate[] = versions.map((candidate) => ({
+        urn: candidate.skill_version.urn,
+        version: versionOfProperties(candidate.skill_version.properties),
+        properties: candidate.skill_version.properties,
+        ...(candidate.governance_artifacts ? { governanceArtifacts: candidate.governance_artifacts } : {}),
+      }));
+      const resolved = resolveReviewTarget(candidates, entry.publication_urn);
+      if (resolved) {
+        version = resolved.version ?? version;
+        properties = resolved.properties;
+        artifacts = resolved.artifacts;
+        if (resolved.previous) {
+          previousProperties = resolved.previous.properties;
+          diffBaseVersion = resolved.previous.version;
+        }
+      }
+      detailHref = `/skills/${encodeURIComponent(entry.logical_key)}`;
+    } else {
+      const { versions } = await api.listAgentVersions(entry.logical_key);
+      const candidates: ReviewCandidate[] = versions.map((candidate) => ({
+        urn: candidate.agent_version.urn,
+        version: versionOfProperties(candidate.agent_version.properties),
+        properties: candidate.agent_version.properties,
+        ...(candidate.governance_artifacts ? { governanceArtifacts: candidate.governance_artifacts } : {}),
+      }));
+      const resolved = resolveReviewTarget(candidates, entry.publication_urn);
+      if (resolved) {
+        version = resolved.version ?? version;
+        properties = resolved.properties;
+        artifacts = resolved.artifacts;
+        if (resolved.previous) {
+          previousProperties = resolved.previous.properties;
+          diffBaseVersion = resolved.previous.version;
+        }
+      }
+      detailHref = `/agents/${encodeURIComponent(entry.logical_key)}`;
+    }
+  } catch {
+    evidenceErrors.push(`Version details for ${entry.logical_key} are unavailable.`);
+  }
+
+  // Validation evidence is best-effort per item: a missing artifact renders as
+  // unavailable instead of failing the whole queue.
+  for (const ref of artifacts.filter((artifact) => artifact.role === 'validation_report')) {
+    try {
+      const payload = await api.getArtifactJson(ref.sha256);
+      if (payload !== null) {
+        evidence.push({ sha256: ref.sha256, payload });
+      }
+    } catch (err) {
+      evidenceErrors.push(
+        `Evidence ${ref.sha256.slice(0, 10)}… unavailable: ${err instanceof Error ? err.message : 'unknown error'}`,
+      );
+    }
+  }
+
+  const diff = properties && previousProperties ? diffProperties(previousProperties, properties) : null;
+  return {
+    entity_type: entry.entity_type,
+    logical_key: entry.logical_key,
+    version,
+    publication_urn: entry.publication_urn,
+    lifecycle_status: entry.lifecycle_status,
+    review_status: entry.review_status,
+    ...(entry.policy_version ? { policy_version: entry.policy_version } : {}),
+    ...(detailHref ? { detail_href: detailHref } : {}),
+    diff,
+    diff_base_version: diffBaseVersion,
+    evidence,
+    evidence_errors: evidenceErrors,
+    artifacts,
+    action_href: `/reviews/${entry.entity_type === 'SKILL_VERSION' ? 'skill' : 'agent'}/${encodeURIComponent(entry.logical_key)}/versions/${version ?? ''}`,
+  };
+}
+
+function resolveReviewTarget(
+  candidates: ReviewCandidate[],
+  publicationUrn: string,
+): { version: number | null; properties: Record<string, unknown>; artifacts: Array<{ role: string; sha256: string }>; previous: ReviewCandidate | null } | null {
+  const target = candidates.find((candidate) => candidate.urn === publicationUrn);
+  if (!target) return null;
+  return {
+    version: target.version,
+    properties: target.properties,
+    artifacts: governanceArtifactRefs(target.governanceArtifacts),
+    previous: findPreviousVersion(candidates, target.version),
+  };
+}
+
+function findPreviousVersion(candidates: ReviewCandidate[], targetVersion: number | null): ReviewCandidate | null {
+  if (targetVersion === null) return null;
+  const earlier = candidates.filter(
+    (candidate): candidate is ReviewCandidate & { version: number } =>
+      candidate.version !== null && candidate.version < targetVersion,
+  );
+  earlier.sort((left, right) => right.version - left.version);
+  return earlier[0] ?? null;
+}
+
+function governanceArtifactRefs(refs: GovernanceArtifactRef[] | undefined): Array<{ role: string; sha256: string }> {
+  return (refs ?? []).flatMap((ref) => (ref.sha256 ? [{ role: ref.role, sha256: ref.sha256 }] : []));
+}
+
+function versionOfProperties(properties: Record<string, unknown>): number | null {
+  const raw = properties.version ?? properties.version_number;
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+  if (typeof raw === 'string') {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function parseVersionFromUrn(urn: string): number | null {
+  const match = urn.match(/@v(\d+)$/) ?? urn.match(/:(\d+)$/);
+  if (!match?.[1]) return null;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function diffProperties(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+): ReviewQueueItem['diff'] {
+  const changed: Array<{ key: string; from: string; to: string }> = [];
+  const added: string[] = [];
+  const removed: string[] = [];
+  const keys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)])).sort();
+  for (const key of keys) {
+    const hasBefore = key in before;
+    const hasAfter = key in after;
+    if (hasBefore && !hasAfter) {
+      removed.push(key);
+      continue;
+    }
+    if (!hasBefore && hasAfter) {
+      added.push(key);
+      continue;
+    }
+    const from = stringifyReviewValue(before[key]);
+    const to = stringifyReviewValue(after[key]);
+    if (from !== to) {
+      changed.push({ key, from, to });
+    }
+  }
+  return { changed, added, removed };
+}
+
+function stringifyReviewValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  const serialized = JSON.stringify(value);
+  return serialized ?? String(value);
 }
 
 async function resolveDefaultGraphRoot(registryApi: RegistryApiClient): Promise<string> {

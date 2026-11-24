@@ -561,8 +561,27 @@ tbody td a { font-weight: 550; }
 .state-badge.published { background: var(--green-soft); color: var(--green); }
 .state-badge.certified { background: var(--accent-soft); color: var(--accent-2); }
 .state-badge.rejected, .state-badge.revoked { background: var(--red-soft); color: var(--red); }
-.state-badge.deprecated { background: var(--amber-soft); color: var(--amber); }
+.state-badge.deprecated, .state-badge.pending { background: var(--amber-soft); color: var(--amber); }
+.state-badge.approved { background: var(--green-soft); color: var(--green); }
 @media (prefers-color-scheme: light) { .state-badge.certified { color: var(--accent-strong); } }
+
+/* Review evidence */
+.review-card { margin-bottom: 1.25rem; }
+.review-evidence {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+}
+.review-evidence h4 { margin: 0; font-size: 0.9rem; }
+.review-evidence .kv { background: var(--surface); margin-top: 0.5rem; }
+.evidence-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.evidence-head .chip, .evidence-head .state-badge { font-size: 0.72rem; }
+.muted-chip { color: var(--text-3); }
+.violation { margin: 0.2rem 0; font-size: 0.8rem; color: var(--red); }
+.review-evidence .kv-value .chip { margin: 0.1rem 0.15rem 0.1rem 0; }
+.review-card .lifecycle-form { margin-top: 0.9rem; }
 
 /* Messages */
 .flash, .error {
