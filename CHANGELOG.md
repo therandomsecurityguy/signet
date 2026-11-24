@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.88](https://github.com/therandomsecurityguy/signet/compare/v0.1.87...v0.1.88) (2026-11-24)
+
+
+### Features
+
+* **webapp:** validation evidence + provenance timeline on detail pages ([81f0f0a](https://github.com/therandomsecurityguy/signet/commit/81f0f0a4ec4fcf857478fb1bf349c560016d5781))
+
 ## [0.1.87](https://github.com/therandomsecurityguy/signet/compare/v0.1.86...v0.1.87) (2026-11-24)
 
 
