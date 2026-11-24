@@ -11,7 +11,14 @@ export function parseArtifactSha256(artifactUrn: string): string | undefined {
 
 export function parseHarnessName(harnessUrnValue: string): string | undefined {
   const prefix = 'urn:sg:harness:';
-  return harnessUrnValue.startsWith(prefix) ? harnessUrnValue.slice(prefix.length) : undefined;
+  if (!harnessUrnValue.startsWith(prefix)) return undefined;
+  const encoded = harnessUrnValue.slice(prefix.length);
+  try {
+    // harnessUrn percent-encodes display names; decode back for display.
+    return decodeURIComponent(encoded);
+  } catch {
+    return encoded;
+  }
 }
 
 export function parseSkillKey(skillUrnValue: string): string | undefined {

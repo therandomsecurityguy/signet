@@ -7,6 +7,7 @@ import type { AuditPublisher } from '../../application/ports/audit-publisher.js'
 import type { AgentLifecycleUseCase } from '../../application/usecases/agent-lifecycle.js';
 import { ApiError } from '../../domain/errors/api-error.js';
 import { RegistryCoreError } from '../../../../registry/application/errors/registry-core-error.js';
+import { logger } from '../../infrastructure/logging/pino.js';
 import { AgentVersionOperationInputSchema, CreateAgentDraftInputSchema } from '../../contracts/agents/lifecycle.js';
 import { PreparedPublicationSchema } from '../../contracts/publication/envelope.js';
 import { ReviewVersionInputSchema } from '../../contracts/skills/lifecycle.js';
@@ -341,6 +342,11 @@ async function handleLifecycleWrite<TInput extends Record<string, unknown>, TRes
     }
     return input.c.json(result, 200);
   } catch (err) {
+    if (!(err instanceof RegistryCoreError)) {
+      // Unknown errors would otherwise be mapped to a silent INTERNAL_ERROR;
+      // log the stack so 500s are diagnosable.
+      logger.error({ err, path: input.c.req.path }, 'unhandled agent lifecycle error');
+    }
     const mapped = mapLifecycleError(err);
     if (principal) {
       await auditApiWrite({
