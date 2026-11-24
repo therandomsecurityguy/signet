@@ -18,6 +18,7 @@ import {
   transparencyLogUrn,
   transparencyWitnessUrn,
 } from '../../domain/signet/db/graph/freeform/registry/urn.js';
+import { compareTrust, scoreTrust } from './trust-ranking.js';
 import { RegistryCoreError } from '../errors/registry-core-error.js';
 import {
   JCS_CANONICALIZATION_ALGORITHM,
@@ -1803,7 +1804,41 @@ export class DefaultRegistryService implements RegistryService {
     harness_name?: string;
     limit?: number;
     offset?: number;
+    sort?: 'default' | 'trust';
   }): Promise<{ agents: import('../ports/registry-service.js').RegistryAgentSummary[] }> {
+    if ((input.sort ?? 'default') === 'trust') {
+      // Trust ranking needs the global order before paging: read all agents
+      // (harness filter first), score against their active versions, rank,
+      // then slice.
+      const allNodes = await this.deps.graph.listNodesByType('AGENT');
+      const filtered = input.harness_name
+        ? allNodes.filter((n) => n.properties['harness_name'] === input.harness_name)
+        : allNodes;
+      const now = new Date();
+      const ranked = [];
+      for (const node of filtered) {
+        const activeUrn = stringOrUndefined(node.properties['active_version_urn']);
+        const active = activeUrn ? await this.getAgentVersionByUrn(activeUrn) : null;
+        const properties = active?.agent_version.properties ?? {};
+        ranked.push({
+          ...summarizeAgentNode(node),
+          trust: scoreTrust(
+            {
+              lifecycle_status: active ? lifecycleStatus(properties) : null,
+              ...(properties['certified'] === true ? { certified: true } : {}),
+              ...(stringOrUndefined(properties['certified_at']) ? { certified_at: String(properties['certified_at']) } : {}),
+              ...(stringOrUndefined(properties['published_at']) ? { published_at: String(properties['published_at']) } : {}),
+            },
+            now,
+          ),
+        });
+      }
+      ranked.sort((left, right) => compareTrust({ logical_key: left.agent_key, trust: left.trust }, { logical_key: right.agent_key, trust: right.trust }));
+      const offset = input.offset ?? 0;
+      const limit = input.limit ?? ranked.length;
+      return { agents: ranked.slice(offset, offset + limit) };
+    }
+
     const nodes = await this.deps.graph.listNodesByType('AGENT', {
       ...(typeof input.limit === 'number' ? { limit: input.limit } : {}),
       ...(typeof input.offset === 'number' ? { offset: input.offset } : {}),
@@ -1812,24 +1847,7 @@ export class DefaultRegistryService implements RegistryService {
       ? nodes.filter((n) => n.properties['harness_name'] === input.harness_name)
       : nodes;
 
-    return {
-      agents: filtered.map((n) => ({
-        agent_urn: n.urn,
-        agent_key: String(n.properties['agent_key'] ?? n.urn),
-        ...(typeof n.properties['harness_name'] === 'string'
-          ? { harness_name: n.properties['harness_name'] as string }
-          : {}),
-        ...(typeof n.properties['display_name'] === 'string'
-          ? { display_name: n.properties['display_name'] as string }
-          : {}),
-        ...(typeof n.properties['description'] === 'string'
-          ? { description: n.properties['description'] as string }
-          : {}),
-        ...(typeof n.properties['source_path'] === 'string'
-          ? { source_path: n.properties['source_path'] as string }
-          : {}),
-      })),
-    };
+    return { agents: filtered.map((node) => summarizeAgentNode(node)) };
   }
 
   async getAgentByKey(input: { agent_key: string }): Promise<RegistryAgentDetails | null> {
@@ -2165,26 +2183,41 @@ export class DefaultRegistryService implements RegistryService {
     return { value: created, created: true };
   }
 
-  async listSkills(input: { limit?: number; offset?: number }): Promise<{ skills: import('../ports/registry-service.js').RegistrySkillSummary[] }> {
+  async listSkills(input: { limit?: number; offset?: number; sort?: 'default' | 'trust' }): Promise<{ skills: import('../ports/registry-service.js').RegistrySkillSummary[] }> {
+    if ((input.sort ?? 'default') === 'trust') {
+      // Trust ranking needs the global order before paging: read all skills,
+      // score against their active versions, rank, then slice.
+      const allNodes = await this.deps.graph.listNodesByType('SKILL');
+      const now = new Date();
+      const ranked = [];
+      for (const node of allNodes) {
+        const activeUrn = stringOrUndefined(node.properties['active_version_urn']);
+        const active = activeUrn ? await this.getSkillVersionByUrn(activeUrn) : null;
+        const properties = active?.skill_version.properties ?? {};
+        ranked.push({
+          ...summarizeSkillNode(node),
+          trust: scoreTrust(
+            {
+              lifecycle_status: active ? lifecycleStatus(properties) : null,
+              ...(properties['certified'] === true ? { certified: true } : {}),
+              ...(stringOrUndefined(properties['certified_at']) ? { certified_at: String(properties['certified_at']) } : {}),
+              ...(stringOrUndefined(properties['published_at']) ? { published_at: String(properties['published_at']) } : {}),
+            },
+            now,
+          ),
+        });
+      }
+      ranked.sort((left, right) => compareTrust({ logical_key: left.skill_key, trust: left.trust }, { logical_key: right.skill_key, trust: right.trust }));
+      const offset = input.offset ?? 0;
+      const limit = input.limit ?? ranked.length;
+      return { skills: ranked.slice(offset, offset + limit) };
+    }
+
     const nodes = await this.deps.graph.listNodesByType('SKILL', {
       ...(typeof input.limit === 'number' ? { limit: input.limit } : {}),
       ...(typeof input.offset === 'number' ? { offset: input.offset } : {}),
     });
-    return {
-      skills: nodes.map((n) => ({
-        skill_urn: n.urn,
-        skill_key: String(n.properties['skill_key'] ?? n.urn),
-        ...(typeof n.properties['display_name'] === 'string'
-          ? { display_name: n.properties['display_name'] as string }
-          : {}),
-        ...(typeof n.properties['description'] === 'string'
-          ? { description: n.properties['description'] as string }
-          : {}),
-        ...(typeof n.properties['source_path'] === 'string'
-          ? { source_path: n.properties['source_path'] as string }
-          : {}),
-      })),
-    };
+    return { skills: nodes.map((node) => summarizeSkillNode(node)) };
   }
 
   async getSkillByKey(input: { skill_key: string }): Promise<RegistrySkillDetails | null> {
@@ -9514,6 +9547,47 @@ function parseHarnessName(harnessUrnValue: string): string | undefined {
   } catch {
     return encoded;
   }
+}
+
+function summarizeSkillNode(node: {
+  urn: string;
+  properties: Record<string, unknown>;
+}): import('../ports/registry-service.js').RegistrySkillSummary {
+  return {
+    skill_urn: node.urn,
+    skill_key: String(node.properties['skill_key'] ?? node.urn),
+    ...(typeof node.properties['display_name'] === 'string'
+      ? { display_name: node.properties['display_name'] }
+      : {}),
+    ...(typeof node.properties['description'] === 'string'
+      ? { description: node.properties['description'] }
+      : {}),
+    ...(typeof node.properties['source_path'] === 'string'
+      ? { source_path: node.properties['source_path'] }
+      : {}),
+  };
+}
+
+function summarizeAgentNode(node: {
+  urn: string;
+  properties: Record<string, unknown>;
+}): import('../ports/registry-service.js').RegistryAgentSummary {
+  return {
+    agent_urn: node.urn,
+    agent_key: String(node.properties['agent_key'] ?? node.urn),
+    ...(typeof node.properties['harness_name'] === 'string'
+      ? { harness_name: node.properties['harness_name'] }
+      : {}),
+    ...(typeof node.properties['display_name'] === 'string'
+      ? { display_name: node.properties['display_name'] }
+      : {}),
+    ...(typeof node.properties['description'] === 'string'
+      ? { description: node.properties['description'] }
+      : {}),
+    ...(typeof node.properties['source_path'] === 'string'
+      ? { source_path: node.properties['source_path'] }
+      : {}),
+  };
 }
 
 function parseSkillKey(skillUrnValue: string): string | undefined {

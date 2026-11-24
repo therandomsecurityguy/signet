@@ -152,8 +152,9 @@ export class ToolRegistry {
       },
       {
         name: ToolName.RegistrySearch,
-        version: '1.0.0',
-        description: 'Search the registry for skills and agents by name, key, or description.',
+        version: '1.1.0',
+        description:
+          'Search the registry for skills and agents by name, key, or description. Results are ranked by the deterministic trust score (certification tier dominates, then publication recency; ties break on the key) and include the score components for each result.',
         risk_tier: 'READ_ONLY',
         inputSchema: RegistrySearchInputSchema,
         outputSchema: RegistrySearchOutputSchema,

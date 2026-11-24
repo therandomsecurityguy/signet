@@ -44,7 +44,9 @@ import type {
 import type {
   RegistrySearchInput,
   RegistrySearchOutput,
+  RegistrySearchTrust,
 } from '../../contracts/tools/registry-search.js';
+import { compareTrust, scoreTrust } from '../../../../registry/application/services/trust-ranking.js';
 
 export class InMemoryRegistryConnector implements RegistryConnector {
   // Verification semantics live in the registry core. Rather than duplicating
@@ -333,6 +335,7 @@ export class InMemoryRegistryConnector implements RegistryConnector {
   async search(input: RegistrySearchInput, _ctx: ExecutionContext): Promise<RegistrySearchOutput> {
     const needle = input.query.toLowerCase();
     const limit = input.limit ?? 20;
+    const sort = input.sort ?? 'trust';
     const wantSkills = input.type === 'skill' || input.type === 'all';
     const wantAgents = input.type === 'agent' || input.type === 'all';
 
@@ -341,8 +344,8 @@ export class InMemoryRegistryConnector implements RegistryConnector {
 
     if (wantSkills) {
       const nodes = await this.deps.graph.listNodesByType('SKILL', {});
+      const candidates: Array<{ logical_key: string; entry: RegistrySearchOutput['skills'][number] }> = [];
       for (const n of nodes) {
-        if (skills.length >= limit) break;
         const key = String(n.properties['skill_key'] ?? n.urn);
         const displayName = typeof n.properties['display_name'] === 'string' ? n.properties['display_name'] : undefined;
         const description = typeof n.properties['description'] === 'string' ? n.properties['description'] : undefined;
@@ -351,22 +354,38 @@ export class InMemoryRegistryConnector implements RegistryConnector {
         const certStatus = typeof n.properties['certification_status'] === 'string' ? n.properties['certification_status'] : undefined;
         const haystack = [n.urn, key, displayName, description, sourcePath].filter(Boolean).join(' ').toLowerCase();
         if (!haystack.includes(needle)) continue;
-        skills.push({
-          skill_urn: n.urn,
-          skill_key: key,
-          ...(displayName ? { display_name: displayName } : {}),
-          ...(description ? { description } : {}),
-          ...(sourcePath ? { source_path: sourcePath } : {}),
-          ...(activeVersion ? { active_version: activeVersion } : {}),
-          ...(certStatus ? { certification_status: certStatus } : {}),
+        candidates.push({
+          logical_key: key,
+          entry: {
+            skill_urn: n.urn,
+            skill_key: key,
+            ...(displayName ? { display_name: displayName } : {}),
+            ...(description ? { description } : {}),
+            ...(sourcePath ? { source_path: sourcePath } : {}),
+            ...(activeVersion ? { active_version: activeVersion } : {}),
+            ...(certStatus ? { certification_status: certStatus } : {}),
+            ...(sort === 'trust' ? { trust: await this.trustOfNode(n) } : {}),
+          },
         });
+      }
+      if (sort === 'trust') {
+        candidates.sort((left, right) =>
+          compareTrust(
+            { logical_key: left.logical_key, trust: left.entry.trust ?? zeroTrust() },
+            { logical_key: right.logical_key, trust: right.entry.trust ?? zeroTrust() },
+          ),
+        );
+      }
+      for (const candidate of candidates) {
+        if (skills.length >= limit) break;
+        skills.push(candidate.entry);
       }
     }
 
     if (wantAgents) {
       const nodes = await this.deps.graph.listNodesByType('AGENT', {});
+      const candidates: Array<{ logical_key: string; entry: RegistrySearchOutput['agents'][number] }> = [];
       for (const n of nodes) {
-        if (agents.length >= limit) break;
         const key = String(n.properties['agent_key'] ?? n.urn);
         const harnessName = typeof n.properties['harness_name'] === 'string' ? n.properties['harness_name'] : undefined;
         const displayName = typeof n.properties['display_name'] === 'string' ? n.properties['display_name'] : undefined;
@@ -374,18 +393,50 @@ export class InMemoryRegistryConnector implements RegistryConnector {
         const sourcePath = typeof n.properties['source_path'] === 'string' ? n.properties['source_path'] : undefined;
         const haystack = [n.urn, key, harnessName, displayName, description, sourcePath].filter(Boolean).join(' ').toLowerCase();
         if (!haystack.includes(needle)) continue;
-        agents.push({
-          agent_urn: n.urn,
-          agent_key: key,
-          ...(harnessName ? { harness_name: harnessName } : {}),
-          ...(displayName ? { display_name: displayName } : {}),
-          ...(description ? { description } : {}),
-          ...(sourcePath ? { source_path: sourcePath } : {}),
+        candidates.push({
+          logical_key: key,
+          entry: {
+            agent_urn: n.urn,
+            agent_key: key,
+            ...(harnessName ? { harness_name: harnessName } : {}),
+            ...(displayName ? { display_name: displayName } : {}),
+            ...(description ? { description } : {}),
+            ...(sourcePath ? { source_path: sourcePath } : {}),
+            ...(sort === 'trust' ? { trust: await this.trustOfNode(n) } : {}),
+          },
         });
+      }
+      if (sort === 'trust') {
+        candidates.sort((left, right) =>
+          compareTrust(
+            { logical_key: left.logical_key, trust: left.entry.trust ?? zeroTrust() },
+            { logical_key: right.logical_key, trust: right.entry.trust ?? zeroTrust() },
+          ),
+        );
+      }
+      for (const candidate of candidates) {
+        if (agents.length >= limit) break;
+        agents.push(candidate.entry);
       }
     }
 
     return { query: input.query, skills, agents };
+  }
+
+  // Trust input comes from the logical node's active version (status +
+  // timestamps) — the same signals the registry core ranks lists by.
+  private async trustOfNode(node: {
+    properties: Record<string, unknown>;
+  }): Promise<RegistrySearchTrust> {
+    const activeUrn = activeVersionUrn(node.properties);
+    const active = activeUrn ? await this.deps.graph.getNode(activeUrn) : null;
+    const properties = active?.properties ?? {};
+    return scoreTrust({
+      lifecycle_status: typeof properties['lifecycle_status'] === 'string' ? properties['lifecycle_status'] : null,
+      ...(properties['certified'] === true ? { certified: true } : {}),
+      ...(typeof properties['certified_at'] === 'string' ? { certified_at: properties['certified_at'] } : {}),
+      ...(typeof properties['published_at'] === 'string' ? { published_at: properties['published_at'] } : {}),
+    });
   }
 }
 
@@ -418,4 +469,14 @@ function decodeUtf8(bytes: Uint8Array): string {
 function activeVersionUrn(properties: Record<string, unknown>): string | undefined {
   const value = properties['active_version_urn'];
   return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function zeroTrust(): RegistrySearchTrust {
+  return {
+    score: 0,
+    lifecycle_status: 'none',
+    tier_weight: 0,
+    recency_days: null,
+    recency_component: 0,
+  };
 }

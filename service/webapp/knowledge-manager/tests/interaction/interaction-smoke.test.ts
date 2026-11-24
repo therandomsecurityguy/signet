@@ -186,6 +186,7 @@ function makeRegistryApiClient(): RegistryApiClient {
           agent_key: 'cursor:registry-agent',
           harness_name: 'cursor',
           display_name: 'Registry Demo Agent',
+          trust: { score: 20.9, lifecycle_status: 'published', tier_weight: 2, recency_days: 1, recency_component: 0.9944 },
         },
         {
           agent_urn: SECURITY_AGENT_URN,
@@ -380,6 +381,10 @@ maybeDescribe('knowledge-manager interaction smoke (headless chromium)', { timeo
     });
     expect(await registryRow.isVisible()).toBe(true);
     expect(await securityRow.isVisible()).toBe(true);
+
+    // Trust column: scored agents show the chip, unscored rows show a dash.
+    expect(await registryRow.locator('.chip').count()).toBe(1);
+    expect(((await registryRow.textContent()) ?? '')).toContain('20.9');
 
     await page.fill('#table-filter', 'security');
     await expect.poll(() => securityRow.isVisible()).toBe(true);
