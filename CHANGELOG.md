@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.86](https://github.com/therandomsecurityguy/signet/compare/v0.1.85...v0.1.86) (2026-11-24)
+
+
+### Features
+
+* **scripts:** demo-k8s-update for local demo updates and releases ([8b11d7b](https://github.com/therandomsecurityguy/signet/commit/8b11d7bbb578959e5e447e090e10515d261c50d4))
+* **scripts:** demo-k8s-update for local demo updates and releases ([352db9f](https://github.com/therandomsecurityguy/signet/commit/352db9f12bbea4145972ce1eeca55eb3fe3aca6e))
+
 ## [0.1.85](https://github.com/therandomsecurityguy/signet/compare/v0.1.84...v0.1.85) (2026-11-23)
 
 
