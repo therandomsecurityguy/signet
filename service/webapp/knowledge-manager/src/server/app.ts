@@ -18,6 +18,7 @@ import {
   type GovernanceArtifactRef,
   type OntologyPackageDetails,
   type PendingReviewItem,
+  type ProvenanceRecord,
   type RegistryApiClient,
   type ReviewVersionInput,
   type SkillDetails,
@@ -523,10 +524,40 @@ const session = await readOperatorSession(c, deps);
     try {
       const body = await deps.registryApi.getAgent(c.req.param('agentKey'));
       const flash = c.req.query('flash');
+
+      // Evidence + history are best-effort enrichment; the page must render
+      // even when a downstream read fails.
+      let activeEvidence: ReviewEvidenceArtifact[] = [];
+      let evidenceErrors: string[] = [];
+      let provenance: ProvenanceRecord | undefined;
+      const activeUrn = body.active_version?.agent_version.urn;
+      if (activeUrn) {
+        try {
+          const { versions } = await deps.registryApi.listAgentVersions(c.req.param('agentKey'));
+          const activeVersion = versions.find((candidate) => candidate.agent_version.urn === activeUrn);
+          const loaded = await loadValidationEvidence(deps.registryApi, activeVersion?.governance_artifacts);
+          activeEvidence = loaded.evidence;
+          evidenceErrors = loaded.errors;
+          const versionNumber = versionOfProperties(activeVersion?.agent_version.properties ?? {});
+          if (versionNumber !== null) {
+            provenance = await deps.registryApi
+              .getAgentProvenance(c.req.param('agentKey'), versionNumber)
+              .catch(() => undefined);
+          }
+        } catch (err) {
+          evidenceErrors = [
+            `Version evidence unavailable: ${err instanceof Error ? err.message : 'unknown error'}`,
+          ];
+        }
+      }
+
       return c.html(
         renderAgentDetails({
           details: body,
           ...(flash ? { flash } : {}),
+          activeEvidence,
+          evidenceErrors,
+          ...(provenance ? { provenance } : {}),
           page: buildPageChrome(deps.env, c.req.path, c.req.query(), await readOperatorSession(c, deps)),
         }),
       );
@@ -611,13 +642,29 @@ const session = await readOperatorSession(c, deps);
       const { details, versions, activeVersion } = await loadSkillPageData(deps.registryApi, skillKey);
       const flash = c.req.query('flash');
       const usedByAgents = await agentsUsingSkill(deps.registryApi, details.skill.urn, skillKey);
+
+      // Evidence + history are best-effort enrichment; the page must render
+      // even when a downstream read fails.
+      const loaded = await loadValidationEvidence(deps.registryApi, activeVersion?.governance_artifacts);
+      let provenance: ProvenanceRecord | undefined;
+      const activeVersionNumber =
+        versionOfProperties(activeVersion?.skill_version.properties ?? {}) ?? highestVersionOf(versions);
+      if (activeVersionNumber !== null) {
+        provenance = await deps.registryApi
+          .getSkillProvenance(skillKey, activeVersionNumber)
+          .catch(() => undefined);
+      }
+
       return c.html(
         renderSkillDetails({
           details,
           versions,
           activeVersion,
           usedByAgents,
+          activeEvidence: loaded.evidence,
+          evidenceErrors: loaded.errors,
           ...(flash ? { flash } : {}),
+          ...(provenance ? { provenance } : {}),
           page: buildPageChrome(deps.env, c.req.path, c.req.query(), await readOperatorSession(c, deps)),
         }),
       );
@@ -1339,18 +1386,9 @@ async function buildReviewQueueItem(api: RegistryApiClient, entry: PendingReview
 
   // Validation evidence is best-effort per item: a missing artifact renders as
   // unavailable instead of failing the whole queue.
-  for (const ref of artifacts.filter((artifact) => artifact.role === 'validation_report')) {
-    try {
-      const payload = await api.getArtifactJson(ref.sha256);
-      if (payload !== null) {
-        evidence.push({ sha256: ref.sha256, payload });
-      }
-    } catch (err) {
-      evidenceErrors.push(
-        `Evidence ${ref.sha256.slice(0, 10)}… unavailable: ${err instanceof Error ? err.message : 'unknown error'}`,
-      );
-    }
-  }
+  const loadedEvidence = await loadValidationEvidence(api, artifacts);
+  evidence.push(...loadedEvidence.evidence);
+  evidenceErrors.push(...loadedEvidence.errors);
 
   const diff = properties && previousProperties ? diffProperties(previousProperties, properties) : null;
   return {
@@ -1397,6 +1435,41 @@ function findPreviousVersion(candidates: ReviewCandidate[], targetVersion: numbe
 
 function governanceArtifactRefs(refs: GovernanceArtifactRef[] | undefined): Array<{ role: string; sha256: string }> {
   return (refs ?? []).flatMap((ref) => (ref.sha256 ? [{ role: ref.role, sha256: ref.sha256 }] : []));
+}
+
+// Validation evidence is best-effort: a missing artifact renders as
+// "unavailable" instead of failing the page or the review queue.
+async function loadValidationEvidence(
+  api: RegistryApiClient,
+  refs: Array<{ role: string; sha256?: string }> | undefined,
+): Promise<{ evidence: ReviewEvidenceArtifact[]; errors: string[] }> {
+  const evidence: ReviewEvidenceArtifact[] = [];
+  const errors: string[] = [];
+  for (const ref of refs ?? []) {
+    if (ref.role !== 'validation_report' || !ref.sha256) continue;
+    try {
+      const payload = await api.getArtifactJson(ref.sha256);
+      if (payload !== null) {
+        evidence.push({ sha256: ref.sha256, payload });
+      }
+    } catch (err) {
+      errors.push(
+        `Evidence ${ref.sha256.slice(0, 10)}… unavailable: ${err instanceof Error ? err.message : 'unknown error'}`,
+      );
+    }
+  }
+  return { evidence, errors };
+}
+
+function highestVersionOf(versions: SkillVersionDetails[]): number | null {
+  let highest: number | null = null;
+  for (const version of versions) {
+    const value = versionOfProperties(version.skill_version.properties);
+    if (value !== null && (highest === null || value > highest)) {
+      highest = value;
+    }
+  }
+  return highest;
 }
 
 function versionOfProperties(properties: Record<string, unknown>): number | null {
