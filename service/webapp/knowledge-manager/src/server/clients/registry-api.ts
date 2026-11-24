@@ -64,6 +64,12 @@ export type SkillDetails = {
   }>;
 };
 
+export type GovernanceArtifactRef = {
+  role: 'policy_package' | 'validation_report' | 'certification_evidence' | 'review_evidence';
+  artifact_urn: string;
+  sha256?: string;
+};
+
 export type SkillVersionDetails = {
   skill_version: {
     urn: string;
@@ -76,6 +82,56 @@ export type SkillVersionDetails = {
   upstream_versions: Array<{
     skill_version_urn: string;
   }>;
+  governance_artifacts?: GovernanceArtifactRef[];
+};
+
+export type AgentVersionDetails = {
+  agent_version: {
+    urn: string;
+    properties: Record<string, unknown>;
+  };
+  skills: Array<{
+    skill_urn: string;
+    skill_key?: string;
+  }>;
+  artifacts: Array<{
+    artifact_urn: string;
+    sha256?: string;
+  }>;
+  harnesses: Array<{
+    harness_urn: string;
+    harness_name?: string;
+  }>;
+  governance_artifacts?: GovernanceArtifactRef[];
+};
+
+export type PendingReviewItem = {
+  publication_urn: string;
+  entity_type: 'SKILL_VERSION' | 'AGENT_VERSION';
+  logical_key: string;
+  lifecycle_status: string;
+  review_status: string;
+  policy_version?: string;
+};
+
+export type ReviewVersionInput = {
+  decision: 'approve' | 'reject';
+  author: string;
+  review_role?: string;
+  note?: string;
+};
+
+export type ReviewOperationResult = {
+  task: {
+    task: {
+      urn: string;
+      properties: Record<string, unknown>;
+    };
+    targets: Array<{
+      target_urn: string;
+    }>;
+  };
+  result: SkillVersionDetails | AgentVersionDetails;
 };
 
 export type GraphNodeView = {
@@ -274,6 +330,21 @@ export interface RegistryApiClient {
     input: ReviewDeFactoTermInput,
     apiToken: string,
   ): Promise<DeFactoTermDetails>;
+  listPendingReviews(): Promise<{ pending: PendingReviewItem[] }>;
+  listAgentVersions(agentKey: string): Promise<{ versions: AgentVersionDetails[] }>;
+  reviewSkillVersion(
+    skillKey: string,
+    version: number,
+    input: ReviewVersionInput,
+    apiToken: string,
+  ): Promise<ReviewOperationResult>;
+  reviewAgentVersion(
+    agentKey: string,
+    version: number,
+    input: ReviewVersionInput,
+    apiToken: string,
+  ): Promise<ReviewOperationResult>;
+  getArtifactJson(sha256: string): Promise<unknown | null>;
 }
 
 export class HttpRegistryApiClient implements RegistryApiClient {
@@ -450,6 +521,74 @@ export class HttpRegistryApiClient implements RegistryApiClient {
       },
       apiToken,
     );
+  }
+
+  async listPendingReviews(): Promise<{ pending: PendingReviewItem[] }> {
+    return await this.fetchJson('/v1/reviews/pending');
+  }
+
+  async listAgentVersions(agentKey: string): Promise<{ versions: AgentVersionDetails[] }> {
+    return await this.fetchJson(`/v1/agents/${encodeURIComponent(agentKey)}/versions`);
+  }
+
+  async reviewSkillVersion(
+    skillKey: string,
+    version: number,
+    input: ReviewVersionInput,
+    apiToken: string,
+  ): Promise<ReviewOperationResult> {
+    return await this.fetchJson(
+      `/v1/skills/${encodeURIComponent(skillKey)}/versions/${version}/review`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      apiToken,
+    );
+  }
+
+  async reviewAgentVersion(
+    agentKey: string,
+    version: number,
+    input: ReviewVersionInput,
+    apiToken: string,
+  ): Promise<ReviewOperationResult> {
+    return await this.fetchJson(
+      `/v1/agents/${encodeURIComponent(agentKey)}/versions/${version}/review`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      apiToken,
+    );
+  }
+
+  async getArtifactJson(sha256: string): Promise<unknown | null> {
+    const res = await (this.deps.fetchFn ?? fetch)(
+      new URL(`/v1/artifacts/${encodeURIComponent(sha256)}`, this.deps.apiOrigin),
+      { headers: { accept: 'application/json' } },
+    );
+    if (res.status === 404) {
+      // Evidence artifacts are best-effort on the review surface: a missing
+      // artifact renders as "unavailable", not as a page error.
+      return null;
+    }
+    if (!res.ok) {
+      const errorBody = (await res.json().catch(() => undefined)) as
+        | { error?: { code?: string; message?: string } }
+        | undefined;
+      throw new RegistryApiError(
+        errorBody?.error?.message ?? `Registry API request failed (${res.status})`,
+        res.status,
+        errorBody?.error?.code,
+      );
+    }
+    const text = await res.text();
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      return null;
+    }
   }
 
   private async postSkillVersionAction(

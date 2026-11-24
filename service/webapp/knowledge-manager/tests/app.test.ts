@@ -5,6 +5,7 @@ import type { Env } from '../src/server/config/env.js';
 import {
   RegistryApiError,
   type RegistryApiClient,
+  type ReviewOperationResult,
   type SkillLifecycleOperationResult,
 } from '../src/server/clients/registry-api.js';
 import type { SemanticTurkeyClient } from '../src/server/clients/semantic-turkey.js';
@@ -662,6 +663,193 @@ describe('knowledge-manager app', () => {
     expect(reviewedTerms).toHaveLength(0);
   });
 
+  it('renders the review queue with validation evidence and records reviews through the session', async () => {
+    const calls: Array<{ key: string; version: number; payload: Record<string, unknown>; token: string }> = [];
+    const shaclSha = 'a'.repeat(64);
+
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        listPendingReviews: async () => ({
+          pending: [
+            {
+              publication_urn: 'urn:sg:skill-version:example:2',
+              entity_type: 'SKILL_VERSION',
+              logical_key: 'skill:example',
+              lifecycle_status: 'validated',
+              review_status: 'pending',
+              policy_version: 'demo-policy/v1',
+            },
+          ],
+        }),
+        listSkillVersions: async () => ({
+          versions: [
+            {
+              skill_version: {
+                urn: 'urn:sg:skill-version:example:1',
+                properties: { version: 1, description: 'old text', lifecycle_status: 'published' },
+              },
+              artifacts: [],
+              upstream_versions: [],
+            },
+            {
+              skill_version: {
+                urn: 'urn:sg:skill-version:example:2',
+                properties: { version: 2, description: 'new text', lifecycle_status: 'validated', review_status: 'pending' },
+              },
+              artifacts: [],
+              upstream_versions: [],
+              governance_artifacts: [
+                { role: 'validation_report', artifact_urn: `urn:sg:artifact:sha256:${shaclSha}`, sha256: shaclSha },
+              ],
+            },
+          ],
+        }),
+        getArtifactJson: async (sha256) =>
+          sha256 === shaclSha
+            ? {
+                role: 'validation_report',
+                payload: {
+                  validator: 'shacl-v1',
+                  engine: 'shacl-engine@1.1.3+sparql',
+                  conforms: true,
+                  validated_at: '2026-11-24T00:00:00.000Z',
+                  layers: [
+                    {
+                      layer: 'graph_shape',
+                      shape_document: 'registry-graph-shape/builtin',
+                      violations: [],
+                    },
+                  ],
+                },
+              }
+            : null,
+        reviewSkillVersion: async (skillKey, version, input, apiToken) => {
+          calls.push({ key: skillKey, version, payload: { ...input }, token: apiToken });
+          return defaultReviewResult();
+        },
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const page = await app.request('/reviews');
+    expect(page.status).toBe(200);
+    const text = await page.text();
+    expect(text).toContain('skill:example');
+    expect(text).toContain('Version 2');
+    expect(text).toContain('demo-policy/v1');
+    expect(text).toContain('Changes vs version 1');
+    expect(text).toContain('new text');
+    expect(text).toContain('Validation report');
+    expect(text).toContain('graph_shape');
+    expect(text).toContain('conforms');
+    expect(text).toContain('Approve');
+    expect(text).toContain('Reject');
+
+    const login = await app.request('/session/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ return_to: '/reviews' }).toString(),
+    });
+    const cookie = login.headers.get('set-cookie') ?? '';
+    const csrf = await csrfTokenFor(app, cookie);
+
+    const submit = await app.request('/reviews/skill/skill%3Aexample/versions/2', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', cookie },
+      body: new URLSearchParams({
+        _csrf: csrf,
+        decision: 'approve',
+        author: 'Jane Doe',
+        review_role: 'security-reviewer',
+        note: 'looks good',
+      }).toString(),
+    });
+
+    expect(submit.status).toBe(200);
+    await expect(submit.text()).resolves.toContain('Review recorded — approve for skill:example version 2.');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.key).toBe('skill:example');
+    expect(calls[0]?.version).toBe(2);
+    expect(calls[0]?.payload).toEqual({
+      decision: 'approve',
+      author: 'Jane Doe',
+      review_role: 'security-reviewer',
+      note: 'looks good',
+    });
+    expect(calls[0]?.token).toContain('webapp-okta-');
+  });
+
+  it('requires a session and admin rights to record reviews', async () => {
+    const reviewCalls: string[] = [];
+
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        reviewSkillVersion: async (skillKey, version) => {
+          reviewCalls.push(`${skillKey}:${version}`);
+          return defaultReviewResult();
+        },
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const anon = await app.request('/reviews/skill/skill%3Aexample/versions/2', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ decision: 'approve', author: 'Nobody' }).toString(),
+    });
+    expect(anon.status).toBe(401);
+    await expect(anon.text()).resolves.toContain('Sign in with an API bearer token first.');
+    expect(reviewCalls).toHaveLength(0);
+
+    const apiKeyApp = buildApp({
+      env: { ...env, AUTH_MODE: 'api_key' },
+      registryApi: makeRegistryApiClient({
+        getSession: async () => ({
+          auth: { mode: 'api_key', okta_mode: 'mock' },
+          principal: {
+            type: 'api_key',
+            id: 'api-key-principal',
+            auth_method: 'api_key',
+            scopes: ['read'],
+            groups: [],
+          },
+        }),
+        reviewSkillVersion: async (skillKey, version) => {
+          reviewCalls.push(`${skillKey}:${version}`);
+          return defaultReviewResult();
+        },
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const keyLogin = await apiKeyApp.request('/session/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ api_token: 'agk_test_readonly', return_to: '/reviews' }).toString(),
+    });
+    const keyCookie = keyLogin.headers.get('set-cookie') ?? '';
+    const keyCsrf = await csrfTokenFor(apiKeyApp, keyCookie);
+    const attempt = await apiKeyApp.request('/reviews/skill/skill%3Aexample/versions/2', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: keyCookie },
+      body: new URLSearchParams({ _csrf: keyCsrf, decision: 'approve', author: 'Read Only' }).toString(),
+    });
+    expect(attempt.status).toBe(403);
+    await expect(attempt.text()).resolves.toContain('Admin access is required to review versions.');
+    expect(reviewCalls).toHaveLength(0);
+  });
+
   it('exposes ontology project JSON and html views', async () => {
     const app = buildApp({
       env,
@@ -907,7 +1095,29 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
       seen_count: 0,
       example_publication_urns: [],
     }),
+    listPendingReviews: async () => ({ pending: [] }),
+    listAgentVersions: async () => ({ versions: [] }),
+    reviewSkillVersion: async () => defaultReviewResult(),
+    reviewAgentVersion: async () => defaultReviewResult(),
+    getArtifactJson: async () => null,
     ...overrides,
+  };
+}
+
+function defaultReviewResult(): ReviewOperationResult {
+  return {
+    task: {
+      task: { urn: 'urn:sg:task:review', properties: { action: 'review' } },
+      targets: [],
+    },
+    result: {
+      skill_version: {
+        urn: 'urn:sg:skill-version:example:1',
+        properties: { version: 1, lifecycle_status: 'validated' },
+      },
+      artifacts: [],
+      upstream_versions: [],
+    },
   };
 }
 

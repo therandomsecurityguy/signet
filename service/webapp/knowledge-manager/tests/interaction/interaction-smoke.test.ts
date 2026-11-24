@@ -225,6 +225,28 @@ function makeRegistryApiClient(): RegistryApiClient {
       seen_count: 0,
       example_publication_urns: [],
     }),
+    listPendingReviews: async () => ({
+      pending: [
+        {
+          publication_urn: 'urn:sg:skill-version:skill:tame-llama@v1',
+          entity_type: 'SKILL_VERSION',
+          logical_key: 'skill:tame-llama',
+          lifecycle_status: 'published',
+          review_status: 'pending',
+          policy_version: 'registry-policy/v1',
+        },
+      ],
+    }),
+    listAgentVersions: async () => ({ versions: [] }),
+    reviewSkillVersion: async () => ({
+      task: { task: { urn: 'urn:sg:task:review', properties: {} }, targets: [] },
+      result: tameLlamaVersion,
+    }),
+    reviewAgentVersion: async () => ({
+      task: { task: { urn: 'urn:sg:task:review', properties: {} }, targets: [] },
+      result: tameLlamaVersion,
+    }),
+    getArtifactJson: async () => null,
   };
 }
 
@@ -350,6 +372,15 @@ maybeDescribe('knowledge-manager interaction smoke (headless chromium)', { timeo
     await expect
       .poll(async () => (await page.locator('#graph-detail-panel').textContent()) ?? '')
       .toContain('Registry Demo Agent');
+  });
+
+  it('renders the review queue with approve and reject controls', async () => {
+    await page.goto(`${origin}/reviews`);
+    await page.waitForSelector('.review-card');
+    expect(await page.locator('.review-card').count()).toBe(1);
+    expect((await page.locator('.review-card').textContent()) ?? '').toContain('skill:tame-llama');
+    expect(await page.locator('.review-card button', { hasText: 'Approve' }).count()).toBe(1);
+    expect(await page.locator('.review-card button', { hasText: 'Reject' }).count()).toBe(1);
   });
 
   it('renders the api-key login card', async () => {
