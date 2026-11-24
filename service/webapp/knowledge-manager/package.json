@@ -12,6 +12,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:interactions": "ENABLE_INTERACTION_E2E=1 vitest run tests/interaction",
     "demo:mock-okta": "node --import tsx scripts/mock-okta-demo.ts",
     "demo:video": "node --import tsx scripts/demo-video.ts"
   },
