@@ -152,9 +152,9 @@ export class ToolRegistry {
       },
       {
         name: ToolName.RegistrySearch,
-        version: '1.1.0',
+        version: '1.2.0',
         description:
-          'Search the registry for skills and agents by name, key, or description. Results are ranked by the deterministic trust score (certification tier dominates, then publication recency; ties break on the key) and include the score components for each result.',
+          'Search the registry for skills and agents. Keyword mode (default) matches substrings over key/name/description; semantic mode scores deterministic token and capability-claim coverage (ontology concept ids) with match components per result. Both modes rank by the deterministic trust score (certification tier dominates, then publication recency; ties break on the key).',
         risk_tier: 'READ_ONLY',
         inputSchema: RegistrySearchInputSchema,
         outputSchema: RegistrySearchOutputSchema,

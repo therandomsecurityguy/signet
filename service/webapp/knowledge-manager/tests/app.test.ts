@@ -1000,6 +1000,57 @@ describe('knowledge-manager app', () => {
     expect(listCalls[0]?.sort).toBe('trust');
   });
 
+  it('renders semantic search results with match components and forwards the mode', async () => {
+    const searchCalls: Array<Record<string, unknown>> = [];
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        searchRegistry: async (input) => {
+          searchCalls.push({ ...input });
+          return {
+            query: input.query,
+            mode: input.mode,
+            skills: [
+              {
+                skill_urn: 'urn:sg:skill:skill:pii',
+                skill_key: 'skill:pii',
+                display_name: 'PII workflows',
+                trust: {
+                  score: 20.9,
+                  lifecycle_status: 'published',
+                  tier_weight: 2,
+                  recency_days: 1,
+                  recency_component: 0.9944,
+                },
+                match: {
+                  mode: input.mode,
+                  score: 9,
+                  matched_claims: ['pii-handling'],
+                  matched_terms: ['pii', 'handling'],
+                  phrase_match: true,
+                },
+              },
+            ],
+            agents: [],
+          };
+        },
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const res = await app.request('/skills?q=PII%20handling&mode=semantic');
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(searchCalls[0]).toMatchObject({ query: 'PII handling', type: 'skill', mode: 'semantic' });
+    expect(text).toContain('1 semantic match');
+    expect(text).toContain('relevance-ordered');
+    expect(text).toContain('pii-handling');
+    expect(text).toContain('semantic 9');
+  });
+
   it('exposes ontology project JSON and html views', async () => {
     const app = buildApp({
       env,
@@ -1252,6 +1303,12 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
     getArtifactJson: async () => null,
     getSkillProvenance: async () => defaultProvenance(),
     getAgentProvenance: async () => defaultProvenance('AGENT', 'urn:sg:agent:cursor:test'),
+    searchRegistry: async (input) => ({
+      query: input.query,
+      mode: input.mode,
+      skills: [],
+      agents: [],
+    }),
     ...overrides,
   };
 }

@@ -6,6 +6,21 @@ export type TrustScore = {
   recency_component: number;
 };
 
+export type SearchMatch = {
+  mode: 'keyword' | 'semantic';
+  score: number;
+  matched_claims: string[];
+  matched_terms: string[];
+  phrase_match: boolean;
+};
+
+export type RegistrySearchResult = {
+  query: string;
+  mode: 'keyword' | 'semantic';
+  skills: Array<SkillSummary & { trust: TrustScore; match: SearchMatch; active_version?: number }>;
+  agents: Array<AgentSummary & { trust: TrustScore; match: SearchMatch }>;
+};
+
 export type AgentSummary = {
   agent_urn: string;
   agent_key: string;
@@ -394,6 +409,12 @@ export interface RegistryApiClient {
   getArtifactJson(sha256: string): Promise<unknown | null>;
   getSkillProvenance(skillKey: string, version: number): Promise<ProvenanceRecord>;
   getAgentProvenance(agentKey: string, version: number): Promise<ProvenanceRecord>;
+  searchRegistry(input: {
+    query: string;
+    type: 'skill' | 'agent' | 'all';
+    mode: 'keyword' | 'semantic';
+    limit?: number;
+  }): Promise<RegistrySearchResult>;
 }
 
 export class HttpRegistryApiClient implements RegistryApiClient {
@@ -650,6 +671,17 @@ export class HttpRegistryApiClient implements RegistryApiClient {
     return await this.fetchJson(
       `/v1/agents/${encodeURIComponent(agentKey)}/versions/${version}/provenance`,
     );
+  }
+
+  async searchRegistry(input: {
+    query: string;
+    type: 'skill' | 'agent' | 'all';
+    mode: 'keyword' | 'semantic';
+    limit?: number;
+  }): Promise<RegistrySearchResult> {
+    const params = new URLSearchParams({ query: input.query, type: input.type, mode: input.mode });
+    if (input.limit !== undefined) params.set('limit', String(input.limit));
+    return await this.fetchJson(`/v1/search?${params.toString()}`);
   }
 
   private async postSkillVersionAction(

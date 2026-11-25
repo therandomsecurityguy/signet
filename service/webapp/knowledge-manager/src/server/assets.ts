@@ -610,6 +610,12 @@ tbody td a { font-weight: 550; }
 .timeline-op { font-size: 0.875rem; }
 .timeline-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; color: var(--text-3); font-size: 0.78rem; }
 
+/* Search */
+.search-form { display: flex; gap: 0.5rem; align-items: center; margin: 1rem 0 0.5rem; flex-wrap: wrap; }
+.search-form input[type="search"] { max-width: 24rem; margin: 0; }
+.search-form select { width: auto; margin: 0; }
+.search-form button { flex-shrink: 0; }
+
 /* Messages */
 .flash, .error {
   border: 1px solid var(--border);

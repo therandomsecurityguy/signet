@@ -421,6 +421,30 @@ export type RegistryTrustScore = {
   recency_component: number;
 };
 
+export type RegistrySearchMatch = {
+  mode: 'keyword' | 'semantic';
+  score: number;
+  matched_claims: string[];
+  matched_terms: string[];
+  phrase_match: boolean;
+};
+
+export type RegistrySearchSkillResult = RegistrySkillSummary & {
+  trust: RegistryTrustScore;
+  match: RegistrySearchMatch;
+  active_version?: number;
+};
+
+export type RegistrySearchAgentResult = RegistryAgentSummary & {
+  trust: RegistryTrustScore;
+  match: RegistrySearchMatch;
+};
+
+export type RegistrySearchResult = {
+  skills: RegistrySearchSkillResult[];
+  agents: RegistrySearchAgentResult[];
+};
+
 export type RegistryAgentSummary = {
   agent_urn: string;
   agent_key: string;
@@ -1381,6 +1405,21 @@ export interface RegistryService {
   archiveAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
 
   listSkills(input: { limit?: number; offset?: number; sort?: 'default' | 'trust' }): Promise<{ skills: RegistrySkillSummary[] }>;
+  /**
+   * Discovery search. `keyword` keeps the substring behavior over
+   * key/name/description/source; `semantic` scores deterministic token and
+   * capability-claim coverage (concept ids) and exposes match components.
+   * Results are trust-ranked in both modes; semantic mode orders by match
+   * relevance first and trust second.
+   */
+  searchRegistry(input: {
+    query: string;
+    type: 'skill' | 'agent' | 'all';
+    mode: 'keyword' | 'semantic';
+    /** Keyword mode only: 'default' preserves natural scan order; 'trust' (default) trust-ranks. */
+    sort?: 'default' | 'trust';
+    limit?: number;
+  }): Promise<RegistrySearchResult>;
   getSkillByKey(input: { skill_key: string }): Promise<RegistrySkillDetails | null>;
   getSkillByUrn(input: { skill_urn: string }): Promise<RegistrySkillDetails | null>;
   createSkill(input: CreateSkillInput): Promise<CreateResult<RegistrySkillDetails>>;

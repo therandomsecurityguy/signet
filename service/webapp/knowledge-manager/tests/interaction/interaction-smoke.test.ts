@@ -305,6 +305,35 @@ function makeRegistryApiClient(): RegistryApiClient {
       all_provenance_signatures_verified: false,
       current_provenance_signed: false,
     }),
+    searchRegistry: async (input) => ({
+      query: input.query,
+      mode: input.mode,
+      skills:
+        input.type === 'agent'
+          ? []
+          : [
+              {
+                skill_urn: TAME_LLAMA_URN,
+                skill_key: 'skill:tame-llama',
+                display_name: 'Tame A Llama',
+                trust: {
+                  score: 20.9,
+                  lifecycle_status: 'published',
+                  tier_weight: 2,
+                  recency_days: 1,
+                  recency_component: 0.9944,
+                },
+                match: {
+                  mode: input.mode,
+                  score: 7,
+                  matched_claims: ['pii-handling'],
+                  matched_terms: ['llama'],
+                  phrase_match: false,
+                },
+              },
+            ],
+      agents: [],
+    }),
   };
 }
 
@@ -445,6 +474,17 @@ maybeDescribe('knowledge-manager interaction smoke (headless chromium)', { timeo
     await expect
       .poll(async () => (await page.locator('#graph-detail-panel').textContent()) ?? '')
       .toContain('Registry Demo Agent');
+  });
+
+  it('renders semantic search results with match components', async () => {
+    await page.goto(`${origin}/skills?q=llama&mode=semantic`);
+    await page.waitForSelector('#filterable-table tbody tr');
+    const row = page.locator('#filterable-table tbody tr').first();
+    const rowText = (await row.textContent()) ?? '';
+    expect(rowText).toContain('skill:tame-llama');
+    expect(rowText).toContain('pii-handling');
+    expect(rowText).toContain('semantic 7');
+    expect(((await page.textContent('body')) ?? '')).toContain('relevance-ordered');
   });
 
   it('renders the review queue with approve and reject controls', async () => {
