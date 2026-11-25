@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
@@ -32,9 +32,11 @@ import { logger } from './logging/pino.js';
 import { buildAuthorizeUrl, buildPkceState, exchangeCodeForAccessToken, fetchDiscoveryDocument } from './okta-oauth.js';
 import type { OperatorSession, OperatorSessionStore } from './session-store.js';
 import {
+  GRAPH_EXPLORER_SCRIPT,
   type PageChromeInput,
   type ReviewEvidenceArtifact,
   type ReviewQueueItem,
+  SHARED_PAGE_SCRIPT,
   renderAgentDetails,
   renderAgents,
   renderGraphPage,
@@ -53,6 +55,34 @@ const require = createRequire(import.meta.url);
 const DEFAULT_GRAPH_ROOT_URN = 'urn:sg:agent:cursor:registry-agent';
 const DEFAULT_GRAPH_DEPTH = 3;
 
+// Inline scripts are pinned by sha256 in the CSP rather than allowed with
+// 'unsafe-inline'; the hash covers the exact rendered script text, so any
+// change to GRAPH_EXPLORER_SCRIPT / SHARED_PAGE_SCRIPT must flow through
+// here (both are hashed as rendered, not as authored).
+const INLINE_SCRIPT_CSP_SOURCES = [GRAPH_EXPLORER_SCRIPT, SHARED_PAGE_SCRIPT]
+  .map((script) => `'sha256-${createHash('sha256').update(script, 'utf8').digest('base64')}'`)
+  .join(' ');
+
+const SECURITY_HEADERS = {
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  // The legacy filter is buggy; disable it explicitly and rely on the CSP.
+  'X-XSS-Protection': '0',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Content-Security-Policy': [
+    "default-src 'none'",
+    `script-src 'self' ${INLINE_SCRIPT_CSP_SOURCES}`,
+    "style-src 'self'",
+    "img-src 'self' data:",
+    "connect-src 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'none'",
+    "object-src 'none'",
+  ].join('; '),
+};
+
 export type KnowledgeManagerDeps = {
   env: Env;
   registryApi: RegistryApiClient;
@@ -63,6 +93,13 @@ export type KnowledgeManagerDeps = {
 
 export function buildApp(deps: KnowledgeManagerDeps) {
   const app = new Hono();
+
+  app.use('*', async (c, next) => {
+    for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+      c.res.headers.set(key, value);
+    }
+    await next();
+  });
 
   app.get('/healthz', (c) => c.json({ ok: true }));
   app.get('/readyz', async (c) => {
