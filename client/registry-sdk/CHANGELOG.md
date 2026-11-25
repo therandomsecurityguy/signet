@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.14](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.13...registry-sdk-v0.1.14) (2026-11-25)
+
+
+### Features
+
+* **trust:** deterministic trust ranking for list and search surfaces ([e7d4c1e](https://github.com/therandomsecurityguy/signet/commit/e7d4c1ee313a79ee7fc984c9caaa9571592c9c7d))
+* **trust:** deterministic trust ranking for list and search surfaces ([5fea168](https://github.com/therandomsecurityguy/signet/commit/5fea168c6db461758db25d85bb8d8d2e9de0dc33))
+
 ## [0.1.13](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.12...registry-sdk-v0.1.13) (2026-11-23)
 
 
