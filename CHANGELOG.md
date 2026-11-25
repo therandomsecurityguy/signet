@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.89](https://github.com/therandomsecurityguy/signet/compare/v0.1.88...v0.1.89) (2026-11-25)
+
+
+### Features
+
+* **trust:** deterministic trust ranking for list and search surfaces ([e7d4c1e](https://github.com/therandomsecurityguy/signet/commit/e7d4c1ee313a79ee7fc984c9caaa9571592c9c7d))
+* **trust:** deterministic trust ranking for list and search surfaces ([5fea168](https://github.com/therandomsecurityguy/signet/commit/5fea168c6db461758db25d85bb8d8d2e9de0dc33))
+
 ## [0.1.88](https://github.com/therandomsecurityguy/signet/compare/v0.1.87...v0.1.88) (2026-11-24)
 
 
