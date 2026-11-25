@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.93](https://github.com/therandomsecurityguy/signet/compare/v0.1.92...v0.1.93) (2026-11-25)
+
+
+### Features
+
+* **freshness:** staleness signals on read surfaces ([705a396](https://github.com/therandomsecurityguy/signet/commit/705a396c4c0343a852b5676ea2994822233e056a))
+* **freshness:** staleness signals on read surfaces ([78141ae](https://github.com/therandomsecurityguy/signet/commit/78141aee5c4e03f4d1bbb89159841aa97a9bbf72))
+
 ## [0.1.92](https://github.com/therandomsecurityguy/signet/compare/v0.1.91...v0.1.92) (2026-11-25)
 
 
