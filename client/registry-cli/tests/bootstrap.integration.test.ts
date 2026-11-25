@@ -110,6 +110,8 @@ describe('registry-operator bootstrap test command', () => {
                 item_id: 'skill_base',
                 skill_key: 'skill:bootstrap-integration',
                 artifact_path: 'skills/bootstrap-example.md',
+                tags: ['integration', 'bootstrap'],
+                capability_claims: ['bootstrap-verification'],
                 certify: true,
               },
               {
@@ -125,6 +127,7 @@ describe('registry-operator bootstrap test command', () => {
                 agent_key: 'cursor:bootstrap-integration',
                 harness_name: 'cursor',
                 artifact_path: 'agents/bootstrap-agent.md',
+                tags: ['integration'],
                 skill_refs: [{ skill_item_id: 'skill_base' }],
               },
               {
@@ -171,7 +174,10 @@ describe('registry-operator bootstrap test command', () => {
       ).rejects.toThrow('Publication did not verify.');
 
       const skillVersionRes = await api.request('/v1/skills/skill%3Abootstrap-integration/versions/1');
-      const skillVersionBody = (await skillVersionRes.json()) as { artifacts: Array<{ sha256?: string }> };
+      const skillVersionBody = (await skillVersionRes.json()) as {
+        artifacts: Array<{ sha256?: string }>;
+        skill_version: { properties: Record<string, unknown> };
+      };
       const artifactSha = skillVersionBody.artifacts[0]?.sha256;
       expect(artifactSha).toBeTruthy();
       await runCli(['verify', 'artifact', '--sha256', artifactSha as string]);
@@ -185,6 +191,25 @@ describe('registry-operator bootstrap test command', () => {
       expect(skillActiveRes.status).toBe(200);
       const skillTwoActiveRes = await api.request('/v1/skills/skill%3Abootstrap-extra/active');
       expect(skillTwoActiveRes.status).toBe(200);
+
+      // Discovery metadata from the manifest lands through the seed:
+      // capability claims on the frozen version, curated tags on the logical
+      // entities (filters + list summaries).
+      expect(skillVersionBody.skill_version.properties['capability_claims']).toEqual(['bootstrap-verification']);
+
+      const skillDetailRes = await api.request('/v1/skills/skill%3Abootstrap-integration');
+      const skillDetail = (await skillDetailRes.json()) as { skill: { properties: Record<string, unknown> } };
+      expect(skillDetail.skill.properties['tags']).toEqual(['bootstrap', 'integration']);
+
+      const agentBody = (await agentRes.json()) as { agent: { properties: Record<string, unknown> } };
+      expect(agentBody.agent.properties['tags']).toEqual(['integration']);
+
+      const taggedListRes = await api.request('/v1/skills?tag=bootstrap');
+      const taggedList = (await taggedListRes.json()) as { skills: Array<{ skill_key: string; tags?: string[] }> };
+      expect(taggedList.skills.map((entry) => entry.skill_key)).toContain('skill:bootstrap-integration');
+      const taggedAgentRes = await api.request('/v1/agents?tag=integration');
+      const taggedAgents = (await taggedAgentRes.json()) as { agents: Array<{ agent_key: string }> };
+      expect(taggedAgents.agents.map((entry) => entry.agent_key)).toContain('cursor:bootstrap-integration');
     } finally {
       restoreEnvVar('API_ORIGIN', previousEnv.API_ORIGIN);
       restoreEnvVar('MCP_ORIGIN', previousEnv.MCP_ORIGIN);

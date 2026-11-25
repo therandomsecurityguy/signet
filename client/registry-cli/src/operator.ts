@@ -160,6 +160,7 @@ export function buildSkillSeedPlan(spec: SkillSeedSpec, specDir: string): SkillS
       ...(spec.commit_sha ? { commit_sha: spec.commit_sha } : {}),
       ...(spec.git_tag ? { git_tag: spec.git_tag } : {}),
       ...(spec.artifact_signature ? { artifact_signature: spec.artifact_signature } : {}),
+      ...(spec.capability_claims?.length ? { capability_claims: spec.capability_claims } : {}),
       ...(spec.lineage ? { lineage: spec.lineage } : {}),
     },
     ...(spec.validate_note ? { validateNote: spec.validate_note } : {}),
@@ -1245,6 +1246,11 @@ async function seedResolvedBootstrapManifest(env: Env, manifest: ResolvedBootstr
 
   for (const skill of manifest.skills) {
     const drafted = await api.createSkillDraft(skill, apiToken);
+    if (skill.tags.length > 0) {
+      // Curated discovery metadata lands on the logical entity once the
+      // draft has materialized it.
+      await api.setSkillTags(skill.draft.skill_key, skill.tags, apiToken);
+    }
     await api.validateSkillVersion(
       {
         skill_key: skill.draft.skill_key,
@@ -1287,6 +1293,9 @@ async function seedResolvedBootstrapManifest(env: Env, manifest: ResolvedBootstr
 
   for (const agent of manifest.agents) {
     await api.createAgent(agent, apiToken);
+    if (agent.tags.length > 0) {
+      await api.setAgentTags(agent.agent_key, agent.tags, apiToken);
+    }
   }
 
   void env;

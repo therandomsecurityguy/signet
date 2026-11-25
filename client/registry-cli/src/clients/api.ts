@@ -15,6 +15,8 @@ export class RegistryOperatorApiError extends Error {
 
 export type RegistryOperatorApiClient = {
   createSkillDraft(plan: SkillSeedPlan, apiToken: string): Promise<{ version: number; artifactUrn?: string }>;
+  setSkillTags(skillKey: string, tags: string[], apiToken: string): Promise<void>;
+  setAgentTags(agentKey: string, tags: string[], apiToken: string): Promise<void>;
   validateSkillVersion(input: { skill_key: string; version: number; author: string; note?: string }, apiToken: string): Promise<void>;
   publishSkillVersion(input: { skill_key: string; version: number; author: string; note?: string }, apiToken: string): Promise<void>;
   certifySkillVersion(input: { skill_key: string; version: number; author: string; note?: string }, apiToken: string): Promise<void>;
@@ -121,6 +123,7 @@ export class HttpRegistryOperatorApiClient implements RegistryOperatorApiClient 
           ...(plan.draft.commit_sha ? { commit_sha: plan.draft.commit_sha } : {}),
           ...(plan.draft.git_tag ? { git_tag: plan.draft.git_tag } : {}),
           ...(plan.draft.artifact_signature ? { artifact_signature: plan.draft.artifact_signature } : {}),
+          ...(plan.draft.capability_claims?.length ? { capability_claims: plan.draft.capability_claims } : {}),
           ...(plan.draft.lineage ? { lineage: plan.draft.lineage } : {}),
           artifact: {
             content: artifactContent,
@@ -139,6 +142,22 @@ export class HttpRegistryOperatorApiClient implements RegistryOperatorApiClient 
       version,
       artifactUrn: result.result.artifacts[0]?.artifact_urn,
     };
+  }
+
+  async setSkillTags(skillKey: string, tags: string[], apiToken: string): Promise<void> {
+    await this.fetchJson(
+      `/v1/skills/${encodeURIComponent(skillKey)}/tags`,
+      { method: 'PUT', body: JSON.stringify({ tags }) },
+      apiToken,
+    );
+  }
+
+  async setAgentTags(agentKey: string, tags: string[], apiToken: string): Promise<void> {
+    await this.fetchJson(
+      `/v1/agents/${encodeURIComponent(agentKey)}/tags`,
+      { method: 'PUT', body: JSON.stringify({ tags }) },
+      apiToken,
+    );
   }
 
   async validateSkillVersion(
