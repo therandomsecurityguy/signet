@@ -7,6 +7,8 @@ on:
   schedule:
     # Weekly re-scan so newly disclosed CVEs surface even without code changes.
     - cron: "0 9 * * 1"
+  # On-demand scans (e.g. after an advisory lands).
+  workflow_dispatch:
 
 permissions:
   contents: read
