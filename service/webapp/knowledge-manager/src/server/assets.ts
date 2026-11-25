@@ -580,6 +580,7 @@ tbody td a { font-weight: 550; }
 .evidence-head .chip, .evidence-head .state-badge { font-size: 0.72rem; }
 .muted-chip { color: var(--text-3); }
 .violation { margin: 0.2rem 0; font-size: 0.8rem; color: var(--red); }
+.advisory-line { margin: 0.2rem 0; font-size: 0.8rem; color: var(--amber); }
 .review-evidence .kv-value .chip { margin: 0.1rem 0.15rem 0.1rem 0; }
 .review-card .lifecycle-form { margin-top: 0.9rem; }
 

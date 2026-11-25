@@ -43,6 +43,18 @@ const PHRASE_BONUS = 5;
 const PREFIX_BONUS = 1;
 const PREFIX_BONUS_CAP = 5;
 
+/**
+ * Duplicate-advisory similarity threshold (build-plan 1.2c): a candidate at
+ * or above this score is surfaced as a possible duplicate when a version is
+ * validated. Chosen so that a shared concept alone (4) is not enough, while
+ * concept + phrase or concept + several overlapping terms is — advisory
+ * only, never blocking.
+ */
+export const DEDUPE_SIMILARITY_THRESHOLD = 10;
+
+/** Upper bound on duplicate candidates reported per validation. */
+export const DEDUPE_MAX_CANDIDATES = 3;
+
 export function tokenize(text: string): string[] {
   const tokens = text
     .toLowerCase()
