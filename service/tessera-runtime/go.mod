@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.39.3
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/transparency-dev/tessera v1.0.2
-	golang.org/x/mod v0.42.0
+	golang.org/x/mod v0.43.0
 	golang.org/x/net v0.63.0
 )
 
