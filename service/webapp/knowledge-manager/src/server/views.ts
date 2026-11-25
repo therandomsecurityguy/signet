@@ -137,18 +137,20 @@ export function renderAgents(input: {
   statusByKey?: Record<string, string>;
   matchByKey?: Record<string, SearchMatch>;
   search?: SearchContext;
+  tagFilter?: string;
   paging?: Paging;
   page?: PageChromeInput;
 }) {
   const status = input.statusByKey ?? {};
   const hasStatus = Object.keys(status).length > 0;
   const hasMatch = input.matchByKey !== undefined;
-  const headers = ['Agent Key', 'Harness', ...(hasStatus ? ['Status'] : []), 'Trust', ...(hasMatch ? ['Match'] : []), 'Source Path', 'Graph'];
+  const headers = ['Agent Key', 'Harness', ...(hasStatus ? ['Status'] : []), 'Trust', 'Tags', ...(hasMatch ? ['Match'] : []), 'Source Path', 'Graph'];
   const rows = input.agents.map((agent) => [
     `<a href="/agents/${encodeURIComponent(agent.agent_key)}">${escapeHtml(agent.agent_key)}</a>`,
     escapeHtml(agent.harness_name ?? ''),
     ...(hasStatus ? [renderStateBadge(status[agent.agent_key])] : []),
     renderTrustCell(agent.trust),
+    renderTagCell(agent.tags, '/agents'),
     ...(hasMatch ? [renderMatchCell(input.matchByKey?.[agent.agent_key])] : []),
     escapeHtml(agent.source_path ?? ''),
     `<a href="/graph?root_urn=${encodeURIComponent(agent.agent_urn)}&depth=3">View graph</a>`,
@@ -159,6 +161,7 @@ export function renderAgents(input: {
       <p class="breadcrumb"><a href="/">Home</a> / Agents</p>
       ${renderSearchForm({ action: '/agents', query: input.search?.query ?? '', mode: input.search?.mode ?? 'semantic', placeholder: 'Search agents…' })}
       ${renderSearchStatus(input.search)}
+      ${renderTagFilter(input.tagFilter, '/agents')}
       ${input.agents.length > 0 ? '<div class="toolbar"><input type="search" id="table-filter" placeholder="Filter agents…" aria-label="Filter agents" /></div>' : ''}
       ${renderTable(headers, rows, input.search ? '' : '<a role="button" href="/agents/new">Register an agent</a>', 'filterable-table')}
       ${renderPager(input.paging)}
@@ -180,6 +183,7 @@ export function renderAgentDetails(input: {
   const displayName = String(input.details.agent.properties.display_name ?? '');
   const description = String(input.details.agent.properties.description ?? '');
   const harnessName = String(input.details.agent.properties.harness_name ?? '');
+  const tags = stringArrayProperty(input.details.agent.properties, 'tags');
   const detailLink = graphEntityDetailHref({
     urn: input.details.agent.urn,
     entity_type: 'AGENT',
@@ -199,6 +203,7 @@ export function renderAgentDetails(input: {
           </div>
           ${description ? `<p class="detail-desc">${escapeHtml(description)}</p>` : ''}
           <p class="detail-urn">URN <code>${escapeHtml(agentUrn)}</code> ${copyButton(agentUrn)}</p>
+          ${renderTagChips(tags, '/agents')}
         </div>
         <div class="detail-actions">
           <a role="button" class="secondary" href="/graph?root_urn=${encodeURIComponent(agentUrn)}&depth=3">View graph</a>
@@ -226,6 +231,14 @@ export function renderAgentDetails(input: {
               : '<p>No active version.</p>'
           }
           ${renderEvidenceSection(input.activeEvidence ?? [], input.evidenceErrors ?? [])}
+          <h2>Curate tags</h2>
+          <p class="muted">Free-form tags (comma-separated) for discovery; normalized server-side (unique, sorted).</p>
+          <form method="post" action="/agents/${encodeURIComponent(agentKey)}/tags">
+            ${csrfHiddenField(input.page)}
+            <label for="tags">Tags</label>
+            <input id="tags" name="tags" type="text" value="${escapeHtml(tags.join(', '))}" placeholder="onboarding, platform" />
+            <button type="submit">Save tags</button>
+          </form>
         </section>
         <section class="tab-panel" role="tabpanel" data-tab-panel="skills" hidden>
           <h2>Skills</h2>
@@ -296,18 +309,20 @@ export function renderSkills(input: {
   statusByKey?: Record<string, string>;
   matchByKey?: Record<string, SearchMatch>;
   search?: SearchContext;
+  tagFilter?: string;
   paging?: Paging;
   page?: PageChromeInput;
 }) {
   const status = input.statusByKey ?? {};
   const hasStatus = Object.keys(status).length > 0;
   const hasMatch = input.matchByKey !== undefined;
-  const headers = ['Skill Key', 'Display Name', ...(hasStatus ? ['Status'] : []), 'Trust', ...(hasMatch ? ['Match'] : []), 'Source Path', 'Graph'];
+  const headers = ['Skill Key', 'Display Name', ...(hasStatus ? ['Status'] : []), 'Trust', 'Tags', ...(hasMatch ? ['Match'] : []), 'Source Path', 'Graph'];
   const rows = input.skills.map((skill) => [
     `<a href="/skills/${encodeURIComponent(skill.skill_key)}">${escapeHtml(skill.skill_key)}</a>`,
     escapeHtml(skill.display_name ?? ''),
     ...(hasStatus ? [renderStateBadge(status[skill.skill_key])] : []),
     renderTrustCell(skill.trust),
+    renderTagCell(skill.tags, '/skills'),
     ...(hasMatch ? [renderMatchCell(input.matchByKey?.[skill.skill_key])] : []),
     escapeHtml(skill.source_path ?? ''),
     `<a href="/graph?root_urn=${encodeURIComponent(skill.skill_urn)}&depth=3">View graph</a>`,
@@ -318,6 +333,7 @@ export function renderSkills(input: {
       <p class="breadcrumb"><a href="/">Home</a> / Skills</p>
       ${renderSearchForm({ action: '/skills', query: input.search?.query ?? '', mode: input.search?.mode ?? 'semantic', placeholder: 'Search skills…' })}
       ${renderSearchStatus(input.search)}
+      ${renderTagFilter(input.tagFilter, '/skills')}
       ${input.skills.length > 0 ? '<div class="toolbar"><input type="search" id="table-filter" placeholder="Filter skills…" aria-label="Filter skills" /></div>' : ''}
       ${renderTable(headers, rows, input.search ? '' : '<a role="button" href="/skills/new">Register a skill</a>', 'filterable-table')}
       ${renderPager(input.paging)}
@@ -344,6 +360,7 @@ export function renderSkillDetails(input: {
   const skillUrn = input.details.skill.urn;
   const displayName = String(input.details.skill.properties.display_name ?? '');
   const description = String(input.details.skill.properties.description ?? '');
+  const tags = stringArrayProperty(input.details.skill.properties, 'tags');
   const detailLink = graphEntityDetailHref({
     urn: input.details.skill.urn,
     entity_type: 'SKILL',
@@ -366,6 +383,7 @@ export function renderSkillDetails(input: {
           </div>
           ${description ? `<p class="detail-desc">${escapeHtml(description)}</p>` : ''}
           <p class="detail-urn">URN <code>${escapeHtml(skillUrn)}</code> ${copyButton(skillUrn)}</p>
+          ${renderTagChips(tags, '/skills')}
           ${
             input.usedByAgents && input.usedByAgents.length > 0
               ? `<div class="detail-chips"><span class="muted">Used by agents:</span> ${input.usedByAgents
@@ -416,6 +434,14 @@ export function renderSkillDetails(input: {
           ${input.provenance ? renderProvenanceTimeline(input.provenance) : '<div class="empty"><p>Provenance is unavailable for this skill right now.</p></div>'}
         </section>
         <section class="tab-panel" role="tabpanel" data-tab-panel="actions" hidden>
+          <h2>Curate tags</h2>
+          <p class="muted">Free-form tags (comma-separated) for discovery; normalized server-side (unique, sorted).</p>
+          <form method="post" action="/skills/${encodeURIComponent(skillKey)}/tags">
+            ${csrfHiddenField(input.page)}
+            <label for="tags">Tags</label>
+            <input id="tags" name="tags" type="text" value="${escapeHtml(tags.join(', '))}" placeholder="onboarding, security" />
+            <button type="submit">Save tags</button>
+          </form>
           ${
             input.lifecycleResult
               ? `
@@ -1496,6 +1522,35 @@ function renderTrustCell(trust: TrustScore | undefined) {
   }
   parts.push(`score ${trust.score}`);
   return `<span class="chip" title="${escapeHtml(parts.join(' · '))}">${escapeHtml(trust.score.toFixed(1))}</span>`;
+}
+
+function stringArrayProperty(properties: Record<string, unknown>, key: string): string[] {
+  const value = properties[key];
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+}
+
+// Tags are the curation primitive; chips link into the tag-filtered list.
+function renderTagCell(tags: string[] | undefined, basePath: string) {
+  if (!tags || tags.length === 0) {
+    return '<span class="muted">—</span>';
+  }
+  const visible = tags
+    .slice(0, 2)
+    .map((tag) => `<a class="chip" href="${basePath}?tag=${encodeURIComponent(tag)}">${escapeHtml(tag)}</a>`);
+  const overflow = tags.length > 2 ? ` <span class="muted">+${tags.length - 2}</span>` : '';
+  return `${visible.join(' ')}${overflow}`;
+}
+
+function renderTagChips(tags: string[], basePath: string, label = 'tags'): string {
+  if (tags.length === 0) return '';
+  return `<div class="detail-chips"><span class="muted">${escapeHtml(label)}:</span> ${tags
+    .map((tag) => `<span class="chip"><a href="${basePath}?tag=${encodeURIComponent(tag)}">${escapeHtml(tag)}</a></span>`)
+    .join(' ')}</div>`;
+}
+
+function renderTagFilter(tagFilter: string | undefined, basePath: string): string {
+  if (!tagFilter) return '';
+  return `<p class="detail-chips"><span class="muted">filtered by tag:</span> <span class="chip">${escapeHtml(tagFilter)}</span> <a href="${basePath}">clear</a></p>`;
 }
 
 function renderSearchForm(input: {

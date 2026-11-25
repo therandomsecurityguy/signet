@@ -28,6 +28,7 @@ export type AgentSummary = {
   display_name?: string;
   description?: string;
   source_path?: string;
+  tags?: string[];
   trust?: TrustScore;
 };
 
@@ -37,6 +38,7 @@ export type SkillSummary = {
   display_name?: string;
   description?: string;
   source_path?: string;
+  tags?: string[];
   trust?: TrustScore;
 };
 
@@ -346,10 +348,10 @@ export interface RegistryApiClient {
   health(): Promise<{ ok: boolean }>;
   getSession(apiToken: string): Promise<RegistryApiSession>;
   getGraphSubgraph(rootUrn: string, depth: number): Promise<GraphSubgraph>;
-  listAgents(opts?: { limit?: number; offset?: number; sort?: 'default' | 'trust' }): Promise<{ agents: AgentSummary[] }>;
+  listAgents(opts?: { limit?: number; offset?: number; sort?: 'default' | 'trust'; tag?: string }): Promise<{ agents: AgentSummary[] }>;
   getAgent(agentKey: string): Promise<AgentDetails>;
   createAgent(input: CreateAgentInput, apiToken: string): Promise<AgentDetails>;
-  listSkills(opts?: { limit?: number; offset?: number; sort?: 'default' | 'trust' }): Promise<{ skills: SkillSummary[] }>;
+  listSkills(opts?: { limit?: number; offset?: number; sort?: 'default' | 'trust'; tag?: string }): Promise<{ skills: SkillSummary[] }>;
   getSkill(skillKey: string): Promise<SkillDetails>;
   createSkill(input: CreateSkillInput, apiToken: string): Promise<SkillDetails>;
   listSkillVersions(skillKey: string): Promise<{ versions: SkillVersionDetails[] }>;
@@ -415,6 +417,8 @@ export interface RegistryApiClient {
     mode: 'keyword' | 'semantic';
     limit?: number;
   }): Promise<RegistrySearchResult>;
+  setSkillTags(skillKey: string, tags: string[], apiToken: string): Promise<{ tags: string[] }>;
+  setAgentTags(agentKey: string, tags: string[], apiToken: string): Promise<{ tags: string[] }>;
 }
 
 export class HttpRegistryApiClient implements RegistryApiClient {
@@ -436,7 +440,7 @@ export class HttpRegistryApiClient implements RegistryApiClient {
     return await this.fetchJson(`/v1/graph/subgraph?${query.toString()}`);
   }
 
-  async listAgents(opts?: { limit?: number; offset?: number; sort?: 'default' | 'trust' }): Promise<{ agents: AgentSummary[] }> {
+  async listAgents(opts?: { limit?: number; offset?: number; sort?: 'default' | 'trust'; tag?: string }): Promise<{ agents: AgentSummary[] }> {
     return await this.fetchJson(`/v1/agents${listQuery(opts)}`);
   }
 
@@ -451,7 +455,7 @@ export class HttpRegistryApiClient implements RegistryApiClient {
     }, apiToken);
   }
 
-  async listSkills(opts?: { limit?: number; offset?: number; sort?: 'default' | 'trust' }): Promise<{ skills: SkillSummary[] }> {
+  async listSkills(opts?: { limit?: number; offset?: number; sort?: 'default' | 'trust'; tag?: string }): Promise<{ skills: SkillSummary[] }> {
     return await this.fetchJson(`/v1/skills${listQuery(opts)}`);
   }
 
@@ -684,6 +688,24 @@ export class HttpRegistryApiClient implements RegistryApiClient {
     return await this.fetchJson(`/v1/search?${params.toString()}`);
   }
 
+  async setSkillTags(skillKey: string, tags: string[], apiToken: string): Promise<{ tags: string[] }> {
+    const result = await this.fetchJson<{ skill_key: string; tags: string[] }>(
+      `/v1/skills/${encodeURIComponent(skillKey)}/tags`,
+      { method: 'PUT', body: JSON.stringify({ tags }) },
+      apiToken,
+    );
+    return { tags: result.tags };
+  }
+
+  async setAgentTags(agentKey: string, tags: string[], apiToken: string): Promise<{ tags: string[] }> {
+    const result = await this.fetchJson<{ agent_key: string; tags: string[] }>(
+      `/v1/agents/${encodeURIComponent(agentKey)}/tags`,
+      { method: 'PUT', body: JSON.stringify({ tags }) },
+      apiToken,
+    );
+    return { tags: result.tags };
+  }
+
   private async postSkillVersionAction(
     action: 'validate' | 'publish' | 'promote' | 'deprecate' | 'certify',
     skillKey: string,
@@ -702,12 +724,18 @@ export class HttpRegistryApiClient implements RegistryApiClient {
   }
 }
 
-function listQuery(opts?: { limit?: number; offset?: number; sort?: 'default' | 'trust' }): string {
-  if (!opts || (opts.limit === undefined && opts.offset === undefined && opts.sort === undefined)) return '';
+function listQuery(opts?: { limit?: number; offset?: number; sort?: 'default' | 'trust'; tag?: string }): string {
+  if (
+    !opts ||
+    (opts.limit === undefined && opts.offset === undefined && opts.sort === undefined && opts.tag === undefined)
+  ) {
+    return '';
+  }
   const params = new URLSearchParams();
   if (opts.limit !== undefined) params.set('limit', String(opts.limit));
   if (opts.offset !== undefined) params.set('offset', String(opts.offset));
   if (opts.sort !== undefined) params.set('sort', opts.sort);
+  if (opts.tag !== undefined) params.set('tag', opts.tag);
   const qs = params.toString();
   return qs ? `?${qs}` : '';
 }

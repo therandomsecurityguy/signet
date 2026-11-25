@@ -13,6 +13,8 @@ export const RegistryListAgentsOutputSchema = z.object({
       agent_key: z.string(),
       harness_name: z.string().optional(),
       source_path: z.string().optional(),
+      /** Operator-curated tags (normalized: sorted, case-insensitively unique). */
+      tags: z.array(z.string()).optional(),
     }),
   ),
 });

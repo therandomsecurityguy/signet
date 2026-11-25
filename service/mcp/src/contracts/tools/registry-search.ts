@@ -47,6 +47,8 @@ export const RegistrySearchOutputSchema = z.object({
       source_path: z.string().optional(),
       active_version: z.number().optional(),
       certification_status: z.string().optional(),
+      /** Operator-curated tags (normalized: sorted, case-insensitively unique). */
+      tags: z.array(z.string()).optional(),
       /** Present when `sort=trust` (the default). */
       trust: RegistrySearchTrustSchema.optional(),
       /** Present when `sort=trust` (the default). */
@@ -61,6 +63,8 @@ export const RegistrySearchOutputSchema = z.object({
       display_name: z.string().optional(),
       description: z.string().optional(),
       source_path: z.string().optional(),
+      /** Operator-curated tags (normalized: sorted, case-insensitively unique). */
+      tags: z.array(z.string()).optional(),
       /** Present when `sort=trust` (the default). */
       trust: RegistrySearchTrustSchema.optional(),
       /** Present when `sort=trust` (the default). */

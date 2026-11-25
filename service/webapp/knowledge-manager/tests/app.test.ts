@@ -995,6 +995,7 @@ describe('knowledge-manager app', () => {
                 agent_urn: 'urn:sg:agent:cursor:ranked',
                 agent_key: 'cursor:ranked',
                 harness_name: 'cursor',
+                tags: ['platform'],
                 trust: {
                   score: 20.5,
                   lifecycle_status: 'published',
@@ -1021,6 +1022,15 @@ describe('knowledge-manager app', () => {
     expect(text).toContain('20.5');
     expect(text).toContain('tier 2 (published)');
     expect(listCalls[0]?.sort).toBe('trust');
+
+    // Tag links + tag filter passthrough.
+    expect(text).toContain('href="/agents?tag=platform"');
+    const filtered = await app.request('/agents?tag=platform');
+    expect(filtered.status).toBe(200);
+    const filteredText = await filtered.text();
+    expect(listCalls[1]?.tag).toBe('platform');
+    expect(filteredText).toContain('filtered by tag');
+    expect(filteredText).toContain('href="/agents?tag=platform"');
   });
 
   it('renders semantic search results with match components and forwards the mode', async () => {
@@ -1072,6 +1082,70 @@ describe('knowledge-manager app', () => {
     expect(text).toContain('relevance-ordered');
     expect(text).toContain('pii-handling');
     expect(text).toContain('semantic 9');
+  });
+
+  it('curates tags through the session and renders them as chips', async () => {
+    const setCalls: Array<{ key: string; tags: string[]; token: string }> = [];
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        getSkill: async () => ({
+          skill: {
+            urn: 'urn:sg:skill:skill:example',
+            properties: {
+              skill_key: 'skill:example',
+              display_name: 'Example Skill',
+              tags: ['security', 'onboarding'],
+            },
+          },
+          artifacts: [],
+        }),
+        setSkillTags: async (skillKey, tags, apiToken) => {
+          setCalls.push({ key: skillKey, tags, token: apiToken });
+          return { tags };
+        },
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    // Detail page renders existing tags (linked to the tag filter) and the form.
+    const page = await app.request('/skills/skill%3Aexample');
+    expect(page.status).toBe(200);
+    const pageText = await page.text();
+    expect(pageText).toContain('href="/skills?tag=security"');
+    expect(pageText).toContain('Curate tags');
+    expect(pageText).toContain('value="security, onboarding"');
+
+    const login = await app.request('/session/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ return_to: '/skills/skill%3Aexample' }).toString(),
+    });
+    const cookie = login.headers.get('set-cookie') ?? '';
+    const csrf = await csrfTokenFor(app, cookie);
+
+    const submit = await app.request('/skills/skill%3Aexample/tags', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', cookie },
+      body: new URLSearchParams({ _csrf: csrf, tags: 'Security, onboarding , security, ' }).toString(),
+    });
+    expect(submit.status).toBe(303);
+    expect(decodeURIComponent(submit.headers.get('location') ?? '').replaceAll('+', ' ')).toContain('Tags updated.');
+    expect(setCalls[0]).toMatchObject({ key: 'skill:example', tags: ['Security', 'onboarding', 'security'] });
+    expect(setCalls[0]?.token).toContain('webapp-okta-');
+
+    // Anonymous submissions redirect to sign-in without touching the registry.
+    const anon = await app.request('/skills/skill%3Aexample/tags', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ tags: 'x' }).toString(),
+    });
+    expect(anon.status).toBe(303);
+    expect(decodeURIComponent(anon.headers.get('location') ?? '')).toContain('session_error');
+    expect(setCalls).toHaveLength(1);
   });
 
   it('exposes ontology project JSON and html views', async () => {
@@ -1332,6 +1406,8 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
       skills: [],
       agents: [],
     }),
+    setSkillTags: async () => ({ tags: [] }),
+    setAgentTags: async () => ({ tags: [] }),
     ...overrides,
   };
 }

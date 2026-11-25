@@ -298,6 +298,7 @@ export interface paths {
                     limit?: number;
                     offset?: number | null;
                     sort?: "default" | "trust";
+                    tag?: string;
                 };
                 header?: never;
                 path?: never;
@@ -319,6 +320,7 @@ export interface paths {
                                 display_name?: string;
                                 description?: string;
                                 source_path?: string;
+                                tags?: string[];
                                 trust?: {
                                     score: number;
                                     lifecycle_status: string;
@@ -5787,6 +5789,7 @@ export interface paths {
                     limit?: number;
                     offset?: number | null;
                     sort?: "default" | "trust";
+                    tag?: string;
                 };
                 header?: never;
                 path?: never;
@@ -5807,6 +5810,7 @@ export interface paths {
                                 display_name?: string;
                                 description?: string;
                                 source_path?: string;
+                                tags?: string[];
                                 trust?: {
                                     score: number;
                                     lifecycle_status: string;
@@ -6130,6 +6134,7 @@ export interface paths {
                                 display_name?: string;
                                 description?: string;
                                 source_path?: string;
+                                tags?: string[];
                                 trust: {
                                     score: number;
                                     lifecycle_status: string;
@@ -6154,6 +6159,7 @@ export interface paths {
                                 display_name?: string;
                                 description?: string;
                                 source_path?: string;
+                                tags?: string[];
                                 trust: {
                                     score: number;
                                     lifecycle_status: string;
@@ -6190,6 +6196,182 @@ export interface paths {
             };
         };
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/skills/{skillKey}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    skillKey: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        tags: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Skill tags updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            skill_key: string;
+                            tags: string[];
+                        };
+                    };
+                };
+                /** @description Invalid tags */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Skill not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents/{agentKey}/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    agentKey: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        tags: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Agent tags updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            agent_key: string;
+                            tags: string[];
+                        };
+                    };
+                };
+                /** @description Invalid tags */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Agent not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         post?: never;
         delete?: never;
         options?: never;

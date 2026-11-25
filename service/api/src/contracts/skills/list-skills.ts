@@ -11,6 +11,8 @@ export const ListSkillsInputSchema = z.object({
    * the score components on every summary.
    */
   sort: z.enum(['default', 'trust']).default('default'),
+  /** Filter to entities carrying this tag (case-insensitive exact match). */
+  tag: z.string().min(1).max(40).optional(),
 });
 
 export const ListSkillsOutputSchema = z.object({

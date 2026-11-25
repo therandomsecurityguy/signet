@@ -64,6 +64,7 @@ export class RegistryServiceConnector implements RegistryConnector {
         agent_key: agent.agent_key,
         ...(agent.harness_name ? { harness_name: agent.harness_name } : {}),
         ...(agent.source_path ? { source_path: agent.source_path } : {}),
+        ...(agent.tags?.length ? { tags: agent.tags } : {}),
       });
     }
     return { agents };
@@ -97,6 +98,7 @@ export class RegistryServiceConnector implements RegistryConnector {
         skill_urn: skill.skill_urn,
         skill_key: skill.skill_key,
         ...(skill.source_path ? { source_path: skill.source_path } : {}),
+        ...(skill.tags?.length ? { tags: skill.tags } : {}),
       });
     }
     return { skills };
@@ -241,6 +243,7 @@ export class RegistryServiceConnector implements RegistryConnector {
         ...(skill.description ? { description: skill.description } : {}),
         ...(skill.source_path ? { source_path: skill.source_path } : {}),
         ...(skill.active_version ? { active_version: skill.active_version } : {}),
+        ...(skill.tags?.length ? { tags: skill.tags } : {}),
         trust: skill.trust,
         match: skill.match,
       });
@@ -256,6 +259,7 @@ export class RegistryServiceConnector implements RegistryConnector {
         ...(agent.display_name ? { display_name: agent.display_name } : {}),
         ...(agent.description ? { description: agent.description } : {}),
         ...(agent.source_path ? { source_path: agent.source_path } : {}),
+        ...(agent.tags?.length ? { tags: agent.tags } : {}),
         trust: agent.trust,
         match: agent.match,
       });
