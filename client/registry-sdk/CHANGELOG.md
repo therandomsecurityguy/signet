@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.16](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.15...registry-sdk-v0.1.16) (2026-11-25)
+
+
+### Features
+
+* **tags:** operator-curated tags with filters, search, and chips ([dfe504d](https://github.com/therandomsecurityguy/signet/commit/dfe504d0715776fb71a8ae78799809999fe61724))
+* **tags:** operator-curated tags with filters, search, and chips ([9568b66](https://github.com/therandomsecurityguy/signet/commit/9568b66041dfebf3c9d0f18cfcec1eb4d35d09e4))
+
 ## [0.1.15](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.14...registry-sdk-v0.1.15) (2026-11-25)
 
 
