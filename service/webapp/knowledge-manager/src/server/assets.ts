@@ -654,6 +654,7 @@ tbody td a { font-weight: 550; }
 
 /* Toolbar / breadcrumb / session */
 .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 1rem 0 0.75rem; border: 0; padding: 0; }
+.toolbar.spread { justify-content: space-between; }
 .toolbar input[type="search"] { max-width: 22rem; margin: 0; }
 .breadcrumb { margin: 0 0 1rem; color: var(--text-3); font-size: 0.8125rem; }
 .breadcrumb a { color: var(--text-2); }

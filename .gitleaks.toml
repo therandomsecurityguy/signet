@@ -1,0 +1,18 @@
+title = "Signet repository secret scanning"
+
+# Keep the default gitleaks ruleset; this config only narrows known false
+# positives (see the allowlist at the bottom).
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = """
+The restore-drill runbook used the local Fuseki compose default (`admin:admin`)
+in historical commits: it is a documented throwaway credential for a scratch
+container, not a secret. The allowlist is scoped to that literal password (and
+that file only), so a real secret added there would still fail scanning.
+"""
+targetRules = ["curl-auth-user"]
+paths = ['''docs/runbooks/restore-drill\.md''']
+regexTarget = "match"
+regexes = ['''admin:admin''']

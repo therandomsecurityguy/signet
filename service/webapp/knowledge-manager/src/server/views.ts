@@ -12,6 +12,233 @@ import type {
   TrustScore,
 } from './clients/registry-api.js';
 import type { SemanticTurkeyProjectsView } from './clients/semantic-turkey.js';
+// Inline page scripts. Rendered as <script>${CONSTANT}</script> so the
+// response CSP (see ./app.ts) can pin each one with a sha256 hash; the
+// constants are the exact rendered script text, so keep them byte-identical.
+export const GRAPH_EXPLORER_SCRIPT = `(function () {
+  const raw = document.getElementById('graph-data');
+  const container = document.getElementById('graph-canvas');
+  const detailPanel = document.getElementById('graph-detail-panel');
+  if (!raw || !container || !detailPanel || typeof window.cytoscape !== 'function') return;
+  const graph = JSON.parse(raw.textContent || '{}');
+  const nodeMap = new Map((graph.nodes || []).map((node) => [node.urn, node]));
+  const elements = [
+    ...(graph.nodes || []).map((node) => ({
+      data: {
+        id: node.id,
+        label: node.label,
+        entityType: node.entity_type,
+        urn: node.urn,
+      },
+    })),
+    ...(graph.edges || []).map((edge) => ({
+      data: {
+        id: edge.id,
+        source: edge.from_urn,
+        target: edge.to_urn,
+        label: edge.predicate,
+      },
+    })),
+  ];
+  const dark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const theme = dark
+    ? { label: '#dfe3ee', edge: '#525b6e', edgeLabelBg: '#161923', edgeLabelText: '#9ba3b4' }
+    : { label: '#334155', edge: '#94a3b8', edgeLabelBg: '#ffffff', edgeLabelText: '#475467' };
+  const cy = window.cytoscape({
+    container,
+    elements,
+    layout: {
+      name: 'breadthfirst',
+      directed: true,
+      padding: 20,
+      spacingFactor: 1.2,
+    },
+    style: [
+      {
+        selector: 'node',
+        style: {
+          'background-color': '#8b5cf6',
+          'label': 'data(label)',
+          'color': theme.label,
+          'text-wrap': 'wrap',
+          'text-max-width': 140,
+          'font-size': 11,
+          'text-valign': 'bottom',
+          'text-margin-y': 8,
+          'width': 26,
+          'height': 26,
+        },
+      },
+      {
+        selector: 'edge',
+        style: {
+          'curve-style': 'bezier',
+          'target-arrow-shape': 'triangle',
+          'label': 'data(label)',
+          'font-size': 9,
+          'color': theme.edgeLabelText,
+          'text-background-color': theme.edgeLabelBg,
+          'text-background-opacity': 1,
+          'text-background-padding': 2,
+          'line-color': theme.edge,
+          'target-arrow-color': theme.edge,
+        },
+      },
+      {
+        selector: 'node[entityType = "AGENT"]',
+        style: { 'background-color': '#60a5fa' },
+      },
+      {
+        selector: 'node[entityType = "SKILL"]',
+        style: { 'background-color': '#34d399' },
+      },
+      {
+        selector: 'node[entityType = "SKILL_VERSION"]',
+        style: { 'background-color': '#a78bfa' },
+      },
+      {
+        selector: 'node[entityType = "ARTIFACT"]',
+        style: { 'background-color': '#fbbf24' },
+      },
+      {
+        selector: 'node[entityType = "HARNESS"]',
+        style: { 'background-color': '#f87171' },
+      },
+    ],
+  });
+  const renderDetail = (urn) => {
+    const node = nodeMap.get(urn);
+    if (!node) return;
+    const props = Object.entries(node.properties || {})
+      .map(([key, value]) => '<div class="kv-row"><span class="kv-key">' + escapeHtmlHtml(key) + '</span><div class="kv-value">' + escapeHtmlHtml(stringifyValue(value)) + '</div></div>')
+      .join('');
+    const actionLink = detailHref(node);
+    detailPanel.innerHTML =
+      '<h2>Selected Node</h2>' +
+      '<p><strong>Label:</strong> ' + escapeHtmlHtml(node.label) + '</p>' +
+      '<p><strong>Entity Type:</strong> ' + escapeHtmlHtml(node.entity_type) + '</p>' +
+      '<p><strong>URN:</strong> <code>' + escapeHtmlHtml(node.urn) + '</code></p>' +
+      (actionLink
+        ? '<p><a href="' + escapeHtmlHtml(actionLink) + '">Open canonical detail page</a></p>'
+        : '') +
+      (props.length > 0
+        ? '<div class="kv">' + props + '</div>'
+        : '<p>No properties.</p>');
+  };
+  cy.on('tap', 'node', (event) => {
+    const data = event.target.data();
+    renderDetail(data.urn);
+  });
+  document.querySelectorAll('#graph-legend input[data-node-type]').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      const type = cb.getAttribute('data-node-type');
+      cy.$('node[entityType = "' + type + '"]').style('display', cb.checked ? 'element' : 'none');
+    });
+  });
+  const initialRoot = graph.root_urn || ((graph.nodes || [])[0] || {}).urn;
+  if (initialRoot) renderDetail(initialRoot);
+})();
+
+function escapeHtmlHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function stringifyValue(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value);
+}
+
+function detailHref(node) {
+  if (!node || !node.properties) return null;
+  if (node.entity_type === 'AGENT' && typeof node.properties.agent_key === 'string') {
+    return '/agents/' + encodeURIComponent(node.properties.agent_key);
+  }
+  if (node.entity_type === 'SKILL' && typeof node.properties.skill_key === 'string') {
+    return '/skills/' + encodeURIComponent(node.properties.skill_key);
+  }
+  if (node.entity_type === 'SKILL_VERSION' && typeof node.properties.skill_key === 'string') {
+    return '/skills/' + encodeURIComponent(node.properties.skill_key);
+  }
+  return null;
+}`;
+
+export const SHARED_PAGE_SCRIPT = `// Client-side row filter for list pages (#table-filter + #filterable-table).
+(function () {
+  var input = document.getElementById('table-filter');
+  var table = document.getElementById('filterable-table');
+  if (!input || !table) return;
+  var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr'));
+  input.addEventListener('input', function () {
+    var q = input.value.trim().toLowerCase();
+    rows.forEach(function (row) {
+      row.hidden = q.length > 0 && row.textContent.toLowerCase().indexOf(q) === -1;
+    });
+  });
+})();
+
+// Copy-to-clipboard: [data-copy] buttons, or the nearest <pre> inside
+// the button's .code-panel / .code-block ancestor.
+(function () {
+  function write(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    try { document.execCommand('copy'); } finally { document.body.removeChild(area); }
+    return Promise.resolve();
+  }
+  document.addEventListener('click', function (event) {
+    var btn = event.target.closest ? event.target.closest('.copy-btn') : null;
+    if (!btn) return;
+    var text = btn.getAttribute('data-copy');
+    if (!text) {
+      var scope = btn.closest('.code-panel') || btn.closest('.code-block');
+      var pre = scope ? scope.querySelector('pre') : null;
+      text = pre ? pre.textContent : '';
+    }
+    if (!text) return;
+    write(text).then(function () {
+      btn.classList.add('copied');
+      window.setTimeout(function () { btn.classList.remove('copied'); }, 1200);
+    }).catch(function () {});
+  });
+})();
+
+// Lightweight tabs: [data-tab] buttons switch sibling [data-tab-panel]
+// sections inside their .tabs-wrap. Without JS every panel stays visible.
+(function () {
+  document.querySelectorAll('.tabs-wrap').forEach(function (wrap) {
+    var buttons = Array.prototype.slice.call(wrap.querySelectorAll('.tab-btn[data-tab]'));
+    var panels = Array.prototype.slice.call(wrap.querySelectorAll('[data-tab-panel]'));
+    if (buttons.length === 0 || panels.length === 0) return;
+    function activate(name) {
+      buttons.forEach(function (btn) {
+        btn.setAttribute('aria-selected', String(btn.getAttribute('data-tab') === name));
+      });
+      panels.forEach(function (panel) {
+        panel.hidden = panel.getAttribute('data-tab-panel') !== name;
+      });
+    }
+    buttons.forEach(function (btn) {
+      btn.addEventListener('click', function () { activate(btn.getAttribute('data-tab')); });
+    });
+    var selected = buttons.filter(function (b) { return b.getAttribute('aria-selected') === 'true'; })[0] || buttons[0];
+    if (selected) activate(selected.getAttribute('data-tab'));
+  });
+})();`;
+
 
 export type PageChromeInput = {
   path?: string;
@@ -122,7 +349,7 @@ function renderPager(paging?: Paging) {
   const next = paging.hasNext
     ? `<a role="button" class="secondary" href="${paging.basePath}?page=${paging.page + 1}">Next →</a>`
     : '<span></span>';
-  return `<nav class="toolbar" style="justify-content: space-between;">${prev}<small>Page ${paging.page}</small>${next}</nav>`;
+  return `<nav class="toolbar spread">${prev}<small>Page ${paging.page}</small>${next}</nav>`;
 }
 
 export type SearchContext = {
@@ -1201,160 +1428,7 @@ export function renderGraphPage(input: {
       </details>
       <script type="application/json" id="graph-data">${graphJson}</script>
       <script src="/assets/cytoscape.min.js"></script>
-      <script>
-        (function () {
-          const raw = document.getElementById('graph-data');
-          const container = document.getElementById('graph-canvas');
-          const detailPanel = document.getElementById('graph-detail-panel');
-          if (!raw || !container || !detailPanel || typeof window.cytoscape !== 'function') return;
-          const graph = JSON.parse(raw.textContent || '{}');
-          const nodeMap = new Map((graph.nodes || []).map((node) => [node.urn, node]));
-          const elements = [
-            ...(graph.nodes || []).map((node) => ({
-              data: {
-                id: node.id,
-                label: node.label,
-                entityType: node.entity_type,
-                urn: node.urn,
-              },
-            })),
-            ...(graph.edges || []).map((edge) => ({
-              data: {
-                id: edge.id,
-                source: edge.from_urn,
-                target: edge.to_urn,
-                label: edge.predicate,
-              },
-            })),
-          ];
-          const dark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-          const theme = dark
-            ? { label: '#dfe3ee', edge: '#525b6e', edgeLabelBg: '#161923', edgeLabelText: '#9ba3b4' }
-            : { label: '#334155', edge: '#94a3b8', edgeLabelBg: '#ffffff', edgeLabelText: '#475467' };
-          const cy = window.cytoscape({
-            container,
-            elements,
-            layout: {
-              name: 'breadthfirst',
-              directed: true,
-              padding: 20,
-              spacingFactor: 1.2,
-            },
-            style: [
-              {
-                selector: 'node',
-                style: {
-                  'background-color': '#8b5cf6',
-                  'label': 'data(label)',
-                  'color': theme.label,
-                  'text-wrap': 'wrap',
-                  'text-max-width': 140,
-                  'font-size': 11,
-                  'text-valign': 'bottom',
-                  'text-margin-y': 8,
-                  'width': 26,
-                  'height': 26,
-                },
-              },
-              {
-                selector: 'edge',
-                style: {
-                  'curve-style': 'bezier',
-                  'target-arrow-shape': 'triangle',
-                  'label': 'data(label)',
-                  'font-size': 9,
-                  'color': theme.edgeLabelText,
-                  'text-background-color': theme.edgeLabelBg,
-                  'text-background-opacity': 1,
-                  'text-background-padding': 2,
-                  'line-color': theme.edge,
-                  'target-arrow-color': theme.edge,
-                },
-              },
-              {
-                selector: 'node[entityType = "AGENT"]',
-                style: { 'background-color': '#60a5fa' },
-              },
-              {
-                selector: 'node[entityType = "SKILL"]',
-                style: { 'background-color': '#34d399' },
-              },
-              {
-                selector: 'node[entityType = "SKILL_VERSION"]',
-                style: { 'background-color': '#a78bfa' },
-              },
-              {
-                selector: 'node[entityType = "ARTIFACT"]',
-                style: { 'background-color': '#fbbf24' },
-              },
-              {
-                selector: 'node[entityType = "HARNESS"]',
-                style: { 'background-color': '#f87171' },
-              },
-            ],
-          });
-          const renderDetail = (urn) => {
-            const node = nodeMap.get(urn);
-            if (!node) return;
-            const props = Object.entries(node.properties || {})
-              .map(([key, value]) => '<div class="kv-row"><span class="kv-key">' + escapeHtmlHtml(key) + '</span><div class="kv-value">' + escapeHtmlHtml(stringifyValue(value)) + '</div></div>')
-              .join('');
-            const actionLink = detailHref(node);
-            detailPanel.innerHTML =
-              '<h2>Selected Node</h2>' +
-              '<p><strong>Label:</strong> ' + escapeHtmlHtml(node.label) + '</p>' +
-              '<p><strong>Entity Type:</strong> ' + escapeHtmlHtml(node.entity_type) + '</p>' +
-              '<p><strong>URN:</strong> <code>' + escapeHtmlHtml(node.urn) + '</code></p>' +
-              (actionLink
-                ? '<p><a href="' + escapeHtmlHtml(actionLink) + '">Open canonical detail page</a></p>'
-                : '') +
-              (props.length > 0
-                ? '<div class="kv">' + props + '</div>'
-                : '<p>No properties.</p>');
-          };
-          cy.on('tap', 'node', (event) => {
-            const data = event.target.data();
-            renderDetail(data.urn);
-          });
-          document.querySelectorAll('#graph-legend input[data-node-type]').forEach((cb) => {
-            cb.addEventListener('change', () => {
-              const type = cb.getAttribute('data-node-type');
-              cy.$('node[entityType = "' + type + '"]').style('display', cb.checked ? 'element' : 'none');
-            });
-          });
-          const initialRoot = graph.root_urn || ((graph.nodes || [])[0] || {}).urn;
-          if (initialRoot) renderDetail(initialRoot);
-        })();
-
-        function escapeHtmlHtml(value) {
-          return String(value)
-            .replaceAll('&', '&amp;')
-            .replaceAll('<', '&lt;')
-            .replaceAll('>', '&gt;')
-            .replaceAll('"', '&quot;')
-            .replaceAll("'", '&#39;');
-        }
-
-        function stringifyValue(value) {
-          if (value === null || value === undefined) return '';
-          if (typeof value === 'string') return value;
-          return JSON.stringify(value);
-        }
-
-        function detailHref(node) {
-          if (!node || !node.properties) return null;
-          if (node.entity_type === 'AGENT' && typeof node.properties.agent_key === 'string') {
-            return '/agents/' + encodeURIComponent(node.properties.agent_key);
-          }
-          if (node.entity_type === 'SKILL' && typeof node.properties.skill_key === 'string') {
-            return '/skills/' + encodeURIComponent(node.properties.skill_key);
-          }
-          if (node.entity_type === 'SKILL_VERSION' && typeof node.properties.skill_key === 'string') {
-            return '/skills/' + encodeURIComponent(node.properties.skill_key);
-          }
-          return null;
-        }
-      </script>
+      <script>${GRAPH_EXPLORER_SCRIPT}</script>
     `,
     input.page,
   );
@@ -1425,78 +1499,7 @@ function renderPage(title: string, body: string, page?: PageChromeInput) {
         <small class="muted">Sealed · logged · verifiable</small>
       </div>
     </footer>
-    <script>
-      // Client-side row filter for list pages (#table-filter + #filterable-table).
-      (function () {
-        var input = document.getElementById('table-filter');
-        var table = document.getElementById('filterable-table');
-        if (!input || !table) return;
-        var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr'));
-        input.addEventListener('input', function () {
-          var q = input.value.trim().toLowerCase();
-          rows.forEach(function (row) {
-            row.hidden = q.length > 0 && row.textContent.toLowerCase().indexOf(q) === -1;
-          });
-        });
-      })();
-
-      // Copy-to-clipboard: [data-copy] buttons, or the nearest <pre> inside
-      // the button's .code-panel / .code-block ancestor.
-      (function () {
-        function write(text) {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            return navigator.clipboard.writeText(text);
-          }
-          var area = document.createElement('textarea');
-          area.value = text;
-          area.setAttribute('readonly', '');
-          area.style.position = 'fixed';
-          area.style.opacity = '0';
-          document.body.appendChild(area);
-          area.select();
-          try { document.execCommand('copy'); } finally { document.body.removeChild(area); }
-          return Promise.resolve();
-        }
-        document.addEventListener('click', function (event) {
-          var btn = event.target.closest ? event.target.closest('.copy-btn') : null;
-          if (!btn) return;
-          var text = btn.getAttribute('data-copy');
-          if (!text) {
-            var scope = btn.closest('.code-panel') || btn.closest('.code-block');
-            var pre = scope ? scope.querySelector('pre') : null;
-            text = pre ? pre.textContent : '';
-          }
-          if (!text) return;
-          write(text).then(function () {
-            btn.classList.add('copied');
-            window.setTimeout(function () { btn.classList.remove('copied'); }, 1200);
-          }).catch(function () {});
-        });
-      })();
-
-      // Lightweight tabs: [data-tab] buttons switch sibling [data-tab-panel]
-      // sections inside their .tabs-wrap. Without JS every panel stays visible.
-      (function () {
-        document.querySelectorAll('.tabs-wrap').forEach(function (wrap) {
-          var buttons = Array.prototype.slice.call(wrap.querySelectorAll('.tab-btn[data-tab]'));
-          var panels = Array.prototype.slice.call(wrap.querySelectorAll('[data-tab-panel]'));
-          if (buttons.length === 0 || panels.length === 0) return;
-          function activate(name) {
-            buttons.forEach(function (btn) {
-              btn.setAttribute('aria-selected', String(btn.getAttribute('data-tab') === name));
-            });
-            panels.forEach(function (panel) {
-              panel.hidden = panel.getAttribute('data-tab-panel') !== name;
-            });
-          }
-          buttons.forEach(function (btn) {
-            btn.addEventListener('click', function () { activate(btn.getAttribute('data-tab')); });
-          });
-          var selected = buttons.filter(function (b) { return b.getAttribute('aria-selected') === 'true'; })[0] || buttons[0];
-          if (selected) activate(selected.getAttribute('data-tab'));
-        });
-      })();
-    </script>
+    <script>${SHARED_PAGE_SCRIPT}</script>
   </body>
 </html>`;
 }

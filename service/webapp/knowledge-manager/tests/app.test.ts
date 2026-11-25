@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 
 import { buildApp } from '../src/server/app.js';
@@ -77,6 +79,45 @@ describe('knowledge-manager app', () => {
     const home = await app.request('/');
     expect(home.status).toBe(200);
     expect(await home.text()).toContain('/assets/app.css');
+  });
+
+  it('sets security headers and pins rendered inline scripts in the CSP', async () => {
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient(),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const home = await app.request('/');
+    expect(home.headers.get('x-frame-options')).toBe('DENY');
+    expect(home.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(home.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin');
+    const csp = home.headers.get('content-security-policy') ?? '';
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("base-uri 'none'");
+    expect(csp).not.toContain("'unsafe-inline'");
+
+    // Every executable inline script in a rendered page must be covered by a
+    // sha256 source in that page's CSP header; a new inline script without a
+    // hash fails here instead of silently breaking in the browser.
+    for (const pathname of ['/', '/graph', '/skills']) {
+      const page = await app.request(pathname);
+      expect(page.status).toBe(200);
+      const header = page.headers.get('content-security-policy') ?? '';
+      const html = await page.text();
+      const inlineScripts = [
+        ...html.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application\/json)[^>]*>([\s\S]*?)<\/script>/g),
+      ];
+      expect(inlineScripts.length).toBeGreaterThan(0);
+      for (const match of inlineScripts) {
+        const digest = createHash('sha256').update(match[1] ?? '', 'utf8').digest('base64');
+        expect(header).toContain(`'sha256-${digest}'`);
+      }
+    }
   });
 
   it('surfaces Okta authorization error redirects instead of a generic invalid-state error', async () => {
