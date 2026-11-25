@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { FreshnessSchema } from '../freshness.js';
 import { TrustScoreSchema } from '../trust.js';
 
 export const AgentSummarySchema = z.object({
@@ -13,6 +14,8 @@ export const AgentSummarySchema = z.object({
   tags: z.array(z.string()).optional(),
   /** Present when the list is requested with `sort=trust`. */
   trust: TrustScoreSchema.optional(),
+  /** Present when the active version carries a verification timestamp. */
+  freshness: FreshnessSchema.optional(),
 });
 
 export const AgentVersionDetailsSchema = z.object({
@@ -45,6 +48,8 @@ export const AgentVersionDetailsSchema = z.object({
       sha256: z.string().optional(),
     }),
   ),
+  /** Staleness signal for this version (build plan 2.1). */
+  freshness: FreshnessSchema.optional(),
 });
 
 export const AgentDetailsSchema = z.object({

@@ -393,6 +393,10 @@ button:disabled, [role="button"][aria-disabled="true"] { opacity: 0.55; cursor: 
 }
 .chip a { color: inherit; }
 .chip a:hover { color: var(--accent-2); }
+.chip.freshness-chip { margin-left: 0.3rem; }
+.chip.freshness-fresh { background: var(--green-soft); color: var(--green); border-color: transparent; }
+.chip.freshness-aging { background: var(--amber-soft); color: var(--amber); border-color: transparent; }
+.chip.freshness-stale { background: var(--red-soft); color: var(--red); border-color: transparent; }
 
 /* Tabs */
 .tabs-wrap { margin-top: 0.5rem; }

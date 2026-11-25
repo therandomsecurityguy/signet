@@ -27,6 +27,7 @@ async function seedSkill(
       certified?: boolean;
       certified_at?: string;
       published_at?: string;
+      certification_expires_at?: string;
     };
   },
 ) {
@@ -54,6 +55,9 @@ async function seedSkill(
         ...(input.active_version.certified ? { certified: true } : {}),
         ...(input.active_version.certified_at ? { certified_at: input.active_version.certified_at } : {}),
         ...(input.active_version.published_at ? { published_at: input.active_version.published_at } : {}),
+        ...(input.active_version.certification_expires_at
+          ? { certification_expires_at: input.active_version.certification_expires_at }
+          : {}),
       },
     });
   }
@@ -169,5 +173,53 @@ describe('registry.search trust ranking (in-memory connector)', () => {
     expect(out.skills[0]?.match).toMatchObject({ mode: 'semantic', phrase_match: true });
     expect(out.skills[1]?.match?.matched_claims).toEqual(['pii-handling']);
     expect(out.skills[0]?.trust).toBeDefined();
+  });
+
+  it('exposes freshness on search results and get_skill, flagging expired certifications', async () => {
+    const graph = new InMemoryGraphStore();
+    await seedSkill(graph, {
+      skill_key: 'skill:fresh-probe',
+      description: 'freshness probe',
+      active_version: {
+        lifecycle_status: 'published',
+        published_at: new Date().toISOString(),
+      },
+    });
+    await seedSkill(graph, {
+      skill_key: 'skill:expired-probe',
+      description: 'freshness probe',
+      active_version: {
+        lifecycle_status: 'published',
+        certified: true,
+        certified_at: '2026-11-01T00:00:00.000Z',
+        certification_expires_at: '2026-11-10T00:00:00.000Z',
+      },
+    });
+
+    const connector = buildConnector(graph);
+    const out = await connector.search(
+      { query: 'freshness probe', type: 'all', mode: 'keyword', sort: 'trust', limit: 10 },
+      ctx,
+    );
+    const fresh = out.skills.find((skill) => skill.skill_key === 'skill:fresh-probe');
+    expect(fresh?.freshness).toMatchObject({
+      freshness: 'fresh',
+      verification_basis: 'published_at',
+      age_days: 0,
+      certification_expired: false,
+    });
+    const expired = out.skills.find((skill) => skill.skill_key === 'skill:expired-probe');
+    expect(expired?.freshness).toMatchObject({
+      freshness: 'stale',
+      certification_expired: true,
+      verification_basis: 'certified_at',
+    });
+    expect(expired?.freshness?.reasons).toContain('certification_expired');
+
+    const got = await connector.getSkill({ skill_urn: 'urn:sg:skill:skill:expired-probe' }, ctx);
+    expect(got.active_version?.freshness).toMatchObject({
+      freshness: 'stale',
+      certification_expired: true,
+    });
   });
 });

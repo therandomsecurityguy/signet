@@ -258,6 +258,26 @@ Ingestion and vocabulary:
   mining (`GET /v1/de-facto-terms/analysis`) classifies every claim across
   version snapshots as bound/unbound with occurrence and drift stats
 
+Discovery and freshness:
+- trust-ranked lists and search (`sort=trust`): structural tier dominance
+  (certification state outranks freshness), 180-day recency decay, and
+  score components always exposed next to the score; default ordering for
+  MCP search
+- deterministic semantic search (`mode=keyword|semantic`) over
+  descriptions, capability claims, and ontology concepts with match
+  evidence (`matched_claims` / `matched_terms`); keyword behavior preserved
+- advisory dedupe detection at validation: near-duplicate candidates are
+  recorded as evidence, never blocking
+- operator-curated tags: normalized free-form tags with list/search
+  filters and webapp chips
+- freshness/staleness signals per version: derived from `certified_at` /
+  `published_at` / `validated_at` (now recorded on the version node at
+  validation) with fresh → aging → stale windows (90/180 days) and
+  certification-expiry tracking (`certification_expired`,
+  `expires_in_days`); exposed on API version details, version lists,
+  ranked lists, and search, on MCP `registry.search` and
+  `registry.get_skill` / `registry.get_agent`, and as webapp chips
+
 Storage and operations:
 - content-addressed artifact storage (filesystem or S3) with per-artifact WORM reporting: `GET /v1/artifacts/{sha256}/retention` surfaces S3 Object Lock mode/retention/legal hold straight from the bucket, so immutability is provable per artifact
 - Fuseki-backed metadata by default, with a persistent local JSON-file
@@ -269,6 +289,9 @@ Storage and operations:
   tessera-sidecar
 
 Proposed next (not implemented yet):
+- freshness automation beyond the signal layer: scheduled re-validation
+  jobs and the in-UI recertification workflow (freshness and expiry
+  signals ship now — see "Discovery and freshness")
 - SHACL node expressions and `sh:js` (refused at registration; no
   execution semantics implemented); AF execution intentionally stays
   out-of-process — decided in `docs/shacl-af-in-process-design.md`

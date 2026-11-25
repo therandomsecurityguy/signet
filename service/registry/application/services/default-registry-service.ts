@@ -23,6 +23,7 @@ import {
   DEDUPE_SIMILARITY_THRESHOLD,
   scoreSemanticMatch,
 } from './semantic-search.js';
+import { computeFreshness, freshnessInputFromProperties } from './freshness.js';
 import { compareTrust, scoreTrust } from './trust-ranking.js';
 import { RegistryCoreError } from '../errors/registry-core-error.js';
 import {
@@ -2349,10 +2350,12 @@ export class DefaultRegistryService implements RegistryService {
       const activeUrn = stringOrUndefined(node.properties['active_version_urn']);
       const active = activeUrn ? await this.getSkillVersionByUrn(activeUrn) : null;
       const versionProperties = active?.skill_version.properties ?? {};
+      const freshness = computeFreshness(freshnessInputFromProperties(versionProperties), now);
       ranked.push({
         summary: {
           ...summarizeSkillNode(node),
           trust: scoreTrust(trustInputFromProperties(active !== null, versionProperties), now),
+          ...(freshness ? { freshness } : {}),
         },
         versionProperties,
       });
@@ -2387,10 +2390,12 @@ export class DefaultRegistryService implements RegistryService {
       const activeUrn = stringOrUndefined(node.properties['active_version_urn']);
       const active = activeUrn ? await this.getAgentVersionByUrn(activeUrn) : null;
       const versionProperties = active?.agent_version.properties ?? {};
+      const freshness = computeFreshness(freshnessInputFromProperties(versionProperties), now);
       ranked.push({
         summary: {
           ...summarizeAgentNode(node),
           trust: scoreTrust(trustInputFromProperties(active !== null, versionProperties), now),
+          ...(freshness ? { freshness } : {}),
         },
         versionProperties,
       });
@@ -5236,6 +5241,9 @@ export class DefaultRegistryService implements RegistryService {
           ...version.agent_version.properties,
           ...(publication?.properties ?? {}),
           lifecycle_status: input.nextStatus,
+          // See the skill path: records the verification moment for
+          // freshness without mutating live versions on re-validation.
+          ...(input.operation === 'validate' ? { validated_at: nowIso() } : {}),
           updated_at: nowIso(),
         };
     await this.deps.graph.upsertNode({
@@ -6359,6 +6367,7 @@ export class DefaultRegistryService implements RegistryService {
     if (!node || node.entity_type !== 'SKILL_VERSION') return null;
     const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:implementedBy');
     const upstreamVersionEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:dependsOnVersion');
+    const freshness = computeFreshness(freshnessInputFromProperties(node.properties));
     return {
       skill_version: { urn: node.urn, properties: node.properties },
       artifacts: artifactEdges.map((e) => ({
@@ -6369,6 +6378,7 @@ export class DefaultRegistryService implements RegistryService {
         skill_version_urn: e.to_urn,
       })),
       governance_artifacts: await this.loadGovernanceArtifacts(node.urn),
+      ...(freshness ? { freshness } : {}),
     };
   }
 
@@ -6378,6 +6388,7 @@ export class DefaultRegistryService implements RegistryService {
     const skillsEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:usesSkill');
     const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:definedBy');
     const harnessEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:runsOn');
+    const freshness = computeFreshness(freshnessInputFromProperties(node.properties));
     return {
       agent_version: { urn: node.urn, properties: node.properties },
       skills: skillsEdges.map((e) => ({
@@ -6393,6 +6404,7 @@ export class DefaultRegistryService implements RegistryService {
         ...(toOptionalStringProp('harness_name', parseHarnessName(e.to_urn))),
       })),
       governance_artifacts: await this.loadGovernanceArtifacts(node.urn),
+      ...(freshness ? { freshness } : {}),
     };
   }
 
@@ -6511,6 +6523,11 @@ export class DefaultRegistryService implements RegistryService {
           ...version.skill_version.properties,
           ...(publication?.properties ?? {}),
           lifecycle_status: input.nextStatus,
+          // A completed validation is a verification moment; it is recorded
+          // on the node so freshness has a basis for validated-but-not-yet-
+          // published versions. Draft->validated/rejected->validated only —
+          // re-validations of live versions stay noops (no silent mutation).
+          ...(input.operation === 'validate' ? { validated_at: nowIso() } : {}),
           updated_at: nowIso(),
         };
     await this.deps.graph.upsertNode({

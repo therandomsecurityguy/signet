@@ -244,6 +244,7 @@ export class RegistryServiceConnector implements RegistryConnector {
         ...(skill.source_path ? { source_path: skill.source_path } : {}),
         ...(skill.active_version ? { active_version: skill.active_version } : {}),
         ...(skill.tags?.length ? { tags: skill.tags } : {}),
+        ...(skill.freshness ? { freshness: skill.freshness } : {}),
         trust: skill.trust,
         match: skill.match,
       });
@@ -260,6 +261,7 @@ export class RegistryServiceConnector implements RegistryConnector {
         ...(agent.description ? { description: agent.description } : {}),
         ...(agent.source_path ? { source_path: agent.source_path } : {}),
         ...(agent.tags?.length ? { tags: agent.tags } : {}),
+        ...(agent.freshness ? { freshness: agent.freshness } : {}),
         trust: agent.trust,
         match: agent.match,
       });

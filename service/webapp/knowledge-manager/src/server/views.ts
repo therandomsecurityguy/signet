@@ -1,6 +1,7 @@
 import type {
   AgentDetails,
   AgentSummary,
+  Freshness,
   GraphSubgraph,
   ProvenanceRecord,
   SearchMatch,
@@ -376,7 +377,7 @@ export function renderAgents(input: {
     `<a href="/agents/${encodeURIComponent(agent.agent_key)}">${escapeHtml(agent.agent_key)}</a>`,
     escapeHtml(agent.harness_name ?? ''),
     ...(hasStatus ? [renderStateBadge(status[agent.agent_key])] : []),
-    renderTrustCell(agent.trust),
+    renderTrustCell(agent.trust) + renderFreshnessChip(agent.freshness),
     renderTagCell(agent.tags, '/agents'),
     ...(hasMatch ? [renderMatchCell(input.matchByKey?.[agent.agent_key])] : []),
     escapeHtml(agent.source_path ?? ''),
@@ -453,6 +454,7 @@ export function renderAgentDetails(input: {
             input.details.active_version
               ? `
                 <p><strong>Agent Version URN:</strong> <code>${escapeHtml(input.details.active_version.agent_version.urn)}</code> ${copyButton(input.details.active_version.agent_version.urn)}</p>
+                ${input.details.active_version.freshness ? `<p>${renderFreshnessChip(input.details.active_version.freshness)}</p>` : ''}
                 ${renderPropertiesTable(input.details.active_version.agent_version.properties)}
               `
               : '<p>No active version.</p>'
@@ -548,7 +550,7 @@ export function renderSkills(input: {
     `<a href="/skills/${encodeURIComponent(skill.skill_key)}">${escapeHtml(skill.skill_key)}</a>`,
     escapeHtml(skill.display_name ?? ''),
     ...(hasStatus ? [renderStateBadge(status[skill.skill_key])] : []),
-    renderTrustCell(skill.trust),
+    renderTrustCell(skill.trust) + renderFreshnessChip(skill.freshness),
     renderTagCell(skill.tags, '/skills'),
     ...(hasMatch ? [renderMatchCell(input.matchByKey?.[skill.skill_key])] : []),
     escapeHtml(skill.source_path ?? ''),
@@ -607,6 +609,7 @@ export function renderSkillDetails(input: {
             <span class="detail-key-chip"><code>${escapeHtml(skillKey)}</code></span>
             ${displayName ? `<span class="chip">${escapeHtml(displayName)}</span>` : ''}
             ${input.activeVersion ? renderStateBadge(skillLifecycleStatus(input.activeVersion)) : ''}
+            ${renderFreshnessChip(input.activeVersion?.freshness)}
           </div>
           ${description ? `<p class="detail-desc">${escapeHtml(description)}</p>` : ''}
           <p class="detail-urn">URN <code>${escapeHtml(skillUrn)}</code> ${copyButton(skillUrn)}</p>
@@ -1527,6 +1530,34 @@ function renderTrustCell(trust: TrustScore | undefined) {
   return `<span class="chip" title="${escapeHtml(parts.join(' · '))}">${escapeHtml(trust.score.toFixed(1))}</span>`;
 }
 
+// Staleness signal (build plan 2.1). Renders nothing when the version has no
+// verification timestamp — "never verified" is not the same as "stale".
+function renderFreshnessChip(freshness: Freshness | undefined): string {
+  if (!freshness) return '';
+  const label = freshness.certification_expired
+    ? `expired · ${freshness.age_days}d`
+    : freshness.freshness === 'stale'
+      ? `stale · ${freshness.age_days}d`
+      : freshness.freshness === 'aging'
+        ? `aging · ${freshness.age_days}d`
+        : `verified ${freshness.age_days}d ago`;
+  const parts = [
+    `freshness: ${freshness.freshness}`,
+    `verified ${freshness.age_days}d ago (${freshness.verification_basis})`,
+  ];
+  if (freshness.certification_expires_at) {
+    parts.push(
+      freshness.certification_expired
+        ? `certification expired ${Math.abs(freshness.expires_in_days ?? 0)}d ago`
+        : `certification expires in ${freshness.expires_in_days}d`,
+    );
+  }
+  if (freshness.reasons.length > 0) {
+    parts.push(`reasons: ${freshness.reasons.join(',')}`);
+  }
+  return `<span class="chip freshness-chip freshness-${freshness.freshness}" title="${escapeHtml(parts.join(' · '))}">${escapeHtml(label)}</span>`;
+}
+
 function stringArrayProperty(properties: Record<string, unknown>, key: string): string[] {
   const value = properties[key];
   return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
@@ -1767,7 +1798,8 @@ function renderSkillVersionSummary(version: SkillVersionDetails) {
   if (certifiedBy) tags.push(`certified_by:${certifiedBy}`);
   if (certifiedAt) tags.push(`certified_at:${certifiedAt}`);
 
-  return `<ul class="summary-list">${tags.map((tag) => `<li>${escapeHtml(tag)}</li>`).join('')}</ul>`;
+  const freshness = version.freshness ? `<li>${renderFreshnessChip(version.freshness)}</li>` : '';
+  return `<ul class="summary-list">${tags.map((tag) => `<li>${escapeHtml(tag)}</li>`).join('')}${freshness}</ul>`;
 }
 
 function renderLifecycleActionForm(input: {

@@ -6,6 +6,17 @@ export type TrustScore = {
   recency_component: number;
 };
 
+export type Freshness = {
+  freshness: 'fresh' | 'aging' | 'stale';
+  last_verified_at: string;
+  verification_basis: 'certified_at' | 'published_at' | 'validated_at';
+  age_days: number;
+  certification_expires_at: string | null;
+  certification_expired: boolean;
+  expires_in_days: number | null;
+  reasons: string[];
+};
+
 export type SearchMatch = {
   mode: 'keyword' | 'semantic';
   score: number;
@@ -30,6 +41,7 @@ export type AgentSummary = {
   source_path?: string;
   tags?: string[];
   trust?: TrustScore;
+  freshness?: Freshness;
 };
 
 export type SkillSummary = {
@@ -40,6 +52,7 @@ export type SkillSummary = {
   source_path?: string;
   tags?: string[];
   trust?: TrustScore;
+  freshness?: Freshness;
 };
 
 export type AgentDetails = {
@@ -64,6 +77,7 @@ export type AgentDetails = {
       harness_urn: string;
       harness_name?: string;
     }>;
+    freshness?: Freshness;
   };
   skills: Array<{
     skill_urn: string;
@@ -110,6 +124,7 @@ export type SkillVersionDetails = {
     skill_version_urn: string;
   }>;
   governance_artifacts?: GovernanceArtifactRef[];
+  freshness?: Freshness;
 };
 
 export type AgentVersionDetails = {
@@ -130,6 +145,7 @@ export type AgentVersionDetails = {
     harness_name?: string;
   }>;
   governance_artifacts?: GovernanceArtifactRef[];
+  freshness?: Freshness;
 };
 
 export type PendingReviewItem = {

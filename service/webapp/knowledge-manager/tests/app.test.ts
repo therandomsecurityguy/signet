@@ -219,6 +219,74 @@ describe('knowledge-manager app', () => {
     expect(text).not.toContain('>unknown<');
   });
 
+  it('renders freshness chips on list rows, details and version cards', async () => {
+    const freshness = {
+      freshness: 'fresh' as const,
+      last_verified_at: '2026-11-24T00:00:00.000Z',
+      verification_basis: 'certified_at' as const,
+      age_days: 1,
+      certification_expires_at: '2027-05-24T00:00:00.000Z',
+      certification_expired: false,
+      expires_in_days: 180,
+      reasons: [] as string[],
+    };
+    const version = {
+      skill_version: {
+        urn: 'urn:sg:skill-version:skill:freshness-probe@v1',
+        properties: { version: 1, lifecycle_status: 'published' },
+      },
+      artifacts: [],
+      upstream_versions: [],
+      governance_artifacts: [],
+      freshness,
+    };
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        listSkills: async () => ({
+          skills: [
+            {
+              skill_urn: 'urn:sg:skill:skill:freshness-probe',
+              skill_key: 'skill:freshness-probe',
+              display_name: 'Freshness Probe',
+              trust: {
+                score: 31,
+                lifecycle_status: 'certified',
+                tier_weight: 3,
+                recency_days: 1,
+                recency_component: 0.99,
+              },
+              freshness,
+            },
+          ],
+        }),
+        getSkill: async () => ({
+          skill: { urn: 'urn:sg:skill:skill:freshness-probe', properties: { skill_key: 'skill:freshness-probe' } },
+          active_version: version,
+          artifacts: [],
+        }),
+        getActiveSkillVersion: async () => version,
+        listSkillVersions: async () => ({ versions: [version] }),
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const list = await app.request('/skills');
+    expect(list.status).toBe(200);
+    const listText = await list.text();
+    expect(listText).toContain('freshness-chip freshness-fresh');
+    expect(listText).toContain('verified 1d ago');
+
+    const details = await app.request('/skills/skill%3Afreshness-probe');
+    expect(details.status).toBe(200);
+    const detailsText = await details.text();
+    expect(detailsText).toContain('freshness-chip freshness-fresh');
+    expect(detailsText).toContain('certification expires in 180d');
+  });
+
   it('adds contextual graph links on agent and skill detail pages', async () => {
     const app = buildApp({
       env,

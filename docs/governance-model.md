@@ -482,6 +482,12 @@ Each certification must preserve:
 - detached signature references
 - transparency-log references
 
+The staleness layer of this dimension is implemented: version read surfaces
+carry a `freshness` signal (fresh → aging → stale with certification-expiry
+tracking) derived from `certified_at` / `published_at` / `validated_at`.
+Scheduled re-validation and the in-UI recertification workflow are still
+open.
+
 ```mermaid
 stateDiagram-v2
     [*] --> Draft

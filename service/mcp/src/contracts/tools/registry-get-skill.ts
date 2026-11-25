@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { FreshnessSchema } from '../freshness.js';
+
 export const RegistryGetSkillInputSchema = z.object({
   skill_urn: z.string().min(1),
 });
@@ -33,6 +35,8 @@ export const RegistryGetSkillOutputSchema = z.object({
           sha256: z.string().optional(),
         }),
       ),
+      /** Staleness signal for the active version (build plan 2.1). */
+      freshness: FreshnessSchema.optional(),
     })
     .optional(),
   artifacts: z.array(
