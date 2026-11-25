@@ -684,6 +684,61 @@
                               "recency_days",
                               "recency_component"
                             ]
+                          },
+                          "freshness": {
+                            "type": "object",
+                            "properties": {
+                              "freshness": {
+                                "type": "string",
+                                "enum": [
+                                  "fresh",
+                                  "aging",
+                                  "stale"
+                                ]
+                              },
+                              "last_verified_at": {
+                                "type": "string"
+                              },
+                              "verification_basis": {
+                                "type": "string",
+                                "enum": [
+                                  "certified_at",
+                                  "published_at",
+                                  "validated_at"
+                                ]
+                              },
+                              "age_days": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "certification_expires_at": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "certification_expired": {
+                                "type": "boolean"
+                              },
+                              "expires_in_days": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "reasons": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "freshness",
+                              "last_verified_at",
+                              "verification_basis",
+                              "age_days",
+                              "certification_expires_at",
+                              "certification_expired",
+                              "expires_in_days",
+                              "reasons"
+                            ]
                           }
                         },
                         "required": [
@@ -984,6 +1039,61 @@
                               "artifact_urn"
                             ]
                           }
+                        },
+                        "freshness": {
+                          "type": "object",
+                          "properties": {
+                            "freshness": {
+                              "type": "string",
+                              "enum": [
+                                "fresh",
+                                "aging",
+                                "stale"
+                              ]
+                            },
+                            "last_verified_at": {
+                              "type": "string"
+                            },
+                            "verification_basis": {
+                              "type": "string",
+                              "enum": [
+                                "certified_at",
+                                "published_at",
+                                "validated_at"
+                              ]
+                            },
+                            "age_days": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "certification_expires_at": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "certification_expired": {
+                              "type": "boolean"
+                            },
+                            "expires_in_days": {
+                              "type": "integer",
+                              "nullable": true
+                            },
+                            "reasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "freshness",
+                            "last_verified_at",
+                            "verification_basis",
+                            "age_days",
+                            "certification_expires_at",
+                            "certification_expired",
+                            "expires_in_days",
+                            "reasons"
+                          ]
                         }
                       },
                       "required": [
@@ -1179,6 +1289,61 @@
                               "artifact_urn"
                             ]
                           }
+                        },
+                        "freshness": {
+                          "type": "object",
+                          "properties": {
+                            "freshness": {
+                              "type": "string",
+                              "enum": [
+                                "fresh",
+                                "aging",
+                                "stale"
+                              ]
+                            },
+                            "last_verified_at": {
+                              "type": "string"
+                            },
+                            "verification_basis": {
+                              "type": "string",
+                              "enum": [
+                                "certified_at",
+                                "published_at",
+                                "validated_at"
+                              ]
+                            },
+                            "age_days": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "certification_expires_at": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "certification_expired": {
+                              "type": "boolean"
+                            },
+                            "expires_in_days": {
+                              "type": "integer",
+                              "nullable": true
+                            },
+                            "reasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "freshness",
+                            "last_verified_at",
+                            "verification_basis",
+                            "age_days",
+                            "certification_expires_at",
+                            "certification_expired",
+                            "expires_in_days",
+                            "reasons"
+                          ]
                         }
                       },
                       "required": [
@@ -1483,6 +1648,61 @@
                               "artifact_urn"
                             ]
                           }
+                        },
+                        "freshness": {
+                          "type": "object",
+                          "properties": {
+                            "freshness": {
+                              "type": "string",
+                              "enum": [
+                                "fresh",
+                                "aging",
+                                "stale"
+                              ]
+                            },
+                            "last_verified_at": {
+                              "type": "string"
+                            },
+                            "verification_basis": {
+                              "type": "string",
+                              "enum": [
+                                "certified_at",
+                                "published_at",
+                                "validated_at"
+                              ]
+                            },
+                            "age_days": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "certification_expires_at": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "certification_expired": {
+                              "type": "boolean"
+                            },
+                            "expires_in_days": {
+                              "type": "integer",
+                              "nullable": true
+                            },
+                            "reasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "freshness",
+                            "last_verified_at",
+                            "verification_basis",
+                            "age_days",
+                            "certification_expires_at",
+                            "certification_expired",
+                            "expires_in_days",
+                            "reasons"
+                          ]
                         }
                       },
                       "required": [
@@ -13127,6 +13347,61 @@
                               "recency_days",
                               "recency_component"
                             ]
+                          },
+                          "freshness": {
+                            "type": "object",
+                            "properties": {
+                              "freshness": {
+                                "type": "string",
+                                "enum": [
+                                  "fresh",
+                                  "aging",
+                                  "stale"
+                                ]
+                              },
+                              "last_verified_at": {
+                                "type": "string"
+                              },
+                              "verification_basis": {
+                                "type": "string",
+                                "enum": [
+                                  "certified_at",
+                                  "published_at",
+                                  "validated_at"
+                                ]
+                              },
+                              "age_days": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "certification_expires_at": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "certification_expired": {
+                                "type": "boolean"
+                              },
+                              "expires_in_days": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "reasons": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "freshness",
+                              "last_verified_at",
+                              "verification_basis",
+                              "age_days",
+                              "certification_expires_at",
+                              "certification_expired",
+                              "expires_in_days",
+                              "reasons"
+                            ]
                           }
                         },
                         "required": [
@@ -13345,6 +13620,61 @@
                               "artifact_urn"
                             ]
                           }
+                        },
+                        "freshness": {
+                          "type": "object",
+                          "properties": {
+                            "freshness": {
+                              "type": "string",
+                              "enum": [
+                                "fresh",
+                                "aging",
+                                "stale"
+                              ]
+                            },
+                            "last_verified_at": {
+                              "type": "string"
+                            },
+                            "verification_basis": {
+                              "type": "string",
+                              "enum": [
+                                "certified_at",
+                                "published_at",
+                                "validated_at"
+                              ]
+                            },
+                            "age_days": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "certification_expires_at": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "certification_expired": {
+                              "type": "boolean"
+                            },
+                            "expires_in_days": {
+                              "type": "integer",
+                              "nullable": true
+                            },
+                            "reasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "freshness",
+                            "last_verified_at",
+                            "verification_basis",
+                            "age_days",
+                            "certification_expires_at",
+                            "certification_expired",
+                            "expires_in_days",
+                            "reasons"
+                          ]
                         }
                       },
                       "required": [
@@ -13483,6 +13813,61 @@
                               "artifact_urn"
                             ]
                           }
+                        },
+                        "freshness": {
+                          "type": "object",
+                          "properties": {
+                            "freshness": {
+                              "type": "string",
+                              "enum": [
+                                "fresh",
+                                "aging",
+                                "stale"
+                              ]
+                            },
+                            "last_verified_at": {
+                              "type": "string"
+                            },
+                            "verification_basis": {
+                              "type": "string",
+                              "enum": [
+                                "certified_at",
+                                "published_at",
+                                "validated_at"
+                              ]
+                            },
+                            "age_days": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "certification_expires_at": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "certification_expired": {
+                              "type": "boolean"
+                            },
+                            "expires_in_days": {
+                              "type": "integer",
+                              "nullable": true
+                            },
+                            "reasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "freshness",
+                            "last_verified_at",
+                            "verification_basis",
+                            "age_days",
+                            "certification_expires_at",
+                            "certification_expired",
+                            "expires_in_days",
+                            "reasons"
+                          ]
                         }
                       },
                       "required": [
@@ -13730,6 +14115,61 @@
                               "artifact_urn"
                             ]
                           }
+                        },
+                        "freshness": {
+                          "type": "object",
+                          "properties": {
+                            "freshness": {
+                              "type": "string",
+                              "enum": [
+                                "fresh",
+                                "aging",
+                                "stale"
+                              ]
+                            },
+                            "last_verified_at": {
+                              "type": "string"
+                            },
+                            "verification_basis": {
+                              "type": "string",
+                              "enum": [
+                                "certified_at",
+                                "published_at",
+                                "validated_at"
+                              ]
+                            },
+                            "age_days": {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            "certification_expires_at": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "certification_expired": {
+                              "type": "boolean"
+                            },
+                            "expires_in_days": {
+                              "type": "integer",
+                              "nullable": true
+                            },
+                            "reasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "freshness",
+                            "last_verified_at",
+                            "verification_basis",
+                            "age_days",
+                            "certification_expires_at",
+                            "certification_expired",
+                            "expires_in_days",
+                            "reasons"
+                          ]
                         }
                       },
                       "required": [
@@ -13965,6 +14405,61 @@
                               "recency_component"
                             ]
                           },
+                          "freshness": {
+                            "type": "object",
+                            "properties": {
+                              "freshness": {
+                                "type": "string",
+                                "enum": [
+                                  "fresh",
+                                  "aging",
+                                  "stale"
+                                ]
+                              },
+                              "last_verified_at": {
+                                "type": "string"
+                              },
+                              "verification_basis": {
+                                "type": "string",
+                                "enum": [
+                                  "certified_at",
+                                  "published_at",
+                                  "validated_at"
+                                ]
+                              },
+                              "age_days": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "certification_expires_at": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "certification_expired": {
+                                "type": "boolean"
+                              },
+                              "expires_in_days": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "reasons": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "freshness",
+                              "last_verified_at",
+                              "verification_basis",
+                              "age_days",
+                              "certification_expires_at",
+                              "certification_expired",
+                              "expires_in_days",
+                              "reasons"
+                            ]
+                          },
                           "match": {
                             "type": "object",
                             "properties": {
@@ -14069,6 +14564,61 @@
                               "tier_weight",
                               "recency_days",
                               "recency_component"
+                            ]
+                          },
+                          "freshness": {
+                            "type": "object",
+                            "properties": {
+                              "freshness": {
+                                "type": "string",
+                                "enum": [
+                                  "fresh",
+                                  "aging",
+                                  "stale"
+                                ]
+                              },
+                              "last_verified_at": {
+                                "type": "string"
+                              },
+                              "verification_basis": {
+                                "type": "string",
+                                "enum": [
+                                  "certified_at",
+                                  "published_at",
+                                  "validated_at"
+                                ]
+                              },
+                              "age_days": {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              "certification_expires_at": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "certification_expired": {
+                                "type": "boolean"
+                              },
+                              "expires_in_days": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "reasons": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              }
+                            },
+                            "required": [
+                              "freshness",
+                              "last_verified_at",
+                              "verification_basis",
+                              "age_days",
+                              "certification_expires_at",
+                              "certification_expired",
+                              "expires_in_days",
+                              "reasons"
                             ]
                           },
                           "match": {

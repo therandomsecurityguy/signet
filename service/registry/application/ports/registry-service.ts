@@ -421,6 +421,24 @@ export type RegistryTrustScore = {
   recency_component: number;
 };
 
+// Freshness/staleness signal derived from version timestamps (build plan
+// 2.1). Present only for versions with a verification timestamp
+// (certified_at / published_at / validated_at).
+export type RegistryFreshness = {
+  freshness: 'fresh' | 'aging' | 'stale';
+  /** The timestamp age is measured from (echoed as stored). */
+  last_verified_at: string;
+  verification_basis: 'certified_at' | 'published_at' | 'validated_at';
+  age_days: number;
+  /** Null when the certification carries no expiry. */
+  certification_expires_at: string | null;
+  certification_expired: boolean;
+  /** Days until expiry (negative once expired); null when no expiry is set. */
+  expires_in_days: number | null;
+  /** Machine-readable triggers: `aging`, `aged`, `certification_expired`. */
+  reasons: string[];
+};
+
 export type RegistrySearchMatch = {
   mode: 'keyword' | 'semantic';
   score: number;
@@ -454,6 +472,7 @@ export type RegistryAgentSummary = {
   source_path?: string;
   tags?: string[];
   trust?: RegistryTrustScore;
+  freshness?: RegistryFreshness;
 };
 
 export type RegistryAgentDetails = {
@@ -484,6 +503,7 @@ export type RegistrySkillSummary = {
   source_path?: string;
   tags?: string[];
   trust?: RegistryTrustScore;
+  freshness?: RegistryFreshness;
 };
 
 export type RegistrySkillDetails = {
@@ -516,6 +536,7 @@ export type RegistryAgentVersionDetails = {
     harness_name?: string;
   }>;
   governance_artifacts: RegistryGovernanceArtifactRef[];
+  freshness?: RegistryFreshness;
 };
 
 export type RegistrySkillVersionDetails = {
@@ -531,6 +552,7 @@ export type RegistrySkillVersionDetails = {
     skill_version_urn: string;
   }>;
   governance_artifacts: RegistryGovernanceArtifactRef[];
+  freshness?: RegistryFreshness;
 };
 
 export type RegistryTaskDetails = {

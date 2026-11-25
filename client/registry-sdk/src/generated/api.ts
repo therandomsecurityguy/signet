@@ -328,6 +328,18 @@ export interface paths {
                                     recency_days: number | null;
                                     recency_component: number;
                                 };
+                                freshness?: {
+                                    /** @enum {string} */
+                                    freshness: "fresh" | "aging" | "stale";
+                                    last_verified_at: string;
+                                    /** @enum {string} */
+                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    age_days: number;
+                                    certification_expires_at: string | null;
+                                    certification_expired: boolean;
+                                    expires_in_days: number | null;
+                                    reasons: string[];
+                                };
                             }[];
                         };
                     };
@@ -428,6 +440,18 @@ export interface paths {
                                     artifact_urn: string;
                                     sha256?: string;
                                 }[];
+                                freshness?: {
+                                    /** @enum {string} */
+                                    freshness: "fresh" | "aging" | "stale";
+                                    last_verified_at: string;
+                                    /** @enum {string} */
+                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    age_days: number;
+                                    certification_expires_at: string | null;
+                                    certification_expired: boolean;
+                                    expires_in_days: number | null;
+                                    reasons: string[];
+                                };
                             };
                             skills: {
                                 skill_urn: string;
@@ -482,6 +506,18 @@ export interface paths {
                                     artifact_urn: string;
                                     sha256?: string;
                                 }[];
+                                freshness?: {
+                                    /** @enum {string} */
+                                    freshness: "fresh" | "aging" | "stale";
+                                    last_verified_at: string;
+                                    /** @enum {string} */
+                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    age_days: number;
+                                    certification_expires_at: string | null;
+                                    certification_expired: boolean;
+                                    expires_in_days: number | null;
+                                    reasons: string[];
+                                };
                             };
                             skills: {
                                 skill_urn: string;
@@ -604,6 +640,18 @@ export interface paths {
                                     artifact_urn: string;
                                     sha256?: string;
                                 }[];
+                                freshness?: {
+                                    /** @enum {string} */
+                                    freshness: "fresh" | "aging" | "stale";
+                                    last_verified_at: string;
+                                    /** @enum {string} */
+                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    age_days: number;
+                                    certification_expires_at: string | null;
+                                    certification_expired: boolean;
+                                    expires_in_days: number | null;
+                                    reasons: string[];
+                                };
                             };
                             skills: {
                                 skill_urn: string;
@@ -5818,6 +5866,18 @@ export interface paths {
                                     recency_days: number | null;
                                     recency_component: number;
                                 };
+                                freshness?: {
+                                    /** @enum {string} */
+                                    freshness: "fresh" | "aging" | "stale";
+                                    last_verified_at: string;
+                                    /** @enum {string} */
+                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    age_days: number;
+                                    certification_expires_at: string | null;
+                                    certification_expired: boolean;
+                                    expires_in_days: number | null;
+                                    reasons: string[];
+                                };
                             }[];
                         };
                     };
@@ -5900,6 +5960,18 @@ export interface paths {
                                     artifact_urn: string;
                                     sha256?: string;
                                 }[];
+                                freshness?: {
+                                    /** @enum {string} */
+                                    freshness: "fresh" | "aging" | "stale";
+                                    last_verified_at: string;
+                                    /** @enum {string} */
+                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    age_days: number;
+                                    certification_expires_at: string | null;
+                                    certification_expired: boolean;
+                                    expires_in_days: number | null;
+                                    reasons: string[];
+                                };
                             };
                             artifacts: {
                                 artifact_urn: string;
@@ -5941,6 +6013,18 @@ export interface paths {
                                     artifact_urn: string;
                                     sha256?: string;
                                 }[];
+                                freshness?: {
+                                    /** @enum {string} */
+                                    freshness: "fresh" | "aging" | "stale";
+                                    last_verified_at: string;
+                                    /** @enum {string} */
+                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    age_days: number;
+                                    certification_expires_at: string | null;
+                                    certification_expired: boolean;
+                                    expires_in_days: number | null;
+                                    reasons: string[];
+                                };
                             };
                             artifacts: {
                                 artifact_urn: string;
@@ -6050,6 +6134,18 @@ export interface paths {
                                     artifact_urn: string;
                                     sha256?: string;
                                 }[];
+                                freshness?: {
+                                    /** @enum {string} */
+                                    freshness: "fresh" | "aging" | "stale";
+                                    last_verified_at: string;
+                                    /** @enum {string} */
+                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    age_days: number;
+                                    certification_expires_at: string | null;
+                                    certification_expired: boolean;
+                                    expires_in_days: number | null;
+                                    reasons: string[];
+                                };
                             };
                             artifacts: {
                                 artifact_urn: string;
@@ -6142,6 +6238,18 @@ export interface paths {
                                     recency_days: number | null;
                                     recency_component: number;
                                 };
+                                freshness?: {
+                                    /** @enum {string} */
+                                    freshness: "fresh" | "aging" | "stale";
+                                    last_verified_at: string;
+                                    /** @enum {string} */
+                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    age_days: number;
+                                    certification_expires_at: string | null;
+                                    certification_expired: boolean;
+                                    expires_in_days: number | null;
+                                    reasons: string[];
+                                };
                                 match: {
                                     /** @enum {string} */
                                     mode: "keyword" | "semantic";
@@ -6166,6 +6274,18 @@ export interface paths {
                                     tier_weight: number;
                                     recency_days: number | null;
                                     recency_component: number;
+                                };
+                                freshness?: {
+                                    /** @enum {string} */
+                                    freshness: "fresh" | "aging" | "stale";
+                                    last_verified_at: string;
+                                    /** @enum {string} */
+                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    age_days: number;
+                                    certification_expires_at: string | null;
+                                    certification_expired: boolean;
+                                    expires_in_days: number | null;
+                                    reasons: string[];
                                 };
                                 match: {
                                     /** @enum {string} */

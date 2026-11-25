@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { FreshnessSchema } from '../freshness.js';
+
 export const RegistrySearchTrustSchema = z.object({
   score: z.number(),
   lifecycle_status: z.string(),
@@ -49,6 +51,8 @@ export const RegistrySearchOutputSchema = z.object({
       certification_status: z.string().optional(),
       /** Operator-curated tags (normalized: sorted, case-insensitively unique). */
       tags: z.array(z.string()).optional(),
+      /** Staleness signal for the active version (build plan 2.1). */
+      freshness: FreshnessSchema.optional(),
       /** Present when `sort=trust` (the default). */
       trust: RegistrySearchTrustSchema.optional(),
       /** Present when `sort=trust` (the default). */
@@ -65,6 +69,8 @@ export const RegistrySearchOutputSchema = z.object({
       source_path: z.string().optional(),
       /** Operator-curated tags (normalized: sorted, case-insensitively unique). */
       tags: z.array(z.string()).optional(),
+      /** Staleness signal for the active version (build plan 2.1). */
+      freshness: FreshnessSchema.optional(),
       /** Present when `sort=trust` (the default). */
       trust: RegistrySearchTrustSchema.optional(),
       /** Present when `sort=trust` (the default). */

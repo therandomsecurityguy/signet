@@ -2,6 +2,7 @@ import type { ArtifactStore } from '../../../../registry/domain/signet/db/graph/
 import { CasIntegrityError } from '../../../../registry/domain/signet/db/graph/freeform/registry/artifact-store.js';
 import type { GraphStore } from '../../../../registry/domain/signet/db/graph/freeform/registry/graph-store.js';
 import { DefaultRegistryService } from '../../../../registry/application/services/default-registry-service.js';
+import { computeFreshness, freshnessInputFromProperties } from '../../../../registry/application/services/freshness.js';
 import { DomainError } from '../../domain/errors/domain-error.js';
 import { ErrorCode } from '../../domain/errors/error-codes.js';
 import type { RegistryConnector } from '../../application/ports/registry-connector.js';
@@ -137,10 +138,12 @@ export class InMemoryRegistryConnector implements RegistryConnector {
     const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:definedBy');
     const harnessEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:runsOn');
 
+    const activeVersionProps = await this.activeVersionProperties(node.properties);
     await this.readGate.assertPublicationReadable({
       publication_urn: activeVersionUrn(node.properties),
-      properties: await this.activeVersionProperties(node.properties),
+      properties: activeVersionProps,
     });
+    const freshness = computeFreshness(freshnessInputFromProperties(activeVersionProps ?? {}));
 
     return {
       agent: { urn: node.urn, properties: node.properties },
@@ -155,6 +158,7 @@ export class InMemoryRegistryConnector implements RegistryConnector {
               artifacts: [],
               harnesses: [],
               governance_artifacts: [],
+              ...(freshness ? { freshness } : {}),
             },
           }
         : {}),
@@ -195,10 +199,12 @@ export class InMemoryRegistryConnector implements RegistryConnector {
       return { skill: { urn: input.skill_urn, properties: {} }, artifacts: [] };
     }
     const artifactEdges = await this.deps.graph.listEdgesFrom(node.urn, 'sg:implementedBy');
+    const activeVersionProps = await this.activeVersionProperties(node.properties);
     await this.readGate.assertPublicationReadable({
       publication_urn: activeVersionUrn(node.properties),
-      properties: await this.activeVersionProperties(node.properties),
+      properties: activeVersionProps,
     });
+    const freshness = computeFreshness(freshnessInputFromProperties(activeVersionProps ?? {}));
     return {
       skill: { urn: node.urn, properties: node.properties },
       ...(typeof node.properties['active_version_urn'] === 'string'
@@ -211,6 +217,7 @@ export class InMemoryRegistryConnector implements RegistryConnector {
               artifacts: [],
               upstream_versions: [],
               governance_artifacts: [],
+              ...(freshness ? { freshness } : {}),
             },
           }
         : {}),
@@ -357,6 +364,7 @@ export class InMemoryRegistryConnector implements RegistryConnector {
         ...(skill.source_path ? { source_path: skill.source_path } : {}),
         ...(skill.active_version ? { active_version: skill.active_version } : {}),
         ...(skill.tags?.length ? { tags: skill.tags } : {}),
+        ...(skill.freshness ? { freshness: skill.freshness } : {}),
         trust: skill.trust,
         match: skill.match,
       })),
@@ -368,6 +376,7 @@ export class InMemoryRegistryConnector implements RegistryConnector {
         ...(agent.description ? { description: agent.description } : {}),
         ...(agent.source_path ? { source_path: agent.source_path } : {}),
         ...(agent.tags?.length ? { tags: agent.tags } : {}),
+        ...(agent.freshness ? { freshness: agent.freshness } : {}),
         trust: agent.trust,
         match: agent.match,
       })),
