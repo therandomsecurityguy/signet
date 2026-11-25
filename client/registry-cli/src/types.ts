@@ -13,6 +13,7 @@ export const SkillSeedSpecSchema = z.object({
   item_id: z.string().min(1).optional(),
   depends_on: z.array(z.string().min(1)).optional(),
   tags: z.array(z.string().min(1)).optional(),
+  capability_claims: z.array(z.string().min(1).max(200)).max(200).optional(),
   skill_key: z.string().min(1),
   author: z.string().min(1).optional(),
   artifact_path: z.string().min(1),
@@ -76,6 +77,7 @@ export const SkillSeedDefaultsSchema = z.object({
   commit_sha: z.string().min(1).optional(),
   git_tag: z.string().min(1).optional(),
   artifact_signature: z.string().min(1).optional(),
+  capability_claims: z.array(z.string().min(1).max(200)).max(200).optional(),
   publish_note: z.string().min(1).optional(),
   validate_note: z.string().min(1).optional(),
   certify: z.boolean().optional(),
@@ -140,6 +142,7 @@ export type SkillSeedPlan = {
     commit_sha?: string;
     git_tag?: string;
     artifact_signature?: string;
+    capability_claims?: string[];
     lineage?: {
       upstream_skill_version_urns?: string[];
       openlineage?: z.infer<NonNullable<typeof OpenLineageSchema>>;

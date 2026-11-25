@@ -1,7 +1,7 @@
 {
   "pack": {
     "pack_id": "signet-demo-pack",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "description": "Demo pack for Signet: two agents plus skills across registry operations, security & compliance, and platform topics.",
     "owner": "registry-operator",
     "tags": ["demo", "signet", "registry", "security", "platform"]
@@ -66,6 +66,7 @@
     {
       "item_id": "skill_registry_search",
       "skill_key": "skill:registry-search",
+      "capability_claims": ["skill-discovery","registry-search"],
       "artifact_path": "skills/registry-search.md",
       "tags": ["registry", "discovery", "topic:registry"],
       "display_name": "Registry Search",
@@ -77,6 +78,7 @@
     {
       "item_id": "skill_skill_authoring",
       "skill_key": "skill:skill-authoring",
+      "capability_claims": ["skill-authoring","content-authoring"],
       "artifact_path": "skills/skill-authoring.md",
       "tags": ["registry", "lifecycle", "topic:registry"],
       "display_name": "Skill Authoring",
@@ -88,6 +90,7 @@
     {
       "item_id": "skill_provenance_audit",
       "skill_key": "skill:provenance-audit",
+      "capability_claims": ["provenance-review","audit-trail"],
       "artifact_path": "skills/provenance-audit.md",
       "tags": ["registry", "trust", "topic:registry"],
       "display_name": "Provenance Audit",
@@ -99,6 +102,7 @@
     {
       "item_id": "skill_mcp_onboarding",
       "skill_key": "skill:mcp-onboarding",
+      "capability_claims": ["mcp-integration","agent-onboarding"],
       "artifact_path": "skills/mcp-onboarding.md",
       "tags": ["registry", "mcp", "topic:registry"],
       "display_name": "MCP Onboarding",
@@ -110,6 +114,7 @@
     {
       "item_id": "skill_certification_workflow",
       "skill_key": "skill:certification-workflow",
+      "capability_claims": ["certification-review","governance-workflow"],
       "artifact_path": "skills/certification-workflow.md",
       "tags": ["registry", "lifecycle", "topic:registry"],
       "display_name": "Certification Workflow",
@@ -121,6 +126,7 @@
     {
       "item_id": "skill_access_review",
       "skill_key": "skill:access-review",
+      "capability_claims": ["access-review","least-privilege"],
       "artifact_path": "skills/access-review.md",
       "tags": ["security", "access", "topic:security"],
       "display_name": "Access Review",
@@ -132,6 +138,7 @@
     {
       "item_id": "skill_secrets_hygiene",
       "skill_key": "skill:secrets-hygiene",
+      "capability_claims": ["secrets-scanning","credential-hygiene"],
       "artifact_path": "skills/secrets-hygiene.md",
       "tags": ["security", "secrets", "topic:security"],
       "display_name": "Secrets Hygiene",
@@ -143,6 +150,7 @@
     {
       "item_id": "skill_governance_audit",
       "skill_key": "skill:governance-audit",
+      "capability_claims": ["governance-audit","evidence-review"],
       "artifact_path": "skills/governance-audit.md",
       "tags": ["security", "audit", "topic:security"],
       "display_name": "Governance Audit",
@@ -154,6 +162,7 @@
     {
       "item_id": "skill_graph_explorer",
       "skill_key": "skill:graph-explorer",
+      "capability_claims": ["graph-exploration","metadata-navigation"],
       "artifact_path": "skills/graph-explorer.md",
       "tags": ["platform", "graph", "topic:platform"],
       "display_name": "Graph Explorer",
@@ -165,6 +174,7 @@
     {
       "item_id": "skill_policy_authoring",
       "skill_key": "skill:policy-authoring",
+      "capability_claims": ["policy-authoring","shacl-authoring"],
       "artifact_path": "skills/policy-authoring.md",
       "tags": ["platform", "policy", "topic:platform"],
       "display_name": "Policy Authoring",
