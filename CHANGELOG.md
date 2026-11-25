@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.90](https://github.com/therandomsecurityguy/signet/compare/v0.1.89...v0.1.90) (2026-11-25)
+
+
+### Features
+
+* **search:** deterministic semantic search over claims, text, and trust ([27e7bec](https://github.com/therandomsecurityguy/signet/commit/27e7bec606e40f4c4596e1954683a58970e9f415))
+
 ## [0.1.89](https://github.com/therandomsecurityguy/signet/compare/v0.1.88...v0.1.89) (2026-11-25)
 
 
