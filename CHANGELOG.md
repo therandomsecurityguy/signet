@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.92](https://github.com/therandomsecurityguy/signet/compare/v0.1.91...v0.1.92) (2026-11-25)
+
+
+### Features
+
+* **bootstrap:** apply tags and capability claims from seed manifests ([9b29e0b](https://github.com/therandomsecurityguy/signet/commit/9b29e0b49d9ade107d7eb95bde267e4a1ff159ac))
+
 ## [0.1.91](https://github.com/therandomsecurityguy/signet/compare/v0.1.90...v0.1.91) (2026-11-25)
 
 
