@@ -50,3 +50,35 @@ jobs:
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dependency-audit:
+    name: Dependency audit (runtime)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace:
+          - service/api
+          - service/mcp
+          - service/tessera-sidecar
+          - service/webapp/knowledge-manager
+          - client/registry-sdk
+          - client/registry-cli
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      # Runtime dependencies only (the dev toolchain must not block unrelated
+      # work) at moderate and up. npm audit reads the lockfile directly, so no
+      # install step is needed. Python (shacl-runtime) is gated by pip-audit
+      # in test.yml and the Go runtime by govulncheck.
+      - name: Audit runtime dependencies
+        working-directory: ${{ matrix.workspace }}
+        run: npm audit --omit=dev --audit-level=moderate
