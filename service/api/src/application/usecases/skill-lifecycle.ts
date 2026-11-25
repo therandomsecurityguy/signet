@@ -184,6 +184,15 @@ export class SkillLifecycleUseCase {
     });
   }
 
+  async revalidate(input: { skill_key: string; version: number } & SkillVersionOperationInput) {
+    return await this.registry.revalidateSkillVersion({
+      skill_key: input.skill_key,
+      version: input.version,
+      author: input.author,
+      ...(input.note ? { note: input.note } : {}),
+    });
+  }
+
   async publish(input: { skill_key: string; version: number } & SkillVersionOperationInput) {
     return await this.registry.publishSkillVersion({
       skill_key: input.skill_key,

@@ -48,6 +48,22 @@ const validateAgentVersionRoute = createRoute({
   },
 });
 
+const revalidateAgentVersionRoute = createRoute({
+  method: 'post',
+  path: '/v1/agents/{agentKey}/versions/{version}/revalidate',
+  request: {
+    params: z.object({ agentKey: entityKeySchema, version: z.string() }),
+    body: { content: { 'application/json': { schema: AgentVersionOperationInputSchema } } },
+  },
+  responses: {
+    200: { content: { 'application/json': { schema: z.any() } }, description: 'Agent version revalidated (recorded outcome; lifecycle status unchanged)' },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid agent version operation payload' },
+    404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Agent version not found' },
+    409: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Agent version conflict' },
+    500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Internal error' },
+  },
+});
+
 const publishAgentVersionRoute = createRoute({
   method: 'post',
   path: '/v1/agents/{agentKey}/versions/{version}/publish',
@@ -203,6 +219,10 @@ export function registerAgentLifecycleRoutes(
     return await handleVersionAction({ c, deps, action: 'validate' });
   });
 
+  app.openapi(revalidateAgentVersionRoute, async (c) => {
+    return await handleVersionAction({ c, deps, action: 'revalidate' });
+  });
+
   app.openapi(publishAgentVersionRoute, async (c) => {
     return await handleVersionAction({ c, deps, action: 'publish' });
   });
@@ -273,7 +293,7 @@ export function registerAgentLifecycleRoutes(
 async function handleVersionAction(input: {
   c: Context<AppEnv>;
   deps: { lifecycle: AgentLifecycleUseCase; audit: AuditPublisher };
-  action: 'validate' | 'publish' | 'promote' | 'deprecate' | 'certify' | 'revoke' | 'archive';
+  action: 'validate' | 'revalidate' | 'publish' | 'promote' | 'deprecate' | 'certify' | 'revoke' | 'archive';
 }) {
   const raw = await input.c.req.json().catch(() => undefined);
   const parsed = AgentVersionOperationInputSchema.safeParse(raw);

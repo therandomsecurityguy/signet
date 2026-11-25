@@ -16,6 +16,7 @@ export type RegistryOperationStatus = 'completed' | 'noop';
 export type RegistryOperationKind =
   | 'create_draft'
   | 'validate'
+  | 'revalidate'
   | 'publish'
   | 'promote'
   | 'deprecate'
@@ -423,12 +424,12 @@ export type RegistryTrustScore = {
 
 // Freshness/staleness signal derived from version timestamps (build plan
 // 2.1). Present only for versions with a verification timestamp
-// (certified_at / published_at / validated_at).
+// (certified_at / revalidated_at / published_at / validated_at).
 export type RegistryFreshness = {
   freshness: 'fresh' | 'aging' | 'stale';
   /** The timestamp age is measured from (echoed as stored). */
   last_verified_at: string;
-  verification_basis: 'certified_at' | 'published_at' | 'validated_at';
+  verification_basis: 'certified_at' | 'revalidated_at' | 'published_at' | 'validated_at';
   age_days: number;
   /** Null when the certification carries no expiry. */
   certification_expires_at: string | null;
@@ -437,6 +438,37 @@ export type RegistryFreshness = {
   expires_in_days: number | null;
   /** Machine-readable triggers: `aging`, `aged`, `certification_expired`. */
   reasons: string[];
+};
+
+// Recertification queue (build plan 2.1): live versions whose verification is
+// aging (`approaching`) or stale/expired/failed (`due`). Deterministic,
+// derived on read — nothing is stored in the queue.
+export type RegistryRecertificationState = 'due' | 'approaching';
+
+export type RegistryRecertificationQueueItem = {
+  publication_urn: string;
+  entity_type: 'SKILL_VERSION' | 'AGENT_VERSION';
+  logical_key: string;
+  version: number;
+  lifecycle_status: string;
+  freshness: RegistryFreshness;
+  last_revalidated_at: string | null;
+  revalidation_status: string | null;
+  recertification_state: RegistryRecertificationState;
+  /** Freshness reasons plus `revalidation_failed` when the last run failed. */
+  reasons: string[];
+};
+
+export type RegistryRecertificationQueue = {
+  items: RegistryRecertificationQueueItem[];
+  total: number;
+  due_count: number;
+  approaching_count: number;
+};
+
+export type RegistryRevalidationJobSummary = {
+  urn: string;
+  properties: Record<string, unknown>;
 };
 
 export type RegistrySearchMatch = {
@@ -1421,6 +1453,7 @@ export interface RegistryService {
   }): Promise<RegistryReportSignatureVerification[]>;
   createAgentDraft(input: CreateAgentDraftInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
   validateAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
+  revalidateAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
   prepareAgentPublication(input: AgentVersionOperationInput): Promise<RegistryPreparedPublication>;
   publishAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
   promoteAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
@@ -1486,6 +1519,7 @@ export interface RegistryService {
   getSkillPublicationVerification(input: { skill_key: string; version: number }): Promise<RegistryPublicationVerification | null>;
   createSkillDraft(input: CreateSkillDraftInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>>;
   validateSkillVersion(input: SkillVersionOperationInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>>;
+  revalidateSkillVersion(input: SkillVersionOperationInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>>;
   prepareSkillPublication(input: SkillVersionOperationInput): Promise<RegistryPreparedPublication>;
   publishSkillVersion(input: SkillVersionOperationInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>>;
   promoteSkillVersion(input: SkillVersionOperationInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>>;
@@ -1522,4 +1556,22 @@ export interface RegistryService {
   listAttestations(input: {
     publication_urn: string;
   }): Promise<{ attestations: RegistryAttestationRecord[] } | null>;
+
+  // Recertification + revalidation (build plan 2.1).
+  getRecertificationQueue(input?: {
+    state?: RegistryRecertificationState | 'all';
+    entity_type?: 'skill' | 'agent' | 'all';
+    limit?: number;
+    offset?: number;
+  }): Promise<RegistryRecertificationQueue>;
+  createRevalidationJob(input: {
+    job_id: string;
+    author: string;
+    scope?: RegistryRecertificationState | 'all';
+    entity_type?: 'skill' | 'agent' | 'all';
+    limit?: number;
+  }): Promise<CreateResult<RegistryRevalidationJobSummary>>;
+  executeRevalidationJob(input: { job_id: string; author: string }): Promise<RegistryRevalidationJobSummary>;
+  getRevalidationJob(input: { job_id: string }): Promise<RegistryRevalidationJobSummary | null>;
+  listRevalidationJobs(input?: { limit?: number; offset?: number }): Promise<{ jobs: RegistryRevalidationJobSummary[] }>;
 }

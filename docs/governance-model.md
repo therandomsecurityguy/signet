@@ -484,8 +484,10 @@ Each certification must preserve:
 
 The staleness layer of this dimension is implemented: version read surfaces
 carry a `freshness` signal (fresh → aging → stale with certification-expiry
-tracking) derived from `certified_at` / `published_at` / `validated_at`.
-Scheduled re-validation and the in-UI recertification workflow are still
+tracking) derived from `certified_at` / `revalidated_at` / `published_at` /
+`validated_at`, and scheduled re-validation ships as bounded,
+non-destructive revalidation jobs driven by the recertification queue (chart
+CronJob, disabled by default). The in-UI recertification workflow is still
 open.
 
 ```mermaid

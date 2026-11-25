@@ -31,6 +31,7 @@ import { registerSearchRoutes } from './routes/search.js';
 import { registerTagRoutes } from './routes/tags.js';
 import { registerSkillLifecycleRoutes } from './routes/skill-lifecycle.js';
 import { registerTimeAwareRoutes } from './routes/time-aware.js';
+import { registerRevalidationRoutes } from './routes/revalidation.js';
 import { registerGraphRoutes } from './routes/graph.js';
 import { registerPublicKeyRoutes } from './routes/public-keys.js';
 import { registerTransparencyLogRoutes } from './routes/transparency-logs.js';
@@ -155,6 +156,8 @@ export function buildApp(deps: AppDependencies) {
   app.use('/v1/transparency-logs/*', writeAuth);
   app.use('/v1/time-aware', writeAuth);
   app.use('/v1/time-aware/*', writeAuth);
+  app.use('/v1/revalidation-jobs', writeAuth);
+  app.use('/v1/revalidation-jobs/*', writeAuth);
   app.use('/v1/policy-packages', writeAuth);
   app.use('/v1/policy-packages/*', writeAuth);
   app.use('/v1/ontology-packages', writeAuth);
@@ -254,6 +257,10 @@ export function buildApp(deps: AppDependencies) {
     timeAware: deps.timeAwareRegistry,
     audit: deps.audit,
   });
+  registerRevalidationRoutes(app, {
+    revalidation: deps.revalidation,
+    audit: deps.audit,
+  });
   registerGraphRoutes(app, {
     readGraphSubgraph: deps.readGraphSubgraph,
   });
@@ -325,11 +332,18 @@ export function buildApp(deps: AppDependencies) {
         'POST /v1/skills/:skillKey/drafts',
         'POST /v1/skills/:skillKey/versions/:version/signatures',
         'POST /v1/skills/:skillKey/versions/:version/validate',
+        'POST /v1/skills/:skillKey/versions/:version/revalidate',
         'POST /v1/skills/:skillKey/versions/:version/publish',
         'POST /v1/skills/:skillKey/versions/:version/promote',
         'POST /v1/skills/:skillKey/versions/:version/deprecate',
         'POST /v1/skills/:skillKey/versions/:version/certify',
         'POST /v1/skills/:skillKey/versions/:version/revoke',
+        'POST /v1/agents/:agentKey/versions/:version/revalidate',
+        'GET /v1/recertification/queue',
+        'GET /v1/revalidation-jobs',
+        'GET /v1/revalidation-jobs/:jobId',
+        'POST /v1/revalidation-jobs',
+        'POST /v1/revalidation-jobs/:jobId/execute',
         'GET /v1/time-aware/commits',
         'GET /v1/time-aware/commits/:commitId',
         'GET /v1/time-aware/refs',

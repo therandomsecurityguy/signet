@@ -5,7 +5,7 @@ import { z } from 'zod';
 export const FreshnessSchema = z.object({
   freshness: z.enum(['fresh', 'aging', 'stale']),
   last_verified_at: z.string(),
-  verification_basis: z.enum(['certified_at', 'published_at', 'validated_at']),
+  verification_basis: z.enum(['certified_at', 'revalidated_at', 'published_at', 'validated_at']),
   age_days: z.number().int().nonnegative(),
   certification_expires_at: z.string().nullable(),
   certification_expired: z.boolean(),

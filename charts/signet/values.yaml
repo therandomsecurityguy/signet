@@ -159,6 +159,19 @@ fusekiBackup:
   enabled: false
   schedule: "17 3 * * *"
 
+# Scheduled re-validation (build plan 2.1): a CronJob that creates and
+# executes a bounded revalidation job over the recertification queue
+# (default scope: due). Non-destructive — it records the outcome of fresh
+# validation runs and never changes lifecycle status. Disabled by default;
+# when enabled, apiKeySecretRef must name a Secret (in this namespace)
+# holding a lifecycle-scoped operator API key under `revalidation-api-key`.
+revalidation:
+  enabled: false
+  schedule: "23 4 * * *"
+  scope: due
+  limit: 25
+  apiKeySecretRef: ""
+
 # Fuseki graph backend (registry metadata store).
 fuseki:
   enabled: true

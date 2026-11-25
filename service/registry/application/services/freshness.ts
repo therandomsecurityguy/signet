@@ -10,12 +10,12 @@ import type { RegistryFreshness } from '../ports/registry-service.js';
 //   aging  FRESHNESS_AGING_DAYS <= age_days < FRESHNESS_STALE_DAYS
 //   stale  age_days >= FRESHNESS_STALE_DAYS, or the certification has expired
 //
-// Age runs from the newest verification moment known on the node:
-// certified_at (a certification restates validation) -> published_at
-// (publication requires validation) -> validated_at (validated, not yet
-// published). Versions with none of those timestamps carry no freshness
-// signal at all (null) — a draft was never verified, which is different from
-// "verified long ago".
+// Age runs from the newest verification moment known on the node: a
+// revalidation, certification, publication, or validation all count, and the
+// most recent one wins (ties break in the order certified_at -> revalidated_at
+// -> published_at -> validated_at). Versions with none of those timestamps
+// carry no freshness signal at all (null) — a draft was never verified, which
+// is different from "verified long ago".
 //
 // An expired certification forces `stale` regardless of age and is reported
 // separately (`certification_expired`, `expires_in_days`) so consumers can
@@ -29,6 +29,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type FreshnessInput = {
   certified_at?: string;
+  revalidated_at?: string;
   published_at?: string;
   validated_at?: string;
   certification_expires_at?: string;
@@ -36,7 +37,13 @@ export type FreshnessInput = {
 
 export function freshnessInputFromProperties(properties: Record<string, unknown>): FreshnessInput {
   const out: FreshnessInput = {};
-  for (const key of ['certified_at', 'published_at', 'validated_at', 'certification_expires_at'] as const) {
+  for (const key of [
+    'certified_at',
+    'revalidated_at',
+    'published_at',
+    'validated_at',
+    'certification_expires_at',
+  ] as const) {
     const value = properties[key];
     if (typeof value === 'string' && value.length > 0) {
       out[key] = value;
@@ -48,6 +55,7 @@ export function freshnessInputFromProperties(properties: Record<string, unknown>
 export function computeFreshness(input: FreshnessInput, now: Date = new Date()): RegistryFreshness | null {
   const candidates: Array<[RegistryFreshness['verification_basis'], string | undefined]> = [
     ['certified_at', input.certified_at],
+    ['revalidated_at', input.revalidated_at],
     ['published_at', input.published_at],
     ['validated_at', input.validated_at],
   ];
@@ -59,10 +67,13 @@ export function computeFreshness(input: FreshnessInput, now: Date = new Date()):
     if (!value) continue;
     const parsed = Date.parse(value);
     if (!Number.isFinite(parsed)) continue;
-    basis = type;
-    basisMs = parsed;
-    basisValue = value;
-    break;
+    // Newest verification moment wins; equal timestamps keep the earlier
+    // candidate in the list (certified_at first).
+    if (basisMs === null || parsed > basisMs) {
+      basis = type;
+      basisMs = parsed;
+      basisValue = value;
+    }
   }
   if (basis === null || basisMs === null || basisValue === null) {
     return null;

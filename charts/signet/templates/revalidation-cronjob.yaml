@@ -1,0 +1,110 @@
+{{- if .Values.revalidation.enabled }}
+{{- if not .Values.revalidation.apiKeySecretRef }}
+{{- fail "revalidation.enabled requires revalidation.apiKeySecretRef (Secret name holding key 'revalidation-api-key')" }}
+{{- end }}
+# Scheduled re-validation (build plan 2.1): creates + executes a bounded
+# revalidation job over the recertification queue (scope: due by default).
+# Non-destructive: re-validation records fresh validation runs and never
+# changes lifecycle status. Requires a lifecycle-scoped API key in
+# revalidation.apiKeySecretRef (key: revalidation-api-key).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "signet.fullname" . }}-revalidation
+  labels:
+    {{- include "signet.labels" . | nindent 4 }}
+    app.kubernetes.io/component: revalidation
+spec:
+  schedule: {{ .Values.revalidation.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            {{- include "signet.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: revalidation
+        spec:
+          serviceAccountName: {{ .Values.serviceAccount.name }}
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            fsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: revalidation
+              image: {{ include "signet.image" (dict "repository" .Values.api.image.repository "tag" .Values.api.image.tag "digest" .Values.api.image.digest "registry" .Values.image.registry "Chart" .Chart) }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              command: ["node", "--input-type=module", "-e"]
+              args:
+                - |
+                  const base = process.env.REVALIDATION_API_ORIGIN;
+                  const key = process.env.REVALIDATION_API_KEY;
+                  if (!key) {
+                    console.error('REVALIDATION_API_KEY is empty; refusing to run.');
+                    process.exit(1);
+                  }
+                  const jobId = 'revalidate-cron-' + new Date().toISOString().replace(/[:.]/g, '-');
+                  const headers = {
+                    authorization: 'Bearer ' + key,
+                    'content-type': 'application/json',
+                    'x-agent-client': 'revalidation-cron',
+                  };
+                  const create = await fetch(base + '/v1/revalidation-jobs', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({
+                      job_id: jobId,
+                      author: 'revalidation-cron',
+                      scope: process.env.REVALIDATION_SCOPE || 'due',
+                      limit: Number(process.env.REVALIDATION_LIMIT || '25'),
+                    }),
+                  });
+                  if (!create.ok) {
+                    console.error('create failed', create.status, await create.text());
+                    process.exit(1);
+                  }
+                  const execute = await fetch(base + '/v1/revalidation-jobs/' + encodeURIComponent(jobId) + '/execute', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ author: 'revalidation-cron' }),
+                  });
+                  if (!execute.ok) {
+                    console.error('execute failed', execute.status, await execute.text());
+                    process.exit(1);
+                  }
+                  console.log(await execute.text());
+              env:
+                - name: NODE_ENV
+                  value: production
+                - name: REVALIDATION_API_ORIGIN
+                  value: {{ printf "http://%s-api:%v" (include "signet.fullname" .) .Values.api.port | quote }}
+                - name: REVALIDATION_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.revalidation.apiKeySecretRef | quote }}
+                      key: revalidation-api-key
+                - name: REVALIDATION_SCOPE
+                  value: {{ .Values.revalidation.scope | quote }}
+                - name: REVALIDATION_LIMIT
+                  value: {{ .Values.revalidation.limit | quote }}
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+{{- end }}

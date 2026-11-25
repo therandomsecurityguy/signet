@@ -13,6 +13,7 @@ export type EntityType =
   | 'WORKSPACE'
   | 'RETENTION_ROOT'
   | 'GC_JOB'
+  | 'REVALIDATION_JOB'
   | 'HARNESS'
   | 'TOOL'
   | 'PUBLIC_KEY'

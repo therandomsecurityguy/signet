@@ -11,6 +11,7 @@ import {
   harnessUrn,
   provAgentUrn,
   publicKeyUrn,
+  revalidationJobUrn,
   skillUrn,
   skillVersionUrn,
   taskUrn,
@@ -4144,6 +4145,57 @@ export class DefaultRegistryService implements RegistryService {
     });
   }
 
+  // Re-validation (build plan 2.1): re-runs the validation layers for a live
+  // version and records the moment + outcome without ever changing the
+  // lifecycle status. Failure is evidence (`revalidation_status: 'failed'`),
+  // not a silent demotion — the recertification queue surfaces it and an
+  // operator decides (recertify / deprecate / revoke).
+  async revalidateSkillVersion(
+    input: SkillVersionOperationInput,
+  ): Promise<RegistryOperationResult<RegistrySkillVersionDetails>> {
+    const version = await this.getRequiredSkillVersion(input.skill_key, input.version);
+    const currentStatus = lifecycleStatus(version.skill_version.properties);
+    if (!REVALIDATABLE_LIFECYCLE_STATUSES.includes(currentStatus)) {
+      throw new RegistryCoreError(
+        'SKILL_VERSION_REVALIDATE_CONFLICT',
+        `Skill version cannot revalidate from status ${currentStatus}; drafts use validate.`,
+      );
+    }
+    const { failures, used_urns: validationUsedUrns } = await this.runPublicationValidation({
+      entity_type: 'SKILL_VERSION',
+      logical_key: input.skill_key,
+      version_urn: version.skill_version.urn,
+      properties: version.skill_version.properties,
+    });
+    const now = nowIso();
+    const { revalidation_failures: _previousRevalidationFailures, ...base } = version.skill_version.properties;
+    await this.deps.graph.upsertNode({
+      urn: version.skill_version.urn,
+      entity_type: 'SKILL_VERSION',
+      properties: {
+        ...base,
+        revalidated_at: now,
+        revalidation_status: failures.length > 0 ? 'failed' : 'passed',
+        ...(failures.length > 0 ? { revalidation_failures: failures } : {}),
+        updated_at: now,
+      },
+    });
+    const revalidated = await this.getRequiredSkillVersion(input.skill_key, input.version);
+    const task = await this.createTask({
+      operation: 'revalidate',
+      author: input.author,
+      target_urn: version.skill_version.urn,
+      skill_key: input.skill_key,
+      version: input.version,
+      status: 'completed',
+      validation_status: failures.length > 0 ? 'failed' : 'passed',
+      ...(failures.length > 0 ? { validation_failures: failures.join(',') } : {}),
+      prov_used_urns: validationUsedUrns,
+      ...(input.note ? { note: input.note } : {}),
+    });
+    return { task, result: revalidated };
+  }
+
   async publishSkillVersion(input: SkillVersionOperationInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>> {
     return await this.transitionSkillVersion({
       ...input,
@@ -4788,6 +4840,276 @@ export class DefaultRegistryService implements RegistryService {
       allowedFrom: ['draft', 'rejected'],
       provUsedUrns: validationUsedUrns,
     });
+  }
+
+  // See revalidateSkillVersion: recorded-outcome re-validation for live agent
+  // versions; lifecycle status is never changed by this operation.
+  async revalidateAgentVersion(
+    input: AgentVersionOperationInput,
+  ): Promise<RegistryOperationResult<RegistryAgentVersionDetails>> {
+    const version = await this.getRequiredAgentVersion(input.agent_key, input.version);
+    const currentStatus = lifecycleStatus(version.agent_version.properties);
+    if (!REVALIDATABLE_LIFECYCLE_STATUSES.includes(currentStatus)) {
+      throw new RegistryCoreError(
+        'AGENT_VERSION_REVALIDATE_CONFLICT',
+        `Agent version cannot revalidate from status ${currentStatus}; drafts use validate.`,
+      );
+    }
+    const { failures, used_urns: validationUsedUrns } = await this.runPublicationValidation({
+      entity_type: 'AGENT_VERSION',
+      logical_key: input.agent_key,
+      version_urn: version.agent_version.urn,
+      properties: version.agent_version.properties,
+    });
+    const now = nowIso();
+    const { revalidation_failures: _previousRevalidationFailures, ...base } = version.agent_version.properties;
+    await this.deps.graph.upsertNode({
+      urn: version.agent_version.urn,
+      entity_type: 'AGENT_VERSION',
+      properties: {
+        ...base,
+        revalidated_at: now,
+        revalidation_status: failures.length > 0 ? 'failed' : 'passed',
+        ...(failures.length > 0 ? { revalidation_failures: failures } : {}),
+        updated_at: now,
+      },
+    });
+    const revalidated = await this.getRequiredAgentVersion(input.agent_key, input.version);
+    const task = await this.createTask({
+      operation: 'revalidate',
+      author: input.author,
+      target_urn: version.agent_version.urn,
+      agent_key: input.agent_key,
+      version: input.version,
+      status: 'completed',
+      validation_status: failures.length > 0 ? 'failed' : 'passed',
+      ...(failures.length > 0 ? { validation_failures: failures.join(',') } : {}),
+      prov_used_urns: validationUsedUrns,
+      ...(input.note ? { note: input.note } : {}),
+    });
+    return { task, result: revalidated };
+  }
+
+  // ---- Recertification queue + revalidation jobs (build plan 2.1) ----
+
+  async getRecertificationQueue(
+    input: {
+      state?: import('../ports/registry-service.js').RegistryRecertificationState | 'all';
+      entity_type?: 'skill' | 'agent' | 'all';
+      limit?: number;
+      offset?: number;
+    } = {},
+  ): Promise<import('../ports/registry-service.js').RegistryRecertificationQueue> {
+    const now = new Date();
+    const wantSkills = (input.entity_type ?? 'all') !== 'agent';
+    const wantAgents = (input.entity_type ?? 'all') !== 'skill';
+    const items: Array<import('../ports/registry-service.js').RegistryRecertificationQueueItem> = [];
+    if (wantSkills) {
+      for (const node of await this.deps.graph.listNodesByType('SKILL_VERSION')) {
+        const item = recertificationQueueItem(node, 'SKILL_VERSION', now);
+        if (item) items.push(item);
+      }
+    }
+    if (wantAgents) {
+      for (const node of await this.deps.graph.listNodesByType('AGENT_VERSION')) {
+        const item = recertificationQueueItem(node, 'AGENT_VERSION', now);
+        if (item) items.push(item);
+      }
+    }
+    const state = input.state ?? 'all';
+    const filtered = state === 'all' ? items : items.filter((item) => item.recertification_state === state);
+    // Worst first: `due` before `approaching`, then oldest verification
+    // first, then URN for a stable order.
+    const stateRank = { due: 0, approaching: 1 } as const;
+    filtered.sort((left, right) => {
+      if (stateRank[left.recertification_state] !== stateRank[right.recertification_state]) {
+        return stateRank[left.recertification_state] - stateRank[right.recertification_state];
+      }
+      if (left.freshness.age_days !== right.freshness.age_days) {
+        return right.freshness.age_days - left.freshness.age_days;
+      }
+      return compareLogicalKeys(left.publication_urn, right.publication_urn);
+    });
+    const dueCount = filtered.filter((item) => item.recertification_state === 'due').length;
+    const offset = Math.max(0, input.offset ?? 0);
+    const limit = input.limit ?? filtered.length;
+    return {
+      items: filtered.slice(offset, offset + limit),
+      total: filtered.length,
+      due_count: dueCount,
+      approaching_count: filtered.length - dueCount,
+    };
+  }
+
+  async createRevalidationJob(input: {
+    job_id: string;
+    author: string;
+    scope?: import('../ports/registry-service.js').RegistryRecertificationState | 'all';
+    entity_type?: 'skill' | 'agent' | 'all';
+    limit?: number;
+  }): Promise<CreateResult<import('../ports/registry-service.js').RegistryRevalidationJobSummary>> {
+    const urn = revalidationJobUrn(input.job_id);
+    const scope = input.scope ?? 'due';
+    const entityType = input.entity_type ?? 'all';
+    const limit = clampRevalidationLimit(input.limit);
+    const existing = await this.deps.graph.getNode(urn);
+    if (existing) {
+      const same =
+        existing.properties['author'] === input.author &&
+        (existing.properties['scope'] ?? 'due') === scope &&
+        (existing.properties['entity_type'] ?? 'all') === entityType &&
+        existing.properties['limit'] === limit;
+      if (same) {
+        return { value: { urn: existing.urn, properties: existing.properties }, created: false };
+      }
+      throw new RegistryCoreError(
+        'REVALIDATION_JOB_CREATE_CONFLICT',
+        'Revalidation job exists with different parameters.',
+      );
+    }
+    const properties = {
+      job_id: input.job_id,
+      author: input.author,
+      status: 'planned',
+      scope,
+      entity_type: entityType,
+      limit,
+      created_at: nowIso(),
+    };
+    await this.deps.graph.upsertNode({ urn, entity_type: 'REVALIDATION_JOB', properties });
+    return { value: { urn, properties }, created: true };
+  }
+
+  async executeRevalidationJob(input: {
+    job_id: string;
+    author: string;
+  }): Promise<import('../ports/registry-service.js').RegistryRevalidationJobSummary> {
+    const urn = revalidationJobUrn(input.job_id);
+    const node = await this.deps.graph.getNode(urn);
+    if (!node || node.entity_type !== 'REVALIDATION_JOB') {
+      throw new RegistryCoreError('REVALIDATION_JOB_NOT_FOUND', 'Revalidation job not found.');
+    }
+    const status = stringOrUndefined(node.properties['status']) ?? 'planned';
+    if (status === 'completed') {
+      // Idempotent replay: the recorded run is the evidence.
+      return { urn: node.urn, properties: node.properties };
+    }
+    if (status !== 'planned') {
+      throw new RegistryCoreError(
+        'REVALIDATION_JOB_EXECUTE_CONFLICT',
+        `Revalidation job cannot execute from status ${status}.`,
+      );
+    }
+    const scope =
+      (stringOrUndefined(node.properties['scope']) as
+        | import('../ports/registry-service.js').RegistryRecertificationState
+        | 'all'
+        | undefined) ?? 'due';
+    const entityType =
+      (stringOrUndefined(node.properties['entity_type']) as 'skill' | 'agent' | 'all' | undefined) ?? 'all';
+    const limit = clampRevalidationLimit(
+      typeof node.properties['limit'] === 'number' ? (node.properties['limit'] as number) : undefined,
+    );
+
+    // The queue is recomputed at execution time: the job records what it
+    // actually revalidated, not what was visible when it was planned.
+    const queue = await this.getRecertificationQueue({ state: scope, entity_type: entityType, limit });
+
+    const results: Array<Record<string, unknown>> = [];
+    for (const item of queue.items) {
+      try {
+        const outcome =
+          item.entity_type === 'SKILL_VERSION'
+            ? await this.revalidateSkillVersion({
+                skill_key: item.logical_key,
+                version: item.version,
+                author: input.author,
+                note: `revalidation job ${input.job_id}`,
+              })
+            : await this.revalidateAgentVersion({
+                agent_key: item.logical_key,
+                version: item.version,
+                author: input.author,
+                note: `revalidation job ${input.job_id}`,
+              });
+        const versionProperties =
+          item.entity_type === 'SKILL_VERSION'
+            ? (outcome.result as RegistrySkillVersionDetails).skill_version.properties
+            : (outcome.result as RegistryAgentVersionDetails).agent_version.properties;
+        results.push({
+          publication_urn: item.publication_urn,
+          entity_type: item.entity_type,
+          logical_key: item.logical_key,
+          version: item.version,
+          outcome: versionProperties['revalidation_status'] === 'failed' ? 'failed' : 'passed',
+          ...(Array.isArray(versionProperties['revalidation_failures'])
+            ? { failures: versionProperties['revalidation_failures'] }
+            : {}),
+        });
+      } catch (err) {
+        results.push({
+          publication_urn: item.publication_urn,
+          entity_type: item.entity_type,
+          logical_key: item.logical_key,
+          version: item.version,
+          outcome: 'skipped',
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    const executedAt = nowIso();
+    const artifactPayload = {
+      job_id: input.job_id,
+      scope,
+      entity_type: entityType,
+      limit,
+      executed_at: executedAt,
+      executed_by: input.author,
+      results,
+    };
+    const artifact = await this.deps.cas.put({
+      bytes: Buffer.from(`${canonicalJsonString(artifactPayload)}\n`, 'utf8'),
+      media_type: 'application/json',
+      original_path: `revalidation-jobs/${sanitizePathSegment(input.job_id)}.json`,
+    });
+    const countOf = (outcome: string) => results.filter((entry) => entry['outcome'] === outcome).length;
+    const properties = {
+      ...node.properties,
+      status: 'completed',
+      // The version nodes are freshly re-read at execution time, but report
+      // selection + inputs as they were pinned on the job.
+      executed_at: executedAt,
+      executed_by: input.author,
+      execution_mode: 'revalidate',
+      candidate_count: results.length,
+      passed_count: countOf('passed'),
+      failed_count: countOf('failed'),
+      skipped_count: countOf('skipped'),
+      results_sha256: artifact.sha256,
+      results_artifact_urn: artifactUrn(artifact.sha256),
+    };
+    await this.deps.graph.upsertNode({ urn, entity_type: 'REVALIDATION_JOB', properties });
+    return { urn, properties };
+  }
+
+  async getRevalidationJob(input: {
+    job_id: string;
+  }): Promise<import('../ports/registry-service.js').RegistryRevalidationJobSummary | null> {
+    const node = await this.deps.graph.getNode(revalidationJobUrn(input.job_id));
+    if (!node || node.entity_type !== 'REVALIDATION_JOB') return null;
+    return { urn: node.urn, properties: node.properties };
+  }
+
+  async listRevalidationJobs(input?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<{ jobs: Array<import('../ports/registry-service.js').RegistryRevalidationJobSummary> }> {
+    const nodes = await this.deps.graph.listNodesByType('REVALIDATION_JOB', {
+      ...(typeof input?.limit === 'number' ? { limit: input.limit } : {}),
+      ...(typeof input?.offset === 'number' ? { offset: input.offset } : {}),
+    });
+    return { jobs: nodes.map((node) => ({ urn: node.urn, properties: node.properties })) };
   }
 
   async publishAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>> {
@@ -9910,6 +10232,55 @@ function normalizeTags(tags: string[]): string[] {
 function hasTag(tags: string[] | undefined, tag: string): boolean {
   const needle = tag.trim().toLowerCase();
   return (tags ?? []).some((entry) => entry.toLowerCase() === needle);
+}
+
+const REVALIDATABLE_LIFECYCLE_STATUSES: string[] = ['validated', 'published', 'certified', 'deprecated'];
+const DEFAULT_REVALIDATION_LIMIT = 25;
+const MAX_REVALIDATION_LIMIT = 200;
+
+function clampRevalidationLimit(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_REVALIDATION_LIMIT;
+  return Math.min(Math.max(Math.trunc(value), 1), MAX_REVALIDATION_LIMIT);
+}
+
+// Queue membership is derived, never stored: a live version is `due` when its
+// certification is expired, its verification is stale, or its last
+// revalidation failed; `approaching` while the verification is aging.
+function recertificationQueueItem(
+  node: { urn: string; properties: Record<string, unknown> },
+  entity_type: 'SKILL_VERSION' | 'AGENT_VERSION',
+  now: Date,
+): import('../ports/registry-service.js').RegistryRecertificationQueueItem | null {
+  const status = lifecycleStatus(node.properties);
+  if (!REVALIDATABLE_LIFECYCLE_STATUSES.includes(status)) return null;
+  const freshness = computeFreshness(freshnessInputFromProperties(node.properties), now);
+  if (!freshness) return null;
+  const revalidationStatus = stringOrUndefined(node.properties['revalidation_status']) ?? null;
+  const reasons = [...freshness.reasons];
+  if (revalidationStatus === 'failed') reasons.push('revalidation_failed');
+  let state: 'due' | 'approaching' | null = null;
+  if (freshness.certification_expired || freshness.freshness === 'stale' || revalidationStatus === 'failed') {
+    state = 'due';
+  } else if (freshness.freshness === 'aging') {
+    state = 'approaching';
+  }
+  if (state === null) return null;
+  const logicalKey =
+    entity_type === 'SKILL_VERSION'
+      ? String(node.properties['skill_key'] ?? node.urn)
+      : String(node.properties['agent_key'] ?? node.urn);
+  return {
+    publication_urn: node.urn,
+    entity_type,
+    logical_key: logicalKey,
+    version: getVersionNumber(node.properties),
+    lifecycle_status: status,
+    freshness,
+    last_revalidated_at: stringOrUndefined(node.properties['revalidated_at']) ?? null,
+    revalidation_status: revalidationStatus,
+    recertification_state: state,
+    reasons,
+  };
 }
 
 function trustInputFromProperties(

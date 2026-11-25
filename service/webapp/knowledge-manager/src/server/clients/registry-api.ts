@@ -9,7 +9,7 @@ export type TrustScore = {
 export type Freshness = {
   freshness: 'fresh' | 'aging' | 'stale';
   last_verified_at: string;
-  verification_basis: 'certified_at' | 'published_at' | 'validated_at';
+  verification_basis: 'certified_at' | 'revalidated_at' | 'published_at' | 'validated_at';
   age_days: number;
   certification_expires_at: string | null;
   certification_expired: boolean;

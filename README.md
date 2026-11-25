@@ -277,6 +277,16 @@ Discovery and freshness:
   `expires_in_days`); exposed on API version details, version lists,
   ranked lists, and search, on MCP `registry.search` and
   `registry.get_skill` / `registry.get_agent`, and as webapp chips
+- recertification queue + scheduled re-validation: `GET
+  /v1/recertification/queue` ranks live versions whose verification is
+  aging (`approaching`) or stale/expired/failed (`due`); recorded
+  `revalidate` operations (`POST .../versions/:v/revalidate`) re-run the
+  validation layers and store the outcome (`revalidated_at`,
+  `revalidation_status`, failures as evidence) without ever changing
+  lifecycle status, and restart the freshness clock; bounded revalidation
+  jobs (`/v1/revalidation-jobs`, durable planned → completed with a
+  results evidence artifact, idempotent replay) run the queue on demand
+  and from a chart CronJob (`revalidation.enabled`, disabled by default)
 
 Storage and operations:
 - content-addressed artifact storage (filesystem or S3) with per-artifact WORM reporting: `GET /v1/artifacts/{sha256}/retention` surfaces S3 Object Lock mode/retention/legal hold straight from the bucket, so immutability is provable per artifact
@@ -289,9 +299,9 @@ Storage and operations:
   tessera-sidecar
 
 Proposed next (not implemented yet):
-- freshness automation beyond the signal layer: scheduled re-validation
-  jobs and the in-UI recertification workflow (freshness and expiry
-  signals ship now — see "Discovery and freshness")
+- the in-UI recertification workflow (the freshness signal, recertification
+  queue, recorded revalidation ops, and scheduled re-validation jobs ship
+  now — see "Discovery and freshness")
 - SHACL node expressions and `sh:js` (refused at registration; no
   execution semantics implemented); AF execution intentionally stays
   out-of-process — decided in `docs/shacl-af-in-process-design.md`
