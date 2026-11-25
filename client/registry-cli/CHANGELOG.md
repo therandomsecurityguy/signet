@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.8](https://github.com/therandomsecurityguy/signet/compare/registry-cli-v0.1.7...registry-cli-v0.1.8) (2026-11-25)
+
+
+### Features
+
+* **bootstrap:** apply tags and capability claims from seed manifests ([9b29e0b](https://github.com/therandomsecurityguy/signet/commit/9b29e0b49d9ade107d7eb95bde267e4a1ff159ac))
+* **bootstrap:** apply tags and capability claims from seed manifests ([b60ed05](https://github.com/therandomsecurityguy/signet/commit/b60ed058f64272316e028fc34e46959bd75a6ec4))
+
 ## [0.1.7](https://github.com/therandomsecurityguy/signet/compare/registry-cli-v0.1.6...registry-cli-v0.1.7) (2026-11-21)
 
 
