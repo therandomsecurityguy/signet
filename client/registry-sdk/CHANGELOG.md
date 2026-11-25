@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.15](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.14...registry-sdk-v0.1.15) (2026-11-25)
+
+
+### Features
+
+* **search:** deterministic semantic search over claims, text, and trust ([27e7bec](https://github.com/therandomsecurityguy/signet/commit/27e7bec606e40f4c4596e1954683a58970e9f415))
+
 ## [0.1.14](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.13...registry-sdk-v0.1.14) (2026-11-25)
 
 
