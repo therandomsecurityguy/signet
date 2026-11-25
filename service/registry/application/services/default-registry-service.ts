@@ -18,7 +18,11 @@ import {
   transparencyLogUrn,
   transparencyWitnessUrn,
 } from '../../domain/signet/db/graph/freeform/registry/urn.js';
-import { scoreSemanticMatch } from './semantic-search.js';
+import {
+  DEDUPE_MAX_CANDIDATES,
+  DEDUPE_SIMILARITY_THRESHOLD,
+  scoreSemanticMatch,
+} from './semantic-search.js';
 import { compareTrust, scoreTrust } from './trust-ranking.js';
 import { RegistryCoreError } from '../errors/registry-core-error.js';
 import {
@@ -2345,6 +2349,93 @@ export class DefaultRegistryService implements RegistryService {
     return ranked;
   }
 
+  // Deterministic duplicate detection for the advisory validation layer:
+  // score this version's text/claims against every other entity's active
+  // version with the shared semantic scorer, keep the top candidates above
+  // the threshold. Never blocks — candidates are evidence.
+  private async findSimilarEntities(input: {
+    entity_type: 'SKILL_VERSION' | 'AGENT_VERSION';
+    logical_key: string;
+    display_name?: string;
+    description?: string;
+    capability_claims: string[];
+    interfaces?: { inputs: string[]; outputs: string[] };
+    constraints?: string[];
+  }): Promise<{
+    candidates: Array<{
+      logical_key: string;
+      score: number;
+      shared_claims: string[];
+      shared_terms: string[];
+      phrase_match: boolean;
+    }>;
+    checked_against: number;
+  }> {
+    const queryText = [
+      input.display_name ?? '',
+      input.description ?? '',
+      ...input.capability_claims,
+      ...(input.interfaces?.inputs ?? []),
+      ...(input.interfaces?.outputs ?? []),
+      ...(input.constraints ?? []),
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    const pool =
+      input.entity_type === 'SKILL_VERSION'
+        ? (await this.rankedSkillCandidates({ sort: false })).map((entry) => ({
+            logical_key: entry.summary.skill_key,
+            display_name: entry.summary.display_name,
+            description: entry.summary.description,
+            versionProperties: entry.versionProperties,
+          }))
+        : (await this.rankedAgentCandidates(undefined, { sort: false })).map((entry) => ({
+            logical_key: entry.summary.agent_key,
+            display_name: entry.summary.display_name,
+            description: entry.summary.description,
+            versionProperties: entry.versionProperties,
+          }));
+
+    const candidates = [];
+    const normalizedQuery = queryText.toLowerCase();
+    for (const entry of pool) {
+      if (entry.logical_key === input.logical_key) continue;
+      const candidateClaims = stringArrayField(entry.versionProperties, 'capability_claims');
+      const match = scoreSemanticMatch(queryText, {
+        logical_key: entry.logical_key,
+        ...(entry.display_name ? { display_name: entry.display_name } : {}),
+        ...(entry.description ? { description: entry.description } : {}),
+        capability_claims: candidateClaims,
+        ...interfacesFromProperties(entry.versionProperties),
+        ...(stringArrayField(entry.versionProperties, 'constraints').length > 0
+          ? { constraints: stringArrayField(entry.versionProperties, 'constraints') }
+          : {}),
+      });
+      if (match.score < DEDUPE_SIMILARITY_THRESHOLD) continue;
+      // The scorer's phrase flag is query-in-doc; for dedupe the question is
+      // the reverse — does the candidate's human-facing text appear verbatim
+      // in this version's text? (Short generic snippets do not count.)
+      const candidateText = [entry.display_name ?? '', entry.description ?? ''].join('\n').trim().toLowerCase();
+      const phraseMatch =
+        match.phrase_match || (candidateText.length >= 20 && normalizedQuery.includes(candidateText));
+      candidates.push({
+        logical_key: entry.logical_key,
+        score: match.score,
+        shared_claims: input.capability_claims.filter((claim) => candidateClaims.includes(claim)).sort(),
+        shared_terms: match.matched_terms.slice(0, 8),
+        phrase_match: phraseMatch,
+      });
+    }
+    candidates.sort(
+      (left, right) => right.score - left.score || compareLogicalKeys(left.logical_key, right.logical_key),
+    );
+    return {
+      candidates: candidates.slice(0, DEDUPE_MAX_CANDIDATES),
+      checked_against: Math.max(0, pool.length - 1),
+    };
+  }
+
   async getSkillByKey(input: { skill_key: string }): Promise<RegistrySkillDetails | null> {
     return await this.getSkillByUrn({ skill_urn: skillUrn(input.skill_key) });
   }
@@ -3779,6 +3870,41 @@ export class DefaultRegistryService implements RegistryService {
       scorecards: llmResult?.scorecards ?? [],
       suggestions: llmResult?.suggestions ?? null,
       violations: llmWarnings,
+    });
+
+    // Layer 5: advisory duplicate detection (build-plan 1.2c). Compares this
+    // version's text and capability claims against every other entity's
+    // active version using the deterministic semantic scorer. Evidence only:
+    // candidates are surfaced (like the LLM layer), never blocking. Text
+    // falls back to the logical node (where drafts usually keep the
+    // description) when the version properties do not carry it.
+    const duplicateNode =
+      input.entity_type === 'SKILL_VERSION'
+        ? await this.deps.graph.getNode(skillUrn(input.logical_key))
+        : await this.deps.graph.getNode(agentUrn(input.logical_key));
+    const duplicateDisplayName =
+      stringOrUndefined(input.properties['display_name']) ?? stringOrUndefined(duplicateNode?.properties['display_name']);
+    const duplicateDescription =
+      stringOrUndefined(input.properties['description']) ?? stringOrUndefined(duplicateNode?.properties['description']);
+    const duplicateCheck = await this.findSimilarEntities({
+      entity_type: input.entity_type,
+      logical_key: input.logical_key,
+      ...(duplicateDisplayName ? { display_name: duplicateDisplayName } : {}),
+      ...(duplicateDescription ? { description: duplicateDescription } : {}),
+      capability_claims: claims,
+      ...interfacesFromProperties(input.properties),
+      ...(stringArrayField(input.properties, 'constraints').length > 0
+        ? { constraints: stringArrayField(input.properties, 'constraints') }
+        : {}),
+    });
+    layers.push({
+      layer: 'dedupe',
+      advisory: true,
+      validator: 'dedupe-v1',
+      threshold: DEDUPE_SIMILARITY_THRESHOLD,
+      checked_against: duplicateCheck.checked_against,
+      candidates: duplicateCheck.candidates,
+      violations: [],
     });
 
     const violations = [...graphShapeViolations, ...policyViolations, ...ontologyViolations];

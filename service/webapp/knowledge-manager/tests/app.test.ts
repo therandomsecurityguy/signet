@@ -898,7 +898,26 @@ describe('knowledge-manager app', () => {
                   engine: 'shacl-engine@1.1.3+sparql',
                   conforms: true,
                   validated_at: '2026-11-24T00:00:00.000Z',
-                  layers: [{ layer: 'graph_shape', violations: [] }],
+                  layers: [
+                    { layer: 'graph_shape', violations: [] },
+                    {
+                      layer: 'dedupe',
+                      advisory: true,
+                      validator: 'dedupe-v1',
+                      threshold: 10,
+                      checked_against: 3,
+                      candidates: [
+                        {
+                          logical_key: 'skill:other',
+                          score: 14,
+                          shared_claims: ['pii-handling'],
+                          shared_terms: ['pii'],
+                          phrase_match: true,
+                        },
+                      ],
+                      violations: [],
+                    },
+                  ],
                   rdf: { format: 'jsonld', report: { '@type': 'sh:ValidationReport', 'sh:conforms': true } },
                 },
               }
@@ -951,6 +970,10 @@ describe('knowledge-manager app', () => {
     expect(text).toContain('Validation evidence');
     expect(text).toContain('graph_shape');
     expect(text).toContain('sh:ValidationReport');
+    // Advisory duplicate candidates render in the dedupe layer.
+    expect(text).toContain('possible duplicate: skill:other');
+    expect(text).toContain('shares pii-handling');
+    expect(text).toContain('near-identical description');
     // Provenance timeline (History tab).
     expect(text).toContain('data-tab="history"');
     expect(text).toContain('create_draft');

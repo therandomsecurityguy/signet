@@ -778,11 +778,15 @@ function renderShaclEvidence(payload: Record<string, unknown>, shortSha: string)
             const name = typeof record['layer'] === 'string' ? record['layer'] : 'layer';
             const violations = Array.isArray(record['violations']) ? record['violations'] : [];
             const details = primitiveEntries(record, ['layer', 'violations']);
+            const candidates = Array.isArray(record['candidates'])
+              ? record['candidates'].filter((entry) => isRecord(entry))
+              : [];
             return `
               <div class="kv-row">
                 <span class="kv-key">${escapeHtml(name)}</span>
                 <div class="kv-value">
                   ${details.length > 0 ? details.map(([label, value]) => `<span class="chip">${escapeHtml(label)}: ${escapeHtml(value)}</span>`).join(' ') : ''}
+                  ${candidates.map((candidate) => renderDuplicateCandidate(candidate)).join('')}
                   ${
                     violations.length === 0
                       ? '<span class="muted">no violations</span>'
@@ -801,6 +805,23 @@ function renderShaclEvidence(payload: Record<string, unknown>, shortSha: string)
       }
     </section>
   `;
+}
+
+// Advisory duplicate candidates (dedupe layer): surfaced like violations but
+// in the advisory tone — evidence, never a validation failure.
+function renderDuplicateCandidate(candidate: Record<string, unknown>): string {
+  const key = typeof candidate['logical_key'] === 'string' ? candidate['logical_key'] : '?';
+  const score = typeof candidate['score'] === 'number' ? candidate['score'] : null;
+  const sharedClaims = Array.isArray(candidate['shared_claims'])
+    ? candidate['shared_claims'].filter((claim): claim is string => typeof claim === 'string')
+    : [];
+  const parts = [
+    `possible duplicate: ${key}`,
+    score !== null ? `score ${score}` : '',
+    sharedClaims.length > 0 ? `shares ${sharedClaims.join(', ')}` : '',
+    candidate['phrase_match'] === true ? 'near-identical description' : '',
+  ].filter(Boolean);
+  return `<p class="advisory-line">${escapeHtml(parts.join(' · '))}</p>`;
 }
 
 function renderEvidenceSection(evidence: ReviewEvidenceArtifact[], errors: string[]): string {
