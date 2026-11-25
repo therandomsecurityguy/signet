@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.17](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.16...registry-sdk-v0.1.17) (2026-11-25)
+
+
+### Features
+
+* **freshness:** staleness signals on read surfaces ([705a396](https://github.com/therandomsecurityguy/signet/commit/705a396c4c0343a852b5676ea2994822233e056a))
+* **freshness:** staleness signals on read surfaces ([78141ae](https://github.com/therandomsecurityguy/signet/commit/78141aee5c4e03f4d1bbb89159841aa97a9bbf72))
+
 ## [0.1.16](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.15...registry-sdk-v0.1.16) (2026-11-25)
 
 
