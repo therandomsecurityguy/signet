@@ -3,6 +3,7 @@ import type {
   AgentSummary,
   GraphSubgraph,
   ProvenanceRecord,
+  SearchMatch,
   SkillVersionOperationInput,
   SkillDetails,
   SkillLifecycleOperationResult,
@@ -124,20 +125,31 @@ function renderPager(paging?: Paging) {
   return `<nav class="toolbar" style="justify-content: space-between;">${prev}<small>Page ${paging.page}</small>${next}</nav>`;
 }
 
+export type SearchContext = {
+  query: string;
+  mode: 'keyword' | 'semantic';
+  resultCount?: number;
+  error?: string;
+};
+
 export function renderAgents(input: {
   agents: AgentSummary[];
   statusByKey?: Record<string, string>;
+  matchByKey?: Record<string, SearchMatch>;
+  search?: SearchContext;
   paging?: Paging;
   page?: PageChromeInput;
 }) {
   const status = input.statusByKey ?? {};
   const hasStatus = Object.keys(status).length > 0;
-  const headers = ['Agent Key', 'Harness', ...(hasStatus ? ['Status'] : []), 'Trust', 'Source Path', 'Graph'];
+  const hasMatch = input.matchByKey !== undefined;
+  const headers = ['Agent Key', 'Harness', ...(hasStatus ? ['Status'] : []), 'Trust', ...(hasMatch ? ['Match'] : []), 'Source Path', 'Graph'];
   const rows = input.agents.map((agent) => [
     `<a href="/agents/${encodeURIComponent(agent.agent_key)}">${escapeHtml(agent.agent_key)}</a>`,
     escapeHtml(agent.harness_name ?? ''),
     ...(hasStatus ? [renderStateBadge(status[agent.agent_key])] : []),
     renderTrustCell(agent.trust),
+    ...(hasMatch ? [renderMatchCell(input.matchByKey?.[agent.agent_key])] : []),
     escapeHtml(agent.source_path ?? ''),
     `<a href="/graph?root_urn=${encodeURIComponent(agent.agent_urn)}&depth=3">View graph</a>`,
   ]);
@@ -145,8 +157,10 @@ export function renderAgents(input: {
     'Agents',
     `
       <p class="breadcrumb"><a href="/">Home</a> / Agents</p>
+      ${renderSearchForm({ action: '/agents', query: input.search?.query ?? '', mode: input.search?.mode ?? 'semantic', placeholder: 'Search agents…' })}
+      ${renderSearchStatus(input.search)}
       ${input.agents.length > 0 ? '<div class="toolbar"><input type="search" id="table-filter" placeholder="Filter agents…" aria-label="Filter agents" /></div>' : ''}
-      ${renderTable(headers, rows, '<a role="button" href="/agents/new">Register an agent</a>', 'filterable-table')}
+      ${renderTable(headers, rows, input.search ? '' : '<a role="button" href="/agents/new">Register an agent</a>', 'filterable-table')}
       ${renderPager(input.paging)}
     `,
     input.page,
@@ -280,17 +294,21 @@ export function renderNewAgentForm(input?: {
 export function renderSkills(input: {
   skills: SkillSummary[];
   statusByKey?: Record<string, string>;
+  matchByKey?: Record<string, SearchMatch>;
+  search?: SearchContext;
   paging?: Paging;
   page?: PageChromeInput;
 }) {
   const status = input.statusByKey ?? {};
   const hasStatus = Object.keys(status).length > 0;
-  const headers = ['Skill Key', 'Display Name', ...(hasStatus ? ['Status'] : []), 'Trust', 'Source Path', 'Graph'];
+  const hasMatch = input.matchByKey !== undefined;
+  const headers = ['Skill Key', 'Display Name', ...(hasStatus ? ['Status'] : []), 'Trust', ...(hasMatch ? ['Match'] : []), 'Source Path', 'Graph'];
   const rows = input.skills.map((skill) => [
     `<a href="/skills/${encodeURIComponent(skill.skill_key)}">${escapeHtml(skill.skill_key)}</a>`,
     escapeHtml(skill.display_name ?? ''),
     ...(hasStatus ? [renderStateBadge(status[skill.skill_key])] : []),
     renderTrustCell(skill.trust),
+    ...(hasMatch ? [renderMatchCell(input.matchByKey?.[skill.skill_key])] : []),
     escapeHtml(skill.source_path ?? ''),
     `<a href="/graph?root_urn=${encodeURIComponent(skill.skill_urn)}&depth=3">View graph</a>`,
   ]);
@@ -298,8 +316,10 @@ export function renderSkills(input: {
     'Skills',
     `
       <p class="breadcrumb"><a href="/">Home</a> / Skills</p>
+      ${renderSearchForm({ action: '/skills', query: input.search?.query ?? '', mode: input.search?.mode ?? 'semantic', placeholder: 'Search skills…' })}
+      ${renderSearchStatus(input.search)}
       ${input.skills.length > 0 ? '<div class="toolbar"><input type="search" id="table-filter" placeholder="Filter skills…" aria-label="Filter skills" /></div>' : ''}
-      ${renderTable(headers, rows, '<a role="button" href="/skills/new">Register a skill</a>', 'filterable-table')}
+      ${renderTable(headers, rows, input.search ? '' : '<a role="button" href="/skills/new">Register a skill</a>', 'filterable-table')}
       ${renderPager(input.paging)}
     `,
     input.page,
@@ -1455,6 +1475,56 @@ function renderTrustCell(trust: TrustScore | undefined) {
   }
   parts.push(`score ${trust.score}`);
   return `<span class="chip" title="${escapeHtml(parts.join(' · '))}">${escapeHtml(trust.score.toFixed(1))}</span>`;
+}
+
+function renderSearchForm(input: {
+  action: string;
+  query: string;
+  mode: 'keyword' | 'semantic';
+  placeholder: string;
+}) {
+  return `
+    <form class="search-form" method="get" action="${input.action}">
+      <input type="search" name="q" value="${escapeHtml(input.query)}" placeholder="${escapeHtml(input.placeholder)}" aria-label="Search query" />
+      <select name="mode" aria-label="Search mode">
+        <option value="semantic"${input.mode === 'semantic' ? ' selected' : ''}>Semantic</option>
+        <option value="keyword"${input.mode === 'keyword' ? ' selected' : ''}>Keyword</option>
+      </select>
+      <button type="submit">Search</button>
+    </form>
+  `;
+}
+
+function renderSearchStatus(search: SearchContext | undefined) {
+  if (!search) return '';
+  if (search.error) {
+    return renderError(search.error);
+  }
+  const count = search.resultCount ?? 0;
+  const modeLabel = search.mode === 'semantic' ? 'semantic' : 'keyword';
+  return `<p class="muted">${escapeHtml(String(count))} ${modeLabel} match${count === 1 ? '' : 'es'} for “${escapeHtml(search.query)}”${
+    search.mode === 'semantic' ? ' · relevance-ordered, trust score as tie-breaker' : ' · trust-ordered'
+  }.</p>`;
+}
+
+// Match indicator for search results: matched concept claims plus the mode
+// and score with terms in the tooltip.
+function renderMatchCell(match: SearchMatch | undefined) {
+  if (!match) {
+    return '<span class="muted">—</span>';
+  }
+  const title = [
+    `score ${match.score}`,
+    match.phrase_match ? 'phrase match' : '',
+    match.matched_terms.length > 0 ? `terms: ${match.matched_terms.join(', ')}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const claimChips = match.matched_claims
+    .slice(0, 2)
+    .map((claim) => `<span class="chip">${escapeHtml(claim)}</span> `)
+    .join('');
+  return `${claimChips}<span class="chip" title="${escapeHtml(title)}">${escapeHtml(match.mode)} ${escapeHtml(String(match.score))}</span>`;
 }
 
 function renderTable(headers: string[], rows: string[][], emptyAction = '', tableId = '') {

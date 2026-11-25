@@ -18,6 +18,7 @@ import {
   transparencyLogUrn,
   transparencyWitnessUrn,
 } from '../../domain/signet/db/graph/freeform/registry/urn.js';
+import { scoreSemanticMatch } from './semantic-search.js';
 import { compareTrust, scoreTrust } from './trust-ranking.js';
 import { RegistryCoreError } from '../errors/registry-core-error.js';
 import {
@@ -1807,36 +1808,10 @@ export class DefaultRegistryService implements RegistryService {
     sort?: 'default' | 'trust';
   }): Promise<{ agents: import('../ports/registry-service.js').RegistryAgentSummary[] }> {
     if ((input.sort ?? 'default') === 'trust') {
-      // Trust ranking needs the global order before paging: read all agents
-      // (harness filter first), score against their active versions, rank,
-      // then slice.
-      const allNodes = await this.deps.graph.listNodesByType('AGENT');
-      const filtered = input.harness_name
-        ? allNodes.filter((n) => n.properties['harness_name'] === input.harness_name)
-        : allNodes;
-      const now = new Date();
-      const ranked = [];
-      for (const node of filtered) {
-        const activeUrn = stringOrUndefined(node.properties['active_version_urn']);
-        const active = activeUrn ? await this.getAgentVersionByUrn(activeUrn) : null;
-        const properties = active?.agent_version.properties ?? {};
-        ranked.push({
-          ...summarizeAgentNode(node),
-          trust: scoreTrust(
-            {
-              lifecycle_status: active ? lifecycleStatus(properties) : null,
-              ...(properties['certified'] === true ? { certified: true } : {}),
-              ...(stringOrUndefined(properties['certified_at']) ? { certified_at: String(properties['certified_at']) } : {}),
-              ...(stringOrUndefined(properties['published_at']) ? { published_at: String(properties['published_at']) } : {}),
-            },
-            now,
-          ),
-        });
-      }
-      ranked.sort((left, right) => compareTrust({ logical_key: left.agent_key, trust: left.trust }, { logical_key: right.agent_key, trust: right.trust }));
+      const ranked = await this.rankedAgentCandidates(input.harness_name);
       const offset = input.offset ?? 0;
       const limit = input.limit ?? ranked.length;
-      return { agents: ranked.slice(offset, offset + limit) };
+      return { agents: ranked.slice(offset, offset + limit).map((candidate) => candidate.summary) };
     }
 
     const nodes = await this.deps.graph.listNodesByType('AGENT', {
@@ -2185,32 +2160,12 @@ export class DefaultRegistryService implements RegistryService {
 
   async listSkills(input: { limit?: number; offset?: number; sort?: 'default' | 'trust' }): Promise<{ skills: import('../ports/registry-service.js').RegistrySkillSummary[] }> {
     if ((input.sort ?? 'default') === 'trust') {
-      // Trust ranking needs the global order before paging: read all skills,
-      // score against their active versions, rank, then slice.
-      const allNodes = await this.deps.graph.listNodesByType('SKILL');
-      const now = new Date();
-      const ranked = [];
-      for (const node of allNodes) {
-        const activeUrn = stringOrUndefined(node.properties['active_version_urn']);
-        const active = activeUrn ? await this.getSkillVersionByUrn(activeUrn) : null;
-        const properties = active?.skill_version.properties ?? {};
-        ranked.push({
-          ...summarizeSkillNode(node),
-          trust: scoreTrust(
-            {
-              lifecycle_status: active ? lifecycleStatus(properties) : null,
-              ...(properties['certified'] === true ? { certified: true } : {}),
-              ...(stringOrUndefined(properties['certified_at']) ? { certified_at: String(properties['certified_at']) } : {}),
-              ...(stringOrUndefined(properties['published_at']) ? { published_at: String(properties['published_at']) } : {}),
-            },
-            now,
-          ),
-        });
-      }
-      ranked.sort((left, right) => compareTrust({ logical_key: left.skill_key, trust: left.trust }, { logical_key: right.skill_key, trust: right.trust }));
+      // Trust ranking needs the global order before paging: rank all skills,
+      // then slice.
+      const ranked = await this.rankedSkillCandidates();
       const offset = input.offset ?? 0;
       const limit = input.limit ?? ranked.length;
-      return { skills: ranked.slice(offset, offset + limit) };
+      return { skills: ranked.slice(offset, offset + limit).map((candidate) => candidate.summary) };
     }
 
     const nodes = await this.deps.graph.listNodesByType('SKILL', {
@@ -2218,6 +2173,176 @@ export class DefaultRegistryService implements RegistryService {
       ...(typeof input.offset === 'number' ? { offset: input.offset } : {}),
     });
     return { skills: nodes.map((node) => summarizeSkillNode(node)) };
+  }
+
+  async searchRegistry(input: {
+    query: string;
+    type: 'skill' | 'agent' | 'all';
+    mode: 'keyword' | 'semantic';
+    sort?: 'default' | 'trust';
+    limit?: number;
+  }): Promise<import('../ports/registry-service.js').RegistrySearchResult> {
+    const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
+    const needle = input.query.toLowerCase();
+    const wantSkills = input.type !== 'agent';
+    const wantAgents = input.type !== 'skill';
+    // Semantic mode is always relevance-ordered; keyword mode honors sort.
+    const trustFirst = (input.sort ?? 'trust') !== 'default';
+
+    const skills: import('../ports/registry-service.js').RegistrySearchSkillResult[] = [];
+    if (wantSkills) {
+      for (const candidate of await this.rankedSkillCandidates({ sort: trustFirst || input.mode === 'semantic' })) {
+        const match =
+          input.mode === 'keyword'
+            ? keywordMatch(needle, [
+                candidate.summary.skill_urn,
+                candidate.summary.skill_key,
+                candidate.summary.display_name,
+                candidate.summary.description,
+                candidate.summary.source_path,
+              ])
+            : scoreSemanticMatch(input.query, {
+                logical_key: candidate.summary.skill_key,
+                ...(candidate.summary.display_name ? { display_name: candidate.summary.display_name } : {}),
+                ...(candidate.summary.description ? { description: candidate.summary.description } : {}),
+                ...(candidate.summary.source_path ? { source_path: candidate.summary.source_path } : {}),
+                capability_claims: stringArrayField(candidate.versionProperties, 'capability_claims'),
+                ...interfacesFromProperties(candidate.versionProperties),
+                ...(stringArrayField(candidate.versionProperties, 'constraints').length > 0
+                  ? { constraints: stringArrayField(candidate.versionProperties, 'constraints') }
+                  : {}),
+              });
+        if (match.score <= 0) continue;
+        const versionNumber = getVersionNumber(candidate.versionProperties);
+        skills.push({
+          ...candidate.summary,
+          ...(versionNumber > 0 ? { active_version: versionNumber } : {}),
+          match: { ...match, mode: input.mode },
+        });
+      }
+      if (input.mode === 'semantic') {
+        skills.sort(
+          (left, right) =>
+            right.match.score - left.match.score ||
+            right.trust.score - left.trust.score ||
+            compareLogicalKeys(left.skill_key, right.skill_key),
+        );
+      }
+      skills.splice(limit);
+    }
+
+    const agents: import('../ports/registry-service.js').RegistrySearchAgentResult[] = [];
+    if (wantAgents) {
+      for (const candidate of await this.rankedAgentCandidates(undefined, { sort: trustFirst || input.mode === 'semantic' })) {
+        const match =
+          input.mode === 'keyword'
+            ? keywordMatch(needle, [
+                candidate.summary.agent_urn,
+                candidate.summary.agent_key,
+                candidate.summary.harness_name,
+                candidate.summary.display_name,
+                candidate.summary.description,
+                candidate.summary.source_path,
+              ])
+            : scoreSemanticMatch(input.query, {
+                logical_key: candidate.summary.agent_key,
+                ...(candidate.summary.display_name ? { display_name: candidate.summary.display_name } : {}),
+                ...(candidate.summary.description ? { description: candidate.summary.description } : {}),
+                ...(candidate.summary.source_path ? { source_path: candidate.summary.source_path } : {}),
+                capability_claims: [],
+                ...(candidate.summary.harness_name ? { extra_terms: [candidate.summary.harness_name] } : {}),
+              });
+        if (match.score <= 0) continue;
+        agents.push({ ...candidate.summary, match: { ...match, mode: input.mode } });
+      }
+      if (input.mode === 'semantic') {
+        agents.sort(
+          (left, right) =>
+            right.match.score - left.match.score ||
+            right.trust.score - left.trust.score ||
+            compareLogicalKeys(left.agent_key, right.agent_key),
+        );
+      }
+      agents.splice(limit);
+    }
+
+    return { skills, agents };
+  }
+
+  // Trust-ranked candidate sets shared by list(sort=trust) and search:
+  // summary + trust + the active version's properties (claims, interfaces).
+  // `sort: false` skips the trust ordering (natural scan order for
+  // keyword search with sort=default).
+  private async rankedSkillCandidates(options: { sort?: boolean } = {}): Promise<
+    Array<{
+      summary: import('../ports/registry-service.js').RegistrySkillSummary & {
+        trust: import('../ports/registry-service.js').RegistryTrustScore;
+      };
+      versionProperties: Record<string, unknown>;
+    }>
+  > {
+    const nodes = await this.deps.graph.listNodesByType('SKILL');
+    const now = new Date();
+    const ranked = [];
+    for (const node of nodes) {
+      const activeUrn = stringOrUndefined(node.properties['active_version_urn']);
+      const active = activeUrn ? await this.getSkillVersionByUrn(activeUrn) : null;
+      const versionProperties = active?.skill_version.properties ?? {};
+      ranked.push({
+        summary: {
+          ...summarizeSkillNode(node),
+          trust: scoreTrust(trustInputFromProperties(active !== null, versionProperties), now),
+        },
+        versionProperties,
+      });
+    }
+    if (options.sort !== false) {
+      ranked.sort((left, right) =>
+        compareTrust(
+          { logical_key: left.summary.skill_key, trust: left.summary.trust },
+          { logical_key: right.summary.skill_key, trust: right.summary.trust },
+        ),
+      );
+    }
+    return ranked;
+  }
+
+  private async rankedAgentCandidates(
+    harnessName?: string,
+    options: { sort?: boolean } = {},
+  ): Promise<
+    Array<{
+      summary: import('../ports/registry-service.js').RegistryAgentSummary & {
+        trust: import('../ports/registry-service.js').RegistryTrustScore;
+      };
+      versionProperties: Record<string, unknown>;
+    }>
+  > {
+    const allNodes = await this.deps.graph.listNodesByType('AGENT');
+    const nodes = harnessName ? allNodes.filter((node) => node.properties['harness_name'] === harnessName) : allNodes;
+    const now = new Date();
+    const ranked = [];
+    for (const node of nodes) {
+      const activeUrn = stringOrUndefined(node.properties['active_version_urn']);
+      const active = activeUrn ? await this.getAgentVersionByUrn(activeUrn) : null;
+      const versionProperties = active?.agent_version.properties ?? {};
+      ranked.push({
+        summary: {
+          ...summarizeAgentNode(node),
+          trust: scoreTrust(trustInputFromProperties(active !== null, versionProperties), now),
+        },
+        versionProperties,
+      });
+    }
+    if (options.sort !== false) {
+      ranked.sort((left, right) =>
+        compareTrust(
+          { logical_key: left.summary.agent_key, trust: left.summary.trust },
+          { logical_key: right.summary.agent_key, trust: right.summary.trust },
+        ),
+      );
+    }
+    return ranked;
   }
 
   async getSkillByKey(input: { skill_key: string }): Promise<RegistrySkillDetails | null> {
@@ -9547,6 +9672,59 @@ function parseHarnessName(harnessUrnValue: string): string | undefined {
   } catch {
     return encoded;
   }
+}
+
+function trustInputFromProperties(
+  hasActiveVersion: boolean,
+  properties: Record<string, unknown>,
+): {
+  lifecycle_status: string | null;
+  certified?: boolean;
+  certified_at?: string;
+  published_at?: string;
+} {
+  return {
+    lifecycle_status: hasActiveVersion ? lifecycleStatus(properties) : null,
+    ...(properties['certified'] === true ? { certified: true } : {}),
+    ...(stringOrUndefined(properties['certified_at']) ? { certified_at: String(properties['certified_at']) } : {}),
+    ...(stringOrUndefined(properties['published_at']) ? { published_at: String(properties['published_at']) } : {}),
+  };
+}
+
+function keywordMatch(needle: string, fields: Array<string | undefined>): import('../ports/registry-service.js').RegistrySearchMatch {
+  const haystack = fields.filter(Boolean).join(' ').toLowerCase();
+  if (!haystack.includes(needle)) {
+    return { mode: 'keyword', score: 0, matched_claims: [], matched_terms: [], phrase_match: false };
+  }
+  return { mode: 'keyword', score: 1, matched_claims: [], matched_terms: [needle], phrase_match: true };
+}
+
+function stringArrayField(properties: Record<string, unknown>, key: string): string[] {
+  const value = properties[key];
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string')
+    : [];
+}
+
+function interfacesFromProperties(properties: Record<string, unknown>): {
+  interfaces?: { inputs: string[]; outputs: string[] };
+} {
+  const value = properties['interfaces'];
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  const record = value as Record<string, unknown>;
+  const inputs = Array.isArray(record['inputs']) ? record['inputs'].filter((entry): entry is string => typeof entry === 'string') : [];
+  const outputs = Array.isArray(record['outputs']) ? record['outputs'].filter((entry): entry is string => typeof entry === 'string') : [];
+  if (inputs.length === 0 && outputs.length === 0) {
+    return {};
+  }
+  return { interfaces: { inputs, outputs } };
+}
+
+function compareLogicalKeys(left: string, right: string): number {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
 }
 
 function summarizeSkillNode(node: {

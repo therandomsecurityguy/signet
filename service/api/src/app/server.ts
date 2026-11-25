@@ -27,6 +27,7 @@ import { registerPolicyPackageRoutes } from './routes/policy-packages.js';
 import { registerAgentPublicationRoutes } from './routes/agent-publication.js';
 import { registerApiKeyRoutes } from './routes/api-keys.js';
 import { registerSkillRoutes } from './routes/skills.js';
+import { registerSearchRoutes } from './routes/search.js';
 import { registerSkillLifecycleRoutes } from './routes/skill-lifecycle.js';
 import { registerTimeAwareRoutes } from './routes/time-aware.js';
 import { registerGraphRoutes } from './routes/graph.js';
@@ -227,6 +228,9 @@ export function buildApp(deps: AppDependencies) {
     getSkill: deps.getSkill,
     createSkill: deps.createSkill,
     audit: deps.audit,
+  });
+  registerSearchRoutes(app, {
+    search: deps.search,
   });
   registerSkillLifecycleRoutes(app, {
     lifecycle: deps.skillLifecycle,

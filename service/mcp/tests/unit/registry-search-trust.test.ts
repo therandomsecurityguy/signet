@@ -20,6 +20,7 @@ async function seedSkill(
   input: {
     skill_key: string;
     description: string;
+    capability_claims?: string[];
     active_version?: {
       lifecycle_status: string;
       certified?: boolean;
@@ -47,6 +48,7 @@ async function seedSkill(
         skill_key: input.skill_key,
         version: 1,
         lifecycle_status: input.active_version.lifecycle_status,
+        ...(input.capability_claims?.length ? { capability_claims: input.capability_claims } : {}),
         ...(input.active_version.certified ? { certified: true } : {}),
         ...(input.active_version.certified_at ? { certified_at: input.active_version.certified_at } : {}),
         ...(input.active_version.published_at ? { published_at: input.active_version.published_at } : {}),
@@ -85,7 +87,10 @@ describe('registry.search trust ranking (in-memory connector)', () => {
     });
 
     const connector = buildConnector(graph);
-    const out = await connector.search({ query: 'shared term alpha', type: 'all', sort: 'trust', limit: 10 }, ctx);
+    const out = await connector.search(
+      { query: 'shared term alpha', type: 'all', mode: 'keyword', sort: 'trust', limit: 10 },
+      ctx,
+    );
 
     expect(out.skills.map((skill) => skill.skill_key)).toEqual([
       'skill:aaa-certified',
@@ -95,9 +100,10 @@ describe('registry.search trust ranking (in-memory connector)', () => {
     expect(out.skills[0]?.trust).toMatchObject({ lifecycle_status: 'certified', tier_weight: 3 });
     expect(out.skills[1]?.trust).toMatchObject({ lifecycle_status: 'published', tier_weight: 2 });
     expect(out.skills[2]?.trust).toMatchObject({ lifecycle_status: 'none', tier_weight: 0, score: 0 });
+    expect(out.skills[0]?.match).toMatchObject({ mode: 'keyword', score: 1 });
   });
 
-  it('matches on description and keeps natural order without trust fields for sort=default', async () => {
+  it('keeps natural scan order for keyword sort=default while still exposing trust', async () => {
     const graph = new InMemoryGraphStore();
     await seedSkill(graph, {
       skill_key: 'skill:zzz-first',
@@ -111,12 +117,49 @@ describe('registry.search trust ranking (in-memory connector)', () => {
     });
 
     const connector = buildConnector(graph);
-    const out = await connector.search({ query: 'shared term alpha', type: 'all', sort: 'default', limit: 10 }, ctx);
+    const out = await connector.search(
+      { query: 'shared term alpha', type: 'all', mode: 'keyword', sort: 'default', limit: 10 },
+      ctx,
+    );
     expect(out.skills.map((skill) => skill.skill_key)).toEqual(['skill:zzz-first', 'skill:aaa-second']);
-    expect(out.skills[0]).not.toHaveProperty('trust');
+    expect(out.skills[0]?.trust).toMatchObject({ lifecycle_status: 'published' });
+    expect(out.skills[0]?.match?.mode).toBe('keyword');
 
     // A query matching only a description still finds the skill.
-    const byDescription = await connector.search({ query: 'shared term alpha', type: 'skill', sort: 'trust', limit: 10 }, ctx);
+    const byDescription = await connector.search(
+      { query: 'shared term alpha', type: 'skill', mode: 'keyword', sort: 'trust', limit: 10 },
+      ctx,
+    );
     expect(byDescription.skills).toHaveLength(2);
+  });
+
+  it('matches capability claims and phrases in semantic mode, relevance first', async () => {
+    const graph = new InMemoryGraphStore();
+    await seedSkill(graph, {
+      skill_key: 'skill:claims',
+      description: 'Data workflows for regulated buckets.',
+      capability_claims: ['pii-handling'],
+      active_version: { lifecycle_status: 'published', published_at: '2026-11-24T00:00:00.000Z' },
+    });
+    await seedSkill(graph, {
+      skill_key: 'skill:phrase',
+      description: 'Handles PII handling pipelines daily.',
+      active_version: { lifecycle_status: 'published', published_at: '2025-01-01T00:00:00.000Z' },
+    });
+    await seedSkill(graph, {
+      skill_key: 'skill:unrelated',
+      description: 'Gardening tips for balcony tomatoes.',
+      active_version: { lifecycle_status: 'published', published_at: '2026-11-24T00:00:00.000Z' },
+    });
+
+    const connector = buildConnector(graph);
+    const out = await connector.search(
+      { query: 'PII handling pipelines', type: 'all', mode: 'semantic', sort: 'trust', limit: 10 },
+      ctx,
+    );
+    expect(out.skills.map((skill) => skill.skill_key)).toEqual(['skill:phrase', 'skill:claims']);
+    expect(out.skills[0]?.match).toMatchObject({ mode: 'semantic', phrase_match: true });
+    expect(out.skills[1]?.match?.matched_claims).toEqual(['pii-handling']);
+    expect(out.skills[0]?.trust).toBeDefined();
   });
 });

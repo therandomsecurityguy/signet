@@ -13,6 +13,7 @@ import type { Env } from '../infrastructure/config/env.js';
 import { createDbProvider } from '../infrastructure/persistence/db-provider.js';
 import { buildGraphStore } from '../infrastructure/registry/graph-backend-factory.js';
 import { GraphAgentRegistry } from '../infrastructure/registry/graph-agent-registry.js';
+import { GraphRegistrySearch } from '../infrastructure/registry/graph-registry-search.js';
 import { GraphSkillRegistry } from '../infrastructure/registry/graph-skill-registry.js';
 import { CreateAgentUseCase } from '../application/usecases/create-agent.js';
 import { ApiKeyUseCase } from '../application/usecases/api-keys.js';
@@ -43,6 +44,7 @@ import { RevokePublicKeyUseCase } from '../application/usecases/revoke-public-ke
 import { CreateSkillUseCase } from '../application/usecases/create-skill.js';
 import { GetSkillUseCase } from '../application/usecases/get-skill.js';
 import { ListSkillsUseCase } from '../application/usecases/list-skills.js';
+import { SearchRegistryUseCase } from '../application/usecases/search-registry.js';
 import { ReadGraphSubgraphUseCase } from '../application/usecases/read-graph-subgraph.js';
 import { AdvisoriesUseCase } from '../application/usecases/advisories.js';
 import { SkillLifecycleUseCase } from '../application/usecases/skill-lifecycle.js';
@@ -185,6 +187,7 @@ export function buildAppDependencies(env: Env) {
     listSkills: new ListSkillsUseCase(skillRegistry),
     getSkill: new GetSkillUseCase(skillRegistry),
     createSkill: new CreateSkillUseCase(skillRegistry),
+    search: new SearchRegistryUseCase(new GraphRegistrySearch(registryCore.service)),
     readGraphSubgraph: new ReadGraphSubgraphUseCase(registryCore.graph),
     skillLifecycle: new SkillLifecycleUseCase(registryCore.service),
     timeAwareRegistry: new TimeAwareRegistryUseCase(timeAwareCore.service),

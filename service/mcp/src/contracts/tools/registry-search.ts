@@ -8,10 +8,25 @@ export const RegistrySearchTrustSchema = z.object({
   recency_component: z.number(),
 });
 
+export const RegistrySearchMatchSchema = z.object({
+  mode: z.enum(['keyword', 'semantic']),
+  score: z.number(),
+  matched_claims: z.array(z.string()),
+  matched_terms: z.array(z.string()),
+  phrase_match: z.boolean(),
+});
+
 export const RegistrySearchInputSchema = z.object({
   query: z.string().min(1).max(200),
   type: z.enum(['skill', 'agent', 'all']).default('all'),
   limit: z.number().int().positive().max(50).optional(),
+  /**
+   * `keyword` (default) matches substrings over key/name/description/source.
+   * `semantic` scores deterministic token and capability-claim coverage
+   * (ontology concept ids) and exposes match components — relevance first,
+   * trust score as the tie-breaker.
+   */
+  mode: z.enum(['keyword', 'semantic']).default('keyword'),
   /**
    * `trust` (default) orders matches by the deterministic trust score —
    * certification tier dominates, then publication recency, ties break on
@@ -34,6 +49,8 @@ export const RegistrySearchOutputSchema = z.object({
       certification_status: z.string().optional(),
       /** Present when `sort=trust` (the default). */
       trust: RegistrySearchTrustSchema.optional(),
+      /** Present when `sort=trust` (the default). */
+      match: RegistrySearchMatchSchema.optional(),
     }),
   ),
   agents: z.array(
@@ -46,6 +63,8 @@ export const RegistrySearchOutputSchema = z.object({
       source_path: z.string().optional(),
       /** Present when `sort=trust` (the default). */
       trust: RegistrySearchTrustSchema.optional(),
+      /** Present when `sort=trust` (the default). */
+      match: RegistrySearchMatchSchema.optional(),
     }),
   ),
 });
@@ -53,3 +72,4 @@ export const RegistrySearchOutputSchema = z.object({
 export type RegistrySearchInput = z.infer<typeof RegistrySearchInputSchema>;
 export type RegistrySearchOutput = z.infer<typeof RegistrySearchOutputSchema>;
 export type RegistrySearchTrust = z.infer<typeof RegistrySearchTrustSchema>;
+export type RegistrySearchMatch = z.infer<typeof RegistrySearchMatchSchema>;

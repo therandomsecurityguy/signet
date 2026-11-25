@@ -452,6 +452,34 @@ codeVerifier,
   });
 
   app.get('/agents', async (c) => {
+    const session = await readOperatorSession(c, deps);
+    const query = (c.req.query('q') ?? '').trim();
+    const mode = c.req.query('mode') === 'keyword' ? ('keyword' as const) : ('semantic' as const);
+    if (query.length > 0) {
+      try {
+        const result = await deps.registryApi.searchRegistry({ query, type: 'agent', mode, limit: PAGE_SIZE });
+        return c.html(
+          renderAgents({
+            agents: result.agents,
+            statusByKey: await agentStatusMap(deps.registryApi, result.agents),
+            matchByKey: Object.fromEntries(result.agents.map((agent) => [agent.agent_key, agent.match])),
+            search: { query, mode, resultCount: result.agents.length },
+            page: buildPageChrome(deps.env, c.req.path, c.req.query(), session),
+          }),
+        );
+      } catch (err) {
+        const mapped = mapRegistryApiError(err);
+        return c.html(
+          renderAgents({
+            agents: [],
+            search: { query, mode, error: mapped.message },
+            page: buildPageChrome(deps.env, c.req.path, c.req.query(), session),
+          }),
+          mapped.status,
+        );
+      }
+    }
+
     const page = parsePageParam(c.req.query('page'));
     const offset = (page - 1) * PAGE_SIZE;
     const body = await deps.registryApi.listAgents({ limit: PAGE_SIZE, offset, sort: 'trust' });
@@ -568,6 +596,34 @@ const session = await readOperatorSession(c, deps);
   });
 
   app.get('/skills', async (c) => {
+    const session = await readOperatorSession(c, deps);
+    const query = (c.req.query('q') ?? '').trim();
+    const mode = c.req.query('mode') === 'keyword' ? ('keyword' as const) : ('semantic' as const);
+    if (query.length > 0) {
+      try {
+        const result = await deps.registryApi.searchRegistry({ query, type: 'skill', mode, limit: PAGE_SIZE });
+        return c.html(
+          renderSkills({
+            skills: result.skills,
+            statusByKey: await skillStatusMap(deps.registryApi, result.skills),
+            matchByKey: Object.fromEntries(result.skills.map((skill) => [skill.skill_key, skill.match])),
+            search: { query, mode, resultCount: result.skills.length },
+            page: buildPageChrome(deps.env, c.req.path, c.req.query(), session),
+          }),
+        );
+      } catch (err) {
+        const mapped = mapRegistryApiError(err);
+        return c.html(
+          renderSkills({
+            skills: [],
+            search: { query, mode, error: mapped.message },
+            page: buildPageChrome(deps.env, c.req.path, c.req.query(), session),
+          }),
+          mapped.status,
+        );
+      }
+    }
+
     const page = parsePageParam(c.req.query('page'));
     const offset = (page - 1) * PAGE_SIZE;
     const body = await deps.registryApi.listSkills({ limit: PAGE_SIZE, offset, sort: 'trust' });

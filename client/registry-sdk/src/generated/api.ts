@@ -6092,6 +6092,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    query: string;
+                    type?: "skill" | "agent" | "all";
+                    mode?: "keyword" | "semantic";
+                    sort?: "default" | "trust";
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Search the registry */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            query: string;
+                            /** @enum {string} */
+                            mode: "keyword" | "semantic";
+                            skills: {
+                                skill_urn: string;
+                                skill_key: string;
+                                display_name?: string;
+                                description?: string;
+                                source_path?: string;
+                                trust: {
+                                    score: number;
+                                    lifecycle_status: string;
+                                    tier_weight: number;
+                                    recency_days: number | null;
+                                    recency_component: number;
+                                };
+                                match: {
+                                    /** @enum {string} */
+                                    mode: "keyword" | "semantic";
+                                    score: number;
+                                    matched_claims: string[];
+                                    matched_terms: string[];
+                                    phrase_match: boolean;
+                                };
+                                active_version?: number;
+                            }[];
+                            agents: {
+                                agent_urn: string;
+                                agent_key: string;
+                                harness_name?: string;
+                                display_name?: string;
+                                description?: string;
+                                source_path?: string;
+                                trust: {
+                                    score: number;
+                                    lifecycle_status: string;
+                                    tier_weight: number;
+                                    recency_days: number | null;
+                                    recency_component: number;
+                                };
+                                match: {
+                                    /** @enum {string} */
+                                    mode: "keyword" | "semantic";
+                                    score: number;
+                                    matched_claims: string[];
+                                    matched_terms: string[];
+                                    phrase_match: boolean;
+                                };
+                            }[];
+                        };
+                    };
+                };
+                /** @description Invalid query parameters */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/skills/{skillKey}/versions": {
         parameters: {
             query?: never;

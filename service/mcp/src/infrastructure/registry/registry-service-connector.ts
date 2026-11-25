@@ -220,71 +220,45 @@ export class RegistryServiceConnector implements RegistryConnector {
   }
 
   async search(input: RegistrySearchInput, _ctx: ExecutionContext): Promise<RegistrySearchOutput> {
-    const needle = input.query.toLowerCase();
-    const limit = input.limit ?? 20;
-    const sort = input.sort ?? 'trust';
-    const wantSkills = input.type === 'skill' || input.type === 'all';
-    const wantAgents = input.type === 'agent' || input.type === 'all';
+    // Search semantics (keyword/semantic modes, trust ranking, match
+    // components) live in the registry core; this connector only applies
+    // the read gates and projects to the MCP contract.
+    const result = await this.service.searchRegistry({
+      query: input.query,
+      type: input.type,
+      mode: input.mode,
+      ...(input.sort ? { sort: input.sort } : {}),
+      ...(input.limit !== undefined ? { limit: input.limit } : {}),
+    });
 
     const skills: RegistrySearchOutput['skills'] = [];
-    const agents: RegistrySearchOutput['agents'] = [];
-
-    if (wantSkills) {
-      const result = await this.service.listSkills({
-        limit: 200,
-        ...(sort === 'trust' ? { sort: 'trust' as const } : {}),
+    for (const skill of result.skills) {
+      if (this.readGate.enabled && !(await this.skillReadable(skill.skill_urn))) continue;
+      skills.push({
+        skill_urn: skill.skill_urn,
+        skill_key: skill.skill_key,
+        ...(skill.display_name ? { display_name: skill.display_name } : {}),
+        ...(skill.description ? { description: skill.description } : {}),
+        ...(skill.source_path ? { source_path: skill.source_path } : {}),
+        ...(skill.active_version ? { active_version: skill.active_version } : {}),
+        trust: skill.trust,
+        match: skill.match,
       });
-      for (const skill of result.skills) {
-        if (skills.length >= limit) break;
-        const key = skill.skill_key;
-        const displayName = skill.display_name;
-        const description = skill.description;
-        const sourcePath = skill.source_path;
-        const haystack = [skill.skill_urn, key, displayName, description, sourcePath]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        if (!haystack.includes(needle)) continue;
-        if (this.readGate.enabled && !(await this.skillReadable(skill.skill_urn))) continue;
-        skills.push({
-          skill_urn: skill.skill_urn,
-          skill_key: key,
-          ...(displayName ? { display_name: displayName } : {}),
-          ...(description ? { description } : {}),
-          ...(sourcePath ? { source_path: sourcePath } : {}),
-          ...(skill.trust ? { trust: skill.trust } : {}),
-        });
-      }
     }
 
-    if (wantAgents) {
-      const result = await this.service.listAgents({
-        limit: 200,
-        ...(sort === 'trust' ? { sort: 'trust' as const } : {}),
+    const agents: RegistrySearchOutput['agents'] = [];
+    for (const agent of result.agents) {
+      if (this.readGate.enabled && !(await this.agentReadable(agent.agent_urn))) continue;
+      agents.push({
+        agent_urn: agent.agent_urn,
+        agent_key: agent.agent_key,
+        ...(agent.harness_name ? { harness_name: agent.harness_name } : {}),
+        ...(agent.display_name ? { display_name: agent.display_name } : {}),
+        ...(agent.description ? { description: agent.description } : {}),
+        ...(agent.source_path ? { source_path: agent.source_path } : {}),
+        trust: agent.trust,
+        match: agent.match,
       });
-      for (const agent of result.agents) {
-        if (agents.length >= limit) break;
-        const key = agent.agent_key;
-        const harnessName = agent.harness_name;
-        const displayName = agent.display_name;
-        const description = agent.description;
-        const sourcePath = agent.source_path;
-        const haystack = [agent.agent_urn, key, harnessName, displayName, description, sourcePath]
-          .filter(Boolean)
-          .join(' ')
-          .toLowerCase();
-        if (!haystack.includes(needle)) continue;
-        if (this.readGate.enabled && !(await this.agentReadable(agent.agent_urn))) continue;
-        agents.push({
-          agent_urn: agent.agent_urn,
-          agent_key: key,
-          ...(harnessName ? { harness_name: harnessName } : {}),
-          ...(displayName ? { display_name: displayName } : {}),
-          ...(description ? { description } : {}),
-          ...(sourcePath ? { source_path: sourcePath } : {}),
-          ...(agent.trust ? { trust: agent.trust } : {}),
-        });
-      }
     }
 
     return { query: input.query, skills, agents };

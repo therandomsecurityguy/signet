@@ -13796,6 +13796,327 @@
         }
       }
     },
+    "/v1/search": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "required": true,
+            "name": "query",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "skill",
+                "agent",
+                "all"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "keyword",
+                "semantic"
+              ],
+              "default": "keyword"
+            },
+            "required": false,
+            "name": "mode",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "default",
+                "trust"
+              ],
+              "default": "trust"
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMinimum": true,
+              "maximum": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search the registry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "query": {
+                      "type": "string"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "keyword",
+                        "semantic"
+                      ]
+                    },
+                    "skills": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "skill_urn": {
+                            "type": "string"
+                          },
+                          "skill_key": {
+                            "type": "string"
+                          },
+                          "display_name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "source_path": {
+                            "type": "string"
+                          },
+                          "trust": {
+                            "type": "object",
+                            "properties": {
+                              "score": {
+                                "type": "number"
+                              },
+                              "lifecycle_status": {
+                                "type": "string"
+                              },
+                              "tier_weight": {
+                                "type": "number"
+                              },
+                              "recency_days": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "recency_component": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "score",
+                              "lifecycle_status",
+                              "tier_weight",
+                              "recency_days",
+                              "recency_component"
+                            ]
+                          },
+                          "match": {
+                            "type": "object",
+                            "properties": {
+                              "mode": {
+                                "type": "string",
+                                "enum": [
+                                  "keyword",
+                                  "semantic"
+                                ]
+                              },
+                              "score": {
+                                "type": "number"
+                              },
+                              "matched_claims": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "matched_terms": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "phrase_match": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "mode",
+                              "score",
+                              "matched_claims",
+                              "matched_terms",
+                              "phrase_match"
+                            ]
+                          },
+                          "active_version": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "skill_urn",
+                          "skill_key",
+                          "trust",
+                          "match"
+                        ]
+                      }
+                    },
+                    "agents": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "agent_urn": {
+                            "type": "string"
+                          },
+                          "agent_key": {
+                            "type": "string"
+                          },
+                          "harness_name": {
+                            "type": "string"
+                          },
+                          "display_name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "source_path": {
+                            "type": "string"
+                          },
+                          "trust": {
+                            "type": "object",
+                            "properties": {
+                              "score": {
+                                "type": "number"
+                              },
+                              "lifecycle_status": {
+                                "type": "string"
+                              },
+                              "tier_weight": {
+                                "type": "number"
+                              },
+                              "recency_days": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "recency_component": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "score",
+                              "lifecycle_status",
+                              "tier_weight",
+                              "recency_days",
+                              "recency_component"
+                            ]
+                          },
+                          "match": {
+                            "type": "object",
+                            "properties": {
+                              "mode": {
+                                "type": "string",
+                                "enum": [
+                                  "keyword",
+                                  "semantic"
+                                ]
+                              },
+                              "score": {
+                                "type": "number"
+                              },
+                              "matched_claims": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "matched_terms": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "phrase_match": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "mode",
+                              "score",
+                              "matched_claims",
+                              "matched_terms",
+                              "phrase_match"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "agent_urn",
+                          "agent_key",
+                          "trust",
+                          "match"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "query",
+                    "mode",
+                    "skills",
+                    "agents"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/skills/{skillKey}/versions": {
       "get": {
         "parameters": [
