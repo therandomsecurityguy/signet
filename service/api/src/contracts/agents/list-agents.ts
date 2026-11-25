@@ -6,6 +6,12 @@ export const ListAgentsInputSchema = z.object({
   harness_name: z.string().min(1).optional(),
   limit: z.coerce.number().int().positive().max(200).optional(),
   offset: z.coerce.number().int().nonnegative().max(10_000).optional(),
+  /**
+   * `trust` ranks the full set by the deterministic trust score
+   * (certification tier dominates, then recency) before paging and includes
+   * the score components on every summary.
+   */
+  sort: z.enum(['default', 'trust']).default('default'),
 });
 
 export const ListAgentsOutputSchema = z.object({

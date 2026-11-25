@@ -14,6 +14,7 @@ export class GraphAgentRegistry implements AgentRegistry {
       ...(input.harness_name ? { harness_name: input.harness_name } : {}),
       ...(typeof input.limit === 'number' ? { limit: input.limit } : {}),
       ...(typeof input.offset === 'number' ? { offset: input.offset } : {}),
+      ...(input.sort ? { sort: input.sort } : {}),
     });
   }
 

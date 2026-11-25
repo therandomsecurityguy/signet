@@ -595,6 +595,19 @@
             "required": false,
             "name": "offset",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "default",
+                "trust"
+              ],
+              "default": "default"
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
           }
         ],
         "responses": {
@@ -627,6 +640,34 @@
                           },
                           "source_path": {
                             "type": "string"
+                          },
+                          "trust": {
+                            "type": "object",
+                            "properties": {
+                              "score": {
+                                "type": "number"
+                              },
+                              "lifecycle_status": {
+                                "type": "string"
+                              },
+                              "tier_weight": {
+                                "type": "number"
+                              },
+                              "recency_days": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "recency_component": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "score",
+                              "lifecycle_status",
+                              "tier_weight",
+                              "recency_days",
+                              "recency_component"
+                            ]
                           }
                         },
                         "required": [
@@ -12984,6 +13025,19 @@
             "required": false,
             "name": "offset",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "default",
+                "trust"
+              ],
+              "default": "default"
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
           }
         ],
         "responses": {
@@ -13013,6 +13067,34 @@
                           },
                           "source_path": {
                             "type": "string"
+                          },
+                          "trust": {
+                            "type": "object",
+                            "properties": {
+                              "score": {
+                                "type": "number"
+                              },
+                              "lifecycle_status": {
+                                "type": "string"
+                              },
+                              "tier_weight": {
+                                "type": "number"
+                              },
+                              "recency_days": {
+                                "type": "number",
+                                "nullable": true
+                              },
+                              "recency_component": {
+                                "type": "number"
+                              }
+                            },
+                            "required": [
+                              "score",
+                              "lifecycle_status",
+                              "tier_weight",
+                              "recency_days",
+                              "recency_component"
+                            ]
                           }
                         },
                         "required": [

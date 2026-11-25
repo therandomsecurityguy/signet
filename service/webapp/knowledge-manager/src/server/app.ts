@@ -454,7 +454,7 @@ codeVerifier,
   app.get('/agents', async (c) => {
     const page = parsePageParam(c.req.query('page'));
     const offset = (page - 1) * PAGE_SIZE;
-    const body = await deps.registryApi.listAgents({ limit: PAGE_SIZE, offset });
+    const body = await deps.registryApi.listAgents({ limit: PAGE_SIZE, offset, sort: 'trust' });
     const statusByKey = await agentStatusMap(deps.registryApi, body.agents);
     return c.html(
       renderAgents({
@@ -570,7 +570,7 @@ const session = await readOperatorSession(c, deps);
   app.get('/skills', async (c) => {
     const page = parsePageParam(c.req.query('page'));
     const offset = (page - 1) * PAGE_SIZE;
-    const body = await deps.registryApi.listSkills({ limit: PAGE_SIZE, offset });
+    const body = await deps.registryApi.listSkills({ limit: PAGE_SIZE, offset, sort: 'trust' });
     const statusByKey = await skillStatusMap(deps.registryApi, body.skills);
     return c.html(
       renderSkills({

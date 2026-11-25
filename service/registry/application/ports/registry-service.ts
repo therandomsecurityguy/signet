@@ -413,6 +413,14 @@ export type CreateTransparencyGossipEventInput = {
   source_checkpoint_occurred_at?: string;
 };
 
+export type RegistryTrustScore = {
+  score: number;
+  lifecycle_status: string;
+  tier_weight: number;
+  recency_days: number | null;
+  recency_component: number;
+};
+
 export type RegistryAgentSummary = {
   agent_urn: string;
   agent_key: string;
@@ -420,6 +428,7 @@ export type RegistryAgentSummary = {
   display_name?: string;
   description?: string;
   source_path?: string;
+  trust?: RegistryTrustScore;
 };
 
 export type RegistryAgentDetails = {
@@ -448,6 +457,7 @@ export type RegistrySkillSummary = {
   display_name?: string;
   description?: string;
   source_path?: string;
+  trust?: RegistryTrustScore;
 };
 
 export type RegistrySkillDetails = {
@@ -1338,6 +1348,7 @@ export interface RegistryService {
     harness_name?: string;
     limit?: number;
     offset?: number;
+    sort?: 'default' | 'trust';
   }): Promise<{ agents: RegistryAgentSummary[] }>;
   getAgentByKey(input: { agent_key: string }): Promise<RegistryAgentDetails | null>;
   getAgentByUrn(input: { agent_urn: string }): Promise<RegistryAgentDetails | null>;
@@ -1369,7 +1380,7 @@ export interface RegistryService {
   revokeAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
   archiveAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
 
-  listSkills(input: { limit?: number; offset?: number }): Promise<{ skills: RegistrySkillSummary[] }>;
+  listSkills(input: { limit?: number; offset?: number; sort?: 'default' | 'trust' }): Promise<{ skills: RegistrySkillSummary[] }>;
   getSkillByKey(input: { skill_key: string }): Promise<RegistrySkillDetails | null>;
   getSkillByUrn(input: { skill_urn: string }): Promise<RegistrySkillDetails | null>;
   createSkill(input: CreateSkillInput): Promise<CreateResult<RegistrySkillDetails>>;

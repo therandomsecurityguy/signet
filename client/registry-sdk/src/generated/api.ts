@@ -297,6 +297,7 @@ export interface paths {
                     harness_name?: string;
                     limit?: number;
                     offset?: number | null;
+                    sort?: "default" | "trust";
                 };
                 header?: never;
                 path?: never;
@@ -318,6 +319,13 @@ export interface paths {
                                 display_name?: string;
                                 description?: string;
                                 source_path?: string;
+                                trust?: {
+                                    score: number;
+                                    lifecycle_status: string;
+                                    tier_weight: number;
+                                    recency_days: number | null;
+                                    recency_component: number;
+                                };
                             }[];
                         };
                     };
@@ -5778,6 +5786,7 @@ export interface paths {
                 query?: {
                     limit?: number;
                     offset?: number | null;
+                    sort?: "default" | "trust";
                 };
                 header?: never;
                 path?: never;
@@ -5798,6 +5807,13 @@ export interface paths {
                                 display_name?: string;
                                 description?: string;
                                 source_path?: string;
+                                trust?: {
+                                    score: number;
+                                    lifecycle_status: string;
+                                    tier_weight: number;
+                                    recency_days: number | null;
+                                    recency_component: number;
+                                };
                             }[];
                         };
                     };

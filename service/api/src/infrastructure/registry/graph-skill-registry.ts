@@ -13,6 +13,7 @@ export class GraphSkillRegistry implements SkillRegistry {
     return await this.service.listSkills({
       ...(typeof input.limit === 'number' ? { limit: input.limit } : {}),
       ...(typeof input.offset === 'number' ? { offset: input.offset } : {}),
+      ...(input.sort ? { sort: input.sort } : {}),
     });
   }
 

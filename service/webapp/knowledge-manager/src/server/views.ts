@@ -8,6 +8,7 @@ import type {
   SkillLifecycleOperationResult,
   SkillSummary,
   SkillVersionDetails,
+  TrustScore,
 } from './clients/registry-api.js';
 import type { SemanticTurkeyProjectsView } from './clients/semantic-turkey.js';
 
@@ -131,11 +132,12 @@ export function renderAgents(input: {
 }) {
   const status = input.statusByKey ?? {};
   const hasStatus = Object.keys(status).length > 0;
-  const headers = ['Agent Key', 'Harness', ...(hasStatus ? ['Status'] : []), 'Source Path', 'Graph'];
+  const headers = ['Agent Key', 'Harness', ...(hasStatus ? ['Status'] : []), 'Trust', 'Source Path', 'Graph'];
   const rows = input.agents.map((agent) => [
     `<a href="/agents/${encodeURIComponent(agent.agent_key)}">${escapeHtml(agent.agent_key)}</a>`,
     escapeHtml(agent.harness_name ?? ''),
     ...(hasStatus ? [renderStateBadge(status[agent.agent_key])] : []),
+    renderTrustCell(agent.trust),
     escapeHtml(agent.source_path ?? ''),
     `<a href="/graph?root_urn=${encodeURIComponent(agent.agent_urn)}&depth=3">View graph</a>`,
   ]);
@@ -283,11 +285,12 @@ export function renderSkills(input: {
 }) {
   const status = input.statusByKey ?? {};
   const hasStatus = Object.keys(status).length > 0;
-  const headers = ['Skill Key', 'Display Name', ...(hasStatus ? ['Status'] : []), 'Source Path', 'Graph'];
+  const headers = ['Skill Key', 'Display Name', ...(hasStatus ? ['Status'] : []), 'Trust', 'Source Path', 'Graph'];
   const rows = input.skills.map((skill) => [
     `<a href="/skills/${encodeURIComponent(skill.skill_key)}">${escapeHtml(skill.skill_key)}</a>`,
     escapeHtml(skill.display_name ?? ''),
     ...(hasStatus ? [renderStateBadge(status[skill.skill_key])] : []),
+    renderTrustCell(skill.trust),
     escapeHtml(skill.source_path ?? ''),
     `<a href="/graph?root_urn=${encodeURIComponent(skill.skill_urn)}&depth=3">View graph</a>`,
   ]);
@@ -1436,6 +1439,22 @@ function renderStateBadge(state: string | undefined) {
   const key = String(state).toLowerCase().replace(/[^a-z_]/g, '');
   const label = key === 'none' ? 'no active version' : String(state);
   return `<span class="state-badge ${escapeHtml(key)}">${escapeHtml(label)}</span>`;
+}
+
+// Compact trust-rank indicator: the score with the components (tier,
+// lifecycle status, recency) exposed in the tooltip — never a black box.
+function renderTrustCell(trust: TrustScore | undefined) {
+  if (!trust) {
+    return '<span class="muted">—</span>';
+  }
+  const parts = [`tier ${trust.tier_weight} (${trust.lifecycle_status})`];
+  if (trust.recency_days !== null) {
+    parts.push(`${trust.recency_days}d since certification/publication`);
+  } else {
+    parts.push('no certification/publication timestamp');
+  }
+  parts.push(`score ${trust.score}`);
+  return `<span class="chip" title="${escapeHtml(parts.join(' · '))}">${escapeHtml(trust.score.toFixed(1))}</span>`;
 }
 
 function renderTable(headers: string[], rows: string[][], emptyAction = '', tableId = '') {

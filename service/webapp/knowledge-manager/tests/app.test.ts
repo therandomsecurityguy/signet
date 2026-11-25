@@ -959,6 +959,47 @@ describe('knowledge-manager app', () => {
     expect(text).toContain(`canonical ${provenanceDigest.slice(0, 12)}`);
   });
 
+  it('requests trust-ranked agent lists and renders the trust indicator', async () => {
+    const listCalls: Array<Record<string, unknown>> = [];
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        listAgents: async (opts) => {
+          listCalls.push({ ...opts });
+          return {
+            agents: [
+              {
+                agent_urn: 'urn:sg:agent:cursor:ranked',
+                agent_key: 'cursor:ranked',
+                harness_name: 'cursor',
+                trust: {
+                  score: 20.5,
+                  lifecycle_status: 'published',
+                  tier_weight: 2,
+                  recency_days: 3,
+                  recency_component: 0.9833,
+                },
+              },
+              { agent_urn: 'urn:sg:agent:cursor:bare', agent_key: 'cursor:bare' },
+            ],
+          };
+        },
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const res = await app.request('/agents');
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain('Trust');
+    expect(text).toContain('20.5');
+    expect(text).toContain('tier 2 (published)');
+    expect(listCalls[0]?.sort).toBe('trust');
+  });
+
   it('exposes ontology project JSON and html views', async () => {
     const app = buildApp({
       env,

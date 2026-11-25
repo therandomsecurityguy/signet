@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { TrustScoreSchema } from '../trust.js';
+
 export const AgentSummarySchema = z.object({
   agent_urn: z.string(),
   agent_key: z.string(),
@@ -7,6 +9,8 @@ export const AgentSummarySchema = z.object({
   display_name: z.string().optional(),
   description: z.string().optional(),
   source_path: z.string().optional(),
+  /** Present when the list is requested with `sort=trust`. */
+  trust: TrustScoreSchema.optional(),
 });
 
 export const AgentVersionDetailsSchema = z.object({

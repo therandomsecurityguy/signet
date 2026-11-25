@@ -1,11 +1,15 @@
 import { z } from 'zod';
 
+import { TrustScoreSchema } from '../trust.js';
+
 export const SkillSummarySchema = z.object({
   skill_urn: z.string(),
   skill_key: z.string(),
   display_name: z.string().optional(),
   description: z.string().optional(),
   source_path: z.string().optional(),
+  /** Present when the list is requested with `sort=trust`. */
+  trust: TrustScoreSchema.optional(),
 });
 
 export const SkillVersionDetailsSchema = z.object({
