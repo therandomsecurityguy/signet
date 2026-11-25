@@ -482,12 +482,19 @@ codeVerifier,
 
     const page = parsePageParam(c.req.query('page'));
     const offset = (page - 1) * PAGE_SIZE;
-    const body = await deps.registryApi.listAgents({ limit: PAGE_SIZE, offset, sort: 'trust' });
+    const tag = (c.req.query('tag') ?? '').trim();
+    const body = await deps.registryApi.listAgents({
+      limit: PAGE_SIZE,
+      offset,
+      sort: 'trust',
+      ...(tag ? { tag } : {}),
+    });
     const statusByKey = await agentStatusMap(deps.registryApi, body.agents);
     return c.html(
       renderAgents({
         ...body,
         statusByKey,
+        ...(tag ? { tagFilter: tag } : {}),
         paging: { page, pageSize: PAGE_SIZE, hasNext: body.agents.length === PAGE_SIZE, basePath: '/agents' },
         page: buildPageChrome(deps.env, c.req.path, c.req.query(), await readOperatorSession(c, deps)),
       }),
@@ -595,6 +602,30 @@ const session = await readOperatorSession(c, deps);
     }
   });
 
+  app.post('/agents/:agentKey/tags', async (c) => {
+    const agentKey = c.req.param('agentKey');
+    const values = await readFormValues(c);
+    const session = await readOperatorSession(c, deps);
+    const tags = (values.tags ?? '')
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    const back = `/agents/${encodeURIComponent(agentKey)}`;
+    if (!session) {
+      return c.redirect(withSessionMessage(back, { sessionError: 'Sign in with an API bearer token first.' }), 303);
+    }
+    if (!isAdminSession(session, deps.env)) {
+      return c.redirect(withSessionMessage(back, { sessionError: 'Admin access is required to update tags.' }), 303);
+    }
+    try {
+      await deps.registryApi.setAgentTags(agentKey, tags, session.apiToken);
+      return c.redirect(withSessionMessage(back, { sessionFlash: 'Tags updated.' }), 303);
+    } catch (err) {
+      const mapped = mapRegistryApiError(err);
+      return c.redirect(withSessionMessage(back, { sessionError: mapped.message }), 303);
+    }
+  });
+
   app.get('/skills', async (c) => {
     const session = await readOperatorSession(c, deps);
     const query = (c.req.query('q') ?? '').trim();
@@ -626,12 +657,19 @@ const session = await readOperatorSession(c, deps);
 
     const page = parsePageParam(c.req.query('page'));
     const offset = (page - 1) * PAGE_SIZE;
-    const body = await deps.registryApi.listSkills({ limit: PAGE_SIZE, offset, sort: 'trust' });
+    const tag = (c.req.query('tag') ?? '').trim();
+    const body = await deps.registryApi.listSkills({
+      limit: PAGE_SIZE,
+      offset,
+      sort: 'trust',
+      ...(tag ? { tag } : {}),
+    });
     const statusByKey = await skillStatusMap(deps.registryApi, body.skills);
     return c.html(
       renderSkills({
         ...body,
         statusByKey,
+        ...(tag ? { tagFilter: tag } : {}),
         paging: { page, pageSize: PAGE_SIZE, hasNext: body.skills.length === PAGE_SIZE, basePath: '/skills' },
         page: buildPageChrome(deps.env, c.req.path, c.req.query(), await readOperatorSession(c, deps)),
       }),
@@ -727,6 +765,30 @@ const session = await readOperatorSession(c, deps);
     } catch (err) {
       const mapped = mapRegistryApiError(err);
       return c.html(renderSimpleErrorPage('Skill not available', mapped.message), mapped.status);
+    }
+  });
+
+  app.post('/skills/:skillKey/tags', async (c) => {
+    const skillKey = c.req.param('skillKey');
+    const values = await readFormValues(c);
+    const session = await readOperatorSession(c, deps);
+    const tags = (values.tags ?? '')
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    const back = `/skills/${encodeURIComponent(skillKey)}`;
+    if (!session) {
+      return c.redirect(withSessionMessage(back, { sessionError: 'Sign in with an API bearer token first.' }), 303);
+    }
+    if (!isAdminSession(session, deps.env)) {
+      return c.redirect(withSessionMessage(back, { sessionError: 'Admin access is required to update tags.' }), 303);
+    }
+    try {
+      await deps.registryApi.setSkillTags(skillKey, tags, session.apiToken);
+      return c.redirect(withSessionMessage(back, { sessionFlash: 'Tags updated.' }), 303);
+    } catch (err) {
+      const mapped = mapRegistryApiError(err);
+      return c.redirect(withSessionMessage(back, { sessionError: mapped.message }), 303);
     }
   });
 

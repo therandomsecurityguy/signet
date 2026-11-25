@@ -1810,12 +1810,28 @@ export class DefaultRegistryService implements RegistryService {
     limit?: number;
     offset?: number;
     sort?: 'default' | 'trust';
+    tag?: string;
   }): Promise<{ agents: import('../ports/registry-service.js').RegistryAgentSummary[] }> {
     if ((input.sort ?? 'default') === 'trust') {
       const ranked = await this.rankedAgentCandidates(input.harness_name);
+      const tag = input.tag;
+      const filtered = tag ? ranked.filter((candidate) => hasTag(candidate.summary.tags, tag)) : ranked;
       const offset = input.offset ?? 0;
-      const limit = input.limit ?? ranked.length;
-      return { agents: ranked.slice(offset, offset + limit).map((candidate) => candidate.summary) };
+      const limit = input.limit ?? filtered.length;
+      return { agents: filtered.slice(offset, offset + limit).map((candidate) => candidate.summary) };
+    }
+
+    if (input.tag) {
+      // Tag filtering pages after matching, not before.
+      const tag = input.tag;
+      const allNodes = await this.deps.graph.listNodesByType('AGENT');
+      const harnessFiltered = input.harness_name
+        ? allNodes.filter((node) => node.properties['harness_name'] === input.harness_name)
+        : allNodes;
+      const matched = harnessFiltered.filter((node) => hasTag(stringArrayField(node.properties, 'tags'), tag));
+      const offset = input.offset ?? 0;
+      const limit = input.limit ?? matched.length;
+      return { agents: matched.slice(offset, offset + limit).map((node) => summarizeAgentNode(node)) };
     }
 
     const nodes = await this.deps.graph.listNodesByType('AGENT', {
@@ -2162,14 +2178,26 @@ export class DefaultRegistryService implements RegistryService {
     return { value: created, created: true };
   }
 
-  async listSkills(input: { limit?: number; offset?: number; sort?: 'default' | 'trust' }): Promise<{ skills: import('../ports/registry-service.js').RegistrySkillSummary[] }> {
+  async listSkills(input: { limit?: number; offset?: number; sort?: 'default' | 'trust'; tag?: string }): Promise<{ skills: import('../ports/registry-service.js').RegistrySkillSummary[] }> {
     if ((input.sort ?? 'default') === 'trust') {
       // Trust ranking needs the global order before paging: rank all skills,
       // then slice.
       const ranked = await this.rankedSkillCandidates();
+      const tag = input.tag;
+      const filtered = tag ? ranked.filter((candidate) => hasTag(candidate.summary.tags, tag)) : ranked;
       const offset = input.offset ?? 0;
-      const limit = input.limit ?? ranked.length;
-      return { skills: ranked.slice(offset, offset + limit).map((candidate) => candidate.summary) };
+      const limit = input.limit ?? filtered.length;
+      return { skills: filtered.slice(offset, offset + limit).map((candidate) => candidate.summary) };
+    }
+
+    if (input.tag) {
+      // Tag filtering pages after matching, not before.
+      const tag = input.tag;
+      const allNodes = await this.deps.graph.listNodesByType('SKILL');
+      const matched = allNodes.filter((node) => hasTag(stringArrayField(node.properties, 'tags'), tag));
+      const offset = input.offset ?? 0;
+      const limit = input.limit ?? matched.length;
+      return { skills: matched.slice(offset, offset + limit).map((node) => summarizeSkillNode(node)) };
     }
 
     const nodes = await this.deps.graph.listNodesByType('SKILL', {
@@ -2177,6 +2205,25 @@ export class DefaultRegistryService implements RegistryService {
       ...(typeof input.offset === 'number' ? { offset: input.offset } : {}),
     });
     return { skills: nodes.map((node) => summarizeSkillNode(node)) };
+  }
+
+  async updateTags(input: {
+    entity_type: 'SKILL' | 'AGENT';
+    logical_key: string;
+    tags: string[];
+  }): Promise<{ tags: string[] }> {
+    const tags = normalizeTags(input.tags);
+    const urn = input.entity_type === 'SKILL' ? skillUrn(input.logical_key) : agentUrn(input.logical_key);
+    const node = await this.deps.graph.getNode(urn);
+    if (!node) {
+      throw new RegistryCoreError(`${input.entity_type}_NOT_FOUND`, `${input.entity_type} not found.`);
+    }
+    await this.deps.graph.upsertNode({
+      urn,
+      entity_type: input.entity_type,
+      properties: { ...node.properties, tags },
+    });
+    return { tags };
   }
 
   async searchRegistry(input: {
@@ -2204,6 +2251,7 @@ export class DefaultRegistryService implements RegistryService {
                 candidate.summary.display_name,
                 candidate.summary.description,
                 candidate.summary.source_path,
+                candidate.summary.tags?.join(' '),
               ])
             : scoreSemanticMatch(input.query, {
                 logical_key: candidate.summary.skill_key,
@@ -2211,6 +2259,7 @@ export class DefaultRegistryService implements RegistryService {
                 ...(candidate.summary.description ? { description: candidate.summary.description } : {}),
                 ...(candidate.summary.source_path ? { source_path: candidate.summary.source_path } : {}),
                 capability_claims: stringArrayField(candidate.versionProperties, 'capability_claims'),
+                ...(candidate.summary.tags?.length ? { extra_terms: candidate.summary.tags } : {}),
                 ...interfacesFromProperties(candidate.versionProperties),
                 ...(stringArrayField(candidate.versionProperties, 'constraints').length > 0
                   ? { constraints: stringArrayField(candidate.versionProperties, 'constraints') }
@@ -2247,6 +2296,7 @@ export class DefaultRegistryService implements RegistryService {
                 candidate.summary.display_name,
                 candidate.summary.description,
                 candidate.summary.source_path,
+                candidate.summary.tags?.join(' '),
               ])
             : scoreSemanticMatch(input.query, {
                 logical_key: candidate.summary.agent_key,
@@ -2254,7 +2304,14 @@ export class DefaultRegistryService implements RegistryService {
                 ...(candidate.summary.description ? { description: candidate.summary.description } : {}),
                 ...(candidate.summary.source_path ? { source_path: candidate.summary.source_path } : {}),
                 capability_claims: [],
-                ...(candidate.summary.harness_name ? { extra_terms: [candidate.summary.harness_name] } : {}),
+                ...(candidate.summary.harness_name || candidate.summary.tags?.length
+                  ? {
+                      extra_terms: [
+                        ...(candidate.summary.harness_name ? [candidate.summary.harness_name] : []),
+                        ...(candidate.summary.tags ?? []),
+                      ],
+                    }
+                  : {}),
               });
         if (match.score <= 0) continue;
         agents.push({ ...candidate.summary, match: { ...match, mode: input.mode } });
@@ -9800,6 +9857,44 @@ function parseHarnessName(harnessUrnValue: string): string | undefined {
   }
 }
 
+const TAG_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/;
+const MAX_TAGS = 20;
+const MAX_TAG_LENGTH = 40;
+
+/**
+ * Operator-curated tags are free-form but normalized: trimmed, empty
+ * dropped, case-insensitively deduped (first spelling wins), charset- and
+ * count-limited, and sorted for deterministic display. Not a taxonomy.
+ */
+function normalizeTags(tags: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of tags) {
+    const tag = raw.trim();
+    if (tag.length === 0) continue;
+    if (tag.length > MAX_TAG_LENGTH || !TAG_PATTERN.test(tag)) {
+      throw new RegistryCoreError(
+        'TAG_INVALID',
+        `Invalid tag "${tag}": use letters, digits, and . _ : - (max ${MAX_TAG_LENGTH} characters).`,
+      );
+    }
+    const key = tag.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(tag);
+  }
+  if (out.length > MAX_TAGS) {
+    throw new RegistryCoreError('TAG_LIMIT_EXCEEDED', `Too many tags: ${out.length} (max ${MAX_TAGS}).`);
+  }
+  out.sort((left, right) => compareLogicalKeys(left.toLowerCase(), right.toLowerCase()));
+  return out;
+}
+
+function hasTag(tags: string[] | undefined, tag: string): boolean {
+  const needle = tag.trim().toLowerCase();
+  return (tags ?? []).some((entry) => entry.toLowerCase() === needle);
+}
+
 function trustInputFromProperties(
   hasActiveVersion: boolean,
   properties: Record<string, unknown>,
@@ -9857,6 +9952,7 @@ function summarizeSkillNode(node: {
   urn: string;
   properties: Record<string, unknown>;
 }): import('../ports/registry-service.js').RegistrySkillSummary {
+  const tags = stringArrayField(node.properties, 'tags');
   return {
     skill_urn: node.urn,
     skill_key: String(node.properties['skill_key'] ?? node.urn),
@@ -9869,6 +9965,7 @@ function summarizeSkillNode(node: {
     ...(typeof node.properties['source_path'] === 'string'
       ? { source_path: node.properties['source_path'] }
       : {}),
+    ...(tags.length > 0 ? { tags } : {}),
   };
 }
 
@@ -9876,6 +9973,7 @@ function summarizeAgentNode(node: {
   urn: string;
   properties: Record<string, unknown>;
 }): import('../ports/registry-service.js').RegistryAgentSummary {
+  const tags = stringArrayField(node.properties, 'tags');
   return {
     agent_urn: node.urn,
     agent_key: String(node.properties['agent_key'] ?? node.urn),
@@ -9891,6 +9989,7 @@ function summarizeAgentNode(node: {
     ...(typeof node.properties['source_path'] === 'string'
       ? { source_path: node.properties['source_path'] }
       : {}),
+    ...(tags.length > 0 ? { tags } : {}),
   };
 }
 

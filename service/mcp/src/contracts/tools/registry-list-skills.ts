@@ -11,6 +11,8 @@ export const RegistryListSkillsOutputSchema = z.object({
       skill_urn: z.string(),
       skill_key: z.string(),
       source_path: z.string().optional(),
+      /** Operator-curated tags (normalized: sorted, case-insensitively unique). */
+      tags: z.array(z.string()).optional(),
     }),
   ),
 });

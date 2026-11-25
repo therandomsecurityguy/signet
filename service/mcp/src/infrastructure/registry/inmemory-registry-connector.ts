@@ -120,6 +120,9 @@ export class InMemoryRegistryConnector implements RegistryConnector {
         ...(typeof n.properties['source_path'] === 'string'
           ? { source_path: n.properties['source_path'] as string }
           : {}),
+        ...(Array.isArray(n.properties['tags'])
+          ? { tags: (n.properties['tags'] as unknown[]).filter((tag): tag is string => typeof tag === 'string') }
+          : {}),
       })),
     };
   }
@@ -178,6 +181,9 @@ export class InMemoryRegistryConnector implements RegistryConnector {
         skill_key: String(n.properties['skill_key'] ?? n.urn),
         ...(typeof n.properties['source_path'] === 'string'
           ? { source_path: n.properties['source_path'] as string }
+          : {}),
+        ...(Array.isArray(n.properties['tags'])
+          ? { tags: (n.properties['tags'] as unknown[]).filter((tag): tag is string => typeof tag === 'string') }
           : {}),
       })),
     };
@@ -350,6 +356,7 @@ export class InMemoryRegistryConnector implements RegistryConnector {
         ...(skill.description ? { description: skill.description } : {}),
         ...(skill.source_path ? { source_path: skill.source_path } : {}),
         ...(skill.active_version ? { active_version: skill.active_version } : {}),
+        ...(skill.tags?.length ? { tags: skill.tags } : {}),
         trust: skill.trust,
         match: skill.match,
       })),
@@ -360,6 +367,7 @@ export class InMemoryRegistryConnector implements RegistryConnector {
         ...(agent.display_name ? { display_name: agent.display_name } : {}),
         ...(agent.description ? { description: agent.description } : {}),
         ...(agent.source_path ? { source_path: agent.source_path } : {}),
+        ...(agent.tags?.length ? { tags: agent.tags } : {}),
         trust: agent.trust,
         match: agent.match,
       })),

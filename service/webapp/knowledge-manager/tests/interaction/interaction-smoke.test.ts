@@ -186,6 +186,7 @@ function makeRegistryApiClient(): RegistryApiClient {
           agent_key: 'cursor:registry-agent',
           harness_name: 'cursor',
           display_name: 'Registry Demo Agent',
+          tags: ['platform'],
           trust: { score: 20.9, lifecycle_status: 'published', tier_weight: 2, recency_days: 1, recency_component: 0.9944 },
         },
         {
@@ -334,6 +335,8 @@ function makeRegistryApiClient(): RegistryApiClient {
             ],
       agents: [],
     }),
+    setSkillTags: async (_skillKey, tags) => ({ tags }),
+    setAgentTags: async (_agentKey, tags) => ({ tags }),
   };
 }
 
@@ -412,8 +415,11 @@ maybeDescribe('knowledge-manager interaction smoke (headless chromium)', { timeo
     expect(await securityRow.isVisible()).toBe(true);
 
     // Trust column: scored agents show the chip, unscored rows show a dash.
-    expect(await registryRow.locator('.chip').count()).toBe(1);
+    // Tagged rows also carry a tag chip linking into the tag filter.
+    expect(await registryRow.locator('.chip').count()).toBe(2);
     expect(((await registryRow.textContent()) ?? '')).toContain('20.9');
+    expect(((await registryRow.textContent()) ?? '')).toContain('platform');
+    expect(await registryRow.locator('a.chip').getAttribute('href')).toBe('/agents?tag=platform');
 
     await page.fill('#table-filter', 'security');
     await expect.poll(() => securityRow.isVisible()).toBe(true);

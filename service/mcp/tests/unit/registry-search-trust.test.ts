@@ -21,6 +21,7 @@ async function seedSkill(
     skill_key: string;
     description: string;
     capability_claims?: string[];
+    tags?: string[];
     active_version?: {
       lifecycle_status: string;
       certified?: boolean;
@@ -35,6 +36,7 @@ async function seedSkill(
     properties: {
       skill_key: input.skill_key,
       description: input.description,
+      ...(input.tags?.length ? { tags: input.tags } : {}),
       ...(input.active_version
         ? { active_version_urn: skillVersionUrn(input.skill_key, 1) }
         : {}),
@@ -66,6 +68,7 @@ describe('registry.search trust ranking (in-memory connector)', () => {
     await seedSkill(graph, {
       skill_key: 'skill:aaa-certified',
       description: 'shared term alpha',
+      tags: ['onboarding'],
       active_version: {
         lifecycle_status: 'published',
         certified: true,
@@ -101,6 +104,11 @@ describe('registry.search trust ranking (in-memory connector)', () => {
     expect(out.skills[1]?.trust).toMatchObject({ lifecycle_status: 'published', tier_weight: 2 });
     expect(out.skills[2]?.trust).toMatchObject({ lifecycle_status: 'none', tier_weight: 0, score: 0 });
     expect(out.skills[0]?.match).toMatchObject({ mode: 'keyword', score: 1 });
+
+    // Curated tags surface on list + search results.
+    const list = await connector.listSkills({}, ctx);
+    expect(list.skills.find((skill) => skill.skill_key === 'skill:aaa-certified')?.tags).toEqual(['onboarding']);
+    expect(out.skills[0]?.tags).toEqual(['onboarding']);
   });
 
   it('keeps natural scan order for keyword sort=default while still exposing trust', async () => {

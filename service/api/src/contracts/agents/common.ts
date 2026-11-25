@@ -9,6 +9,8 @@ export const AgentSummarySchema = z.object({
   display_name: z.string().optional(),
   description: z.string().optional(),
   source_path: z.string().optional(),
+  /** Operator-curated tags (normalized: sorted, case-insensitively unique). */
+  tags: z.array(z.string()).optional(),
   /** Present when the list is requested with `sort=trust`. */
   trust: TrustScoreSchema.optional(),
 });

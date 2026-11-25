@@ -452,6 +452,7 @@ export type RegistryAgentSummary = {
   display_name?: string;
   description?: string;
   source_path?: string;
+  tags?: string[];
   trust?: RegistryTrustScore;
 };
 
@@ -481,6 +482,7 @@ export type RegistrySkillSummary = {
   display_name?: string;
   description?: string;
   source_path?: string;
+  tags?: string[];
   trust?: RegistryTrustScore;
 };
 
@@ -1373,6 +1375,7 @@ export interface RegistryService {
     limit?: number;
     offset?: number;
     sort?: 'default' | 'trust';
+    tag?: string;
   }): Promise<{ agents: RegistryAgentSummary[] }>;
   getAgentByKey(input: { agent_key: string }): Promise<RegistryAgentDetails | null>;
   getAgentByUrn(input: { agent_urn: string }): Promise<RegistryAgentDetails | null>;
@@ -1404,7 +1407,17 @@ export interface RegistryService {
   revokeAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
   archiveAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
 
-  listSkills(input: { limit?: number; offset?: number; sort?: 'default' | 'trust' }): Promise<{ skills: RegistrySkillSummary[] }>;
+  listSkills(input: { limit?: number; offset?: number; sort?: 'default' | 'trust'; tag?: string }): Promise<{ skills: RegistrySkillSummary[] }>;
+  /**
+   * Operators curate free-form tags on the logical entity (not a taxonomy):
+   * normalized (trimmed, case-insensitively deduped, sorted, charset- and
+   * count-limited) and stored on the SKILL/AGENT node.
+   */
+  updateTags(input: {
+    entity_type: 'SKILL' | 'AGENT';
+    logical_key: string;
+    tags: string[];
+  }): Promise<{ tags: string[] }>;
   /**
    * Discovery search. `keyword` keeps the substring behavior over
    * key/name/description/source; `semantic` scores deterministic token and

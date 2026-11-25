@@ -28,6 +28,7 @@ import { registerAgentPublicationRoutes } from './routes/agent-publication.js';
 import { registerApiKeyRoutes } from './routes/api-keys.js';
 import { registerSkillRoutes } from './routes/skills.js';
 import { registerSearchRoutes } from './routes/search.js';
+import { registerTagRoutes } from './routes/tags.js';
 import { registerSkillLifecycleRoutes } from './routes/skill-lifecycle.js';
 import { registerTimeAwareRoutes } from './routes/time-aware.js';
 import { registerGraphRoutes } from './routes/graph.js';
@@ -231,6 +232,10 @@ export function buildApp(deps: AppDependencies) {
   });
   registerSearchRoutes(app, {
     search: deps.search,
+  });
+  registerTagRoutes(app, {
+    tags: deps.setTags,
+    audit: deps.audit,
   });
   registerSkillLifecycleRoutes(app, {
     lifecycle: deps.skillLifecycle,
