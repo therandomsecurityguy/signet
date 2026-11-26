@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process';
 import { z } from 'zod';
 
 import { buildKeylessBundle } from './keyless.js';
+import { DEFAULT_LOCK_FILE, parseLockTarget, readLockFile, serializeLockFile, upsertLockEntries, type LockEntry } from './lock.js';
 import { cfAccessHeaders, loadEnv, type Env } from './config/env.js';
 import {
   AgentCreatePlan,
@@ -55,10 +56,11 @@ type CliCommand =
     }
   | {
       group: 'verify';
-      action: 'api' | 'mcp' | 'okta-config' | 'browser-session' | 'publication' | 'artifact' | 'provenance' | 'report-signatures';
+      action: 'api' | 'mcp' | 'okta-config' | 'browser-session' | 'publication' | 'artifact' | 'provenance' | 'report-signatures' | 'lock';
       args: Record<string, string | boolean | string[] | undefined>;
     }
   | { group: 'bootstrap'; action: 'test'; args: Record<string, string | boolean | string[] | undefined> }
+  | { group: 'lock'; action: 'write'; args: Record<string, string | boolean | string[] | undefined> }
   | { group: 'sign'; action: 'keyless'; args: Record<string, string | boolean | string[] | undefined> };
 
 export type ResolveBootstrapOptions = {
@@ -103,7 +105,10 @@ export async function runCli(argv: string[]) {
   if (command.action === 'artifact') return await runVerifyArtifact(env, command.args);
   if (command.action === 'provenance') return await runVerifyProvenance(env, command.args);
   if (command.action === 'report-signatures') return await runVerifyReportSignatures(env, command.args);
+  if (command.action === 'lock') return await runVerifyLock(env, command.args);
       return await runVerifyBrowserSession(env, command.args);
+    case 'lock':
+      return await runLock(env, command.args);
     case 'bootstrap':
       return await runBootstrapTest(env, command.args);
     case 'sign':
@@ -112,10 +117,18 @@ export async function runCli(argv: string[]) {
 }
 
 export function parseArgs(argv: string[]): CliCommand {
-  const [group, action, ...rest] = argv;
-  if (!group || !action) {
+  const [group, maybeAction, ...rest] = argv;
+  if (!group) {
     throw new Error('Usage: registry-operator <group> <action> [--options]');
   }
+  // `lock` is a single-word command: every non-flag token is an option.
+  if (!maybeAction || maybeAction.startsWith('--')) {
+    if (group !== 'lock') {
+      throw new Error('Usage: registry-operator <group> <action> [--options]');
+    }
+    return { group: 'lock', action: 'write', args: parseOptions(argv.slice(1)) };
+  }
+  const action = maybeAction;
   const args = parseOptions(rest);
 
   if (group === 'local' && (action === 'up' || action === 'down' || action === 'reset')) {
@@ -127,7 +140,7 @@ export function parseArgs(argv: string[]): CliCommand {
   if (group === 'seed' && (action === 'skill' || action === 'agent' || action === 'bootstrap' || action === 'transparency-sample')) {
     return { group: 'seed', action, args };
   }
-  if (group === 'verify' && (action === 'api' || action === 'mcp' || action === 'okta-config' || action === 'browser-session' || action === 'publication' || action === 'artifact' || action === 'provenance' || action === 'report-signatures')) {
+  if (group === 'verify' && (action === 'api' || action === 'mcp' || action === 'okta-config' || action === 'browser-session' || action === 'publication' || action === 'artifact' || action === 'provenance' || action === 'report-signatures' || action === 'lock')) {
     return { group: 'verify', action, args };
   }
   if (group === 'bootstrap' && action === 'test') {
@@ -1050,6 +1063,256 @@ async function runVerifyReportSignatures(env: Env, args: Record<string, string |
   }
 }
 
+async function runLock(env: Env, args: Record<string, string | boolean | string[] | undefined>) {
+  const skillTargets = asStringArray(args.skill);
+  const agentTargets = asStringArray(args.agent);
+  if (skillTargets.length === 0 && agentTargets.length === 0) {
+    throw new Error(
+      'Usage: registry-operator lock (--skill <key>[@<version>] | --agent <key>[@<version>]) [--lock-file <path>] [--api-token <token>]',
+    );
+  }
+  const lockPath = path.resolve(asString(args['lock-file']) ?? DEFAULT_LOCK_FILE);
+  const apiToken = asString(args['api-token']);
+  const api = new HttpRegistryOperatorApiClient({ apiOrigin: env.API_ORIGIN, extraHeaders: cfAccessHeaders(env) });
+
+  const targets = [
+    ...skillTargets.map((raw) => ({ raw, expected: 'skill' as const })),
+    ...agentTargets.map((raw) => ({ raw, expected: 'agent' as const })),
+  ];
+  const entries: LockEntry[] = [];
+  for (const { raw, expected } of targets) {
+    const target = parseLockTarget(raw);
+    if (target.type !== expected) {
+      throw new Error(`Invalid lock target "${raw}": expected a ${expected} key.`);
+    }
+    entries.push(await resolveLockTarget(api, target, apiToken));
+  }
+
+  const existing = await readLockFile(lockPath);
+  const updated = upsertLockEntries(existing, entries, new Date().toISOString());
+  await writeFile(lockPath, serializeLockFile(updated), 'utf8');
+
+  console.log(
+    JSON.stringify(
+      {
+        lock_file: lockPath,
+        updated: entries.map((entry) => ({
+          type: entry.type,
+          key: entry.key,
+          version: entry.version,
+          envelope_sha256: entry.envelope_sha256,
+        })),
+        entries: updated.entries.length,
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+async function resolveLockTarget(
+  api: HttpRegistryOperatorApiClient,
+  target: { type: 'skill' | 'agent'; key: string; version?: number },
+  apiToken: string | undefined,
+): Promise<LockEntry> {
+  let version = target.version;
+  if (!version) {
+    const active =
+      target.type === 'skill'
+        ? await api.getActiveSkillVersion(target.key, apiToken)
+        : await api.getActiveAgentVersion(target.key, apiToken);
+    const activeVersion = Number(versionPropsOf(active, target.type)?.['version']);
+    if (!Number.isInteger(activeVersion) || activeVersion <= 0) {
+      throw new Error(`${target.key} has no active version to lock; specify --${target.type} ${target.key}@<version>.`);
+    }
+    version = activeVersion;
+  }
+  const details = await fetchLockedVersion(api, target.type, target.key, version, apiToken);
+  const props = versionPropsOf(details, target.type) ?? {};
+  const envelopeSha = typeof props['canonical_json_sha256'] === 'string' ? props['canonical_json_sha256'] : '';
+  if (!envelopeSha) {
+    throw new Error(`${target.key}@${version} has no published envelope digest; publish it before locking.`);
+  }
+  return {
+    type: target.type,
+    key: target.key,
+    version,
+    publication_urn: versionUrnOf(details, target.type),
+    envelope_sha256: envelopeSha,
+    artifacts: artifactSha256s(details),
+    locked_at: new Date().toISOString(),
+  };
+}
+
+async function runVerifyLock(env: Env, args: Record<string, string | boolean | string[] | undefined>) {
+  const lockPath = path.resolve(asString(args['lock-file']) ?? DEFAULT_LOCK_FILE);
+  const strict = args.strict === true;
+  const apiToken = asString(args['api-token']);
+  const lock = await readLockFile(lockPath);
+  if (!lock) {
+    throw new Error(`Lock file not found: ${lockPath} (run registry-operator lock first).`);
+  }
+  const api = new HttpRegistryOperatorApiClient({ apiOrigin: env.API_ORIGIN, extraHeaders: cfAccessHeaders(env) });
+  const now = Date.now();
+  const results: Array<{
+    type: 'skill' | 'agent';
+    key: string;
+    version: number;
+    verdict: 'verified' | 'failed';
+    failures: string[];
+    warnings: string[];
+    evidence: Record<string, unknown>;
+  }> = [];
+
+  for (const entry of lock.entries) {
+    const failures: string[] = [];
+    const warnings: string[] = [];
+    const evidence: Record<string, unknown> = {};
+    let details: Record<string, unknown> | null = null;
+    try {
+      details = await fetchLockedVersion(api, entry.type, entry.key, entry.version, apiToken);
+    } catch (err) {
+      if (err instanceof RegistryOperatorApiError && err.status === 404) {
+        failures.push('missing');
+      } else {
+        failures.push('unreachable');
+        evidence.error = err instanceof Error ? err.message : String(err);
+      }
+    }
+    if (details) {
+      const props = versionPropsOf(details, entry.type) ?? {};
+      const urn = versionUrnOf(details, entry.type);
+      evidence.publication_urn = urn;
+      if (urn && urn !== entry.publication_urn) failures.push('publication_urn_mismatch');
+      const lifecycle = String(props['lifecycle_status'] ?? '');
+      evidence.lifecycle_status = lifecycle;
+      if (props['revoked'] === true || lifecycle === 'revoked' || String(props['publication_status'] ?? '') === 'revoked') {
+        failures.push('revoked');
+      }
+      const liveEnvelope = typeof props['canonical_json_sha256'] === 'string' ? props['canonical_json_sha256'] : '';
+      evidence.envelope_sha256 = liveEnvelope;
+      if (!liveEnvelope) failures.push('envelope_digest_unavailable');
+      else if (liveEnvelope !== entry.envelope_sha256) failures.push('envelope_sha256_drift');
+      const liveArtifacts = artifactSha256s(details).sort();
+      evidence.artifacts = liveArtifacts;
+      if (JSON.stringify(liveArtifacts) !== JSON.stringify([...entry.artifacts].sort())) {
+        failures.push('artifact_sha256_drift');
+      }
+      const expiresAt = typeof props['certification_expires_at'] === 'string' ? props['certification_expires_at'] : '';
+      if (expiresAt) {
+        evidence.certification_expires_at = expiresAt;
+        const parsed = Date.parse(expiresAt);
+        if (Number.isFinite(parsed) && parsed <= now) failures.push('certification_expired');
+      }
+      if (lifecycle === 'deprecated') warnings.push('deprecated');
+      try {
+        const active =
+          entry.type === 'skill'
+            ? await api.getActiveSkillVersion(entry.key, apiToken)
+            : await api.getActiveAgentVersion(entry.key, apiToken);
+        const activeVersion = Number(versionPropsOf(active, entry.type)?.['version']);
+        if (Number.isInteger(activeVersion) && activeVersion > entry.version) {
+          warnings.push('newer_available');
+          evidence.active_version = activeVersion;
+        }
+      } catch {
+        // Active-version lookup is informational; a missing one is not drift.
+      }
+      try {
+        const verification =
+          entry.type === 'skill'
+            ? await api.getSkillPublicationVerification(entry.key, entry.version, apiToken)
+            : await api.getAgentPublicationVerification(entry.key, entry.version, apiToken);
+        const status = String(verification['verification_status'] ?? 'unknown');
+        evidence.verification_status = status;
+        if (strict && status !== 'verified') failures.push(`verification_status:${status}`);
+      } catch (err) {
+        evidence.verification_status = 'unavailable';
+        if (strict) {
+          failures.push('verification_unavailable');
+          evidence.error = err instanceof Error ? err.message : String(err);
+        }
+      }
+    }
+    const finalFailures = strict ? [...failures, ...warnings.map((warning) => `strict:${warning}`)] : failures;
+    results.push({
+      type: entry.type,
+      key: entry.key,
+      version: entry.version,
+      verdict: finalFailures.length === 0 ? 'verified' : 'failed',
+      failures: finalFailures,
+      warnings,
+      evidence,
+    });
+  }
+
+  const failed = results.filter((result) => result.verdict === 'failed');
+  console.log(
+    JSON.stringify(
+      {
+        lock_file: lockPath,
+        strict,
+        entries: results,
+        verified: failed.length === 0,
+        failed_count: failed.length,
+      },
+      null,
+      2,
+    ),
+  );
+  if (failed.length > 0) {
+    throw new Error(
+      `Lock verification failed for ${failed.length} ${failed.length === 1 ? 'entry' : 'entries'}: ${failed
+        .map((result) => `${result.key}@${result.version}`)
+        .join(', ')}`,
+    );
+  }
+}
+
+async function fetchLockedVersion(
+  api: HttpRegistryOperatorApiClient,
+  type: 'skill' | 'agent',
+  key: string,
+  version: number,
+  apiToken: string | undefined,
+): Promise<Record<string, unknown>> {
+  if (type === 'skill') {
+    return await api.getSkillVersion(key, version, apiToken);
+  }
+  const listing = await api.getAgentVersions(key, apiToken);
+  const versions = Array.isArray(listing['versions']) ? (listing['versions'] as Array<Record<string, unknown>>) : [];
+  const found = versions.find((candidate) => Number(versionPropsOf(candidate, 'agent')?.['version']) === version);
+  if (!found) {
+    throw new RegistryOperatorApiError(`Agent version not found: ${key}@${version}`, 404, 'AGENT_VERSION_NOT_FOUND');
+  }
+  return found;
+}
+
+function versionPropsOf(
+  details: Record<string, unknown> | null | undefined,
+  type: 'skill' | 'agent',
+): Record<string, unknown> | undefined {
+  const root = details?.[type === 'skill' ? 'skill_version' : 'agent_version'];
+  if (!root || typeof root !== 'object') return undefined;
+  const properties = (root as { properties?: unknown }).properties;
+  return properties && typeof properties === 'object' ? (properties as Record<string, unknown>) : undefined;
+}
+
+function versionUrnOf(details: Record<string, unknown>, type: 'skill' | 'agent'): string {
+  const root = details[type === 'skill' ? 'skill_version' : 'agent_version'];
+  if (!root || typeof root !== 'object') return '';
+  const urn = (root as { urn?: unknown }).urn;
+  return typeof urn === 'string' ? urn : '';
+}
+
+function artifactSha256s(details: Record<string, unknown>): string[] {
+  return Array.isArray(details['artifacts'])
+    ? (details['artifacts'] as Array<{ sha256?: unknown }>)
+        .map((artifact) => (typeof artifact?.sha256 === 'string' ? artifact.sha256 : ''))
+        .filter((sha) => sha.length > 0)
+    : [];
+}
+
 async function runVerifyArtifact(env: Env, args: Record<string, string | boolean | string[] | undefined>) {  const apiToken = asString(args['api-token']);
   const sha256 = asString(args.sha256) ?? parseArtifactUrnSha256(asString(args['artifact-urn']));
   if (!sha256 || !/^[0-9a-f]{64}$/.test(sha256)) {
@@ -1672,6 +1935,12 @@ function requireStringArg(args: Record<string, string | boolean | string[] | und
 
 function asString(value: string | boolean | string[] | undefined) {
   return typeof value === 'string' ? value : undefined;
+}
+
+function asStringArray(value: string | boolean | string[] | undefined): string[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string' && value.length > 0) return [value];
+  return [];
 }
 
 /** Overlay `--cf-access-client-id/-secret` flags onto env (env still wins if no flag). */

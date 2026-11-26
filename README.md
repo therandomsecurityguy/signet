@@ -133,6 +133,13 @@ Canonicalization and signatures:
   `verifyRfc6962InclusionProof`, `fetchArtifact` with local re-hashing) and
   `registry-operator verify publication|artifact`; see
   `docs/supply-chain-model.md`
+- `signet.lock`: per-consumer pins of exact publications
+  (`registry-operator lock --skill key[@v]`, also `--agent`) recording
+  `{type, key, version, publication_urn, envelope_sha256, artifact
+  sha256s}`, with `registry-operator verify lock` as a fail-closed doctor —
+  missing/revoked/drifted/expired pins fail with a non-zero exit;
+  deprecated and newer-active versions warn (fail under `--strict`); run in
+  CI for repos and at session start for agents
 - dual signatures: detached signatures over operational (JSON) or
   semantic (RDF) canonical bytes with cross-verification
 
