@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.18](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.17...registry-sdk-v0.1.18) (2026-11-26)
+
+
+### Features
+
+* **revalidation:** recertification queue and scheduled re-validation ([376d868](https://github.com/therandomsecurityguy/signet/commit/376d86881cea8c12da3fc09396721a6eebcb9043))
+* **revalidation:** recertification queue and scheduled re-validation ([45f475d](https://github.com/therandomsecurityguy/signet/commit/45f475df0314c32a8811208e2778f2e1bd9fcd6b))
+
 ## [0.1.17](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.16...registry-sdk-v0.1.17) (2026-11-25)
 
 
