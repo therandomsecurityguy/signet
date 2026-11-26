@@ -283,7 +283,10 @@ Discovery and freshness:
   certification-expiry tracking (`certification_expired`,
   `expires_in_days`); exposed on API version details, version lists,
   ranked lists, and search, on MCP `registry.search` and
-  `registry.get_skill` / `registry.get_agent`, and as webapp chips
+  `registry.get_skill` / `registry.get_agent` (which additionally carry a
+  `trust_summary` for the active version — `verified_at`, `revoked`,
+  `newer_available` with the latest trusted version as evidence, and
+  `expires_at`), and as webapp chips
 - trust event feed: `GET /v1/events` reads the recorded governance
   events (publication, revocation, deprecation, certification,
   revalidation, recertification, …) newest-first with filters

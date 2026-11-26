@@ -28,9 +28,11 @@ All tools are read-only. The canonical list is the source of truth
 ### Registry (discovery / load / trust)
 - `registry.search` — search skills and agents by name, key, or description
 - `registry.list_agents` — list agents
-- `registry.get_agent` — get an agent and its linked entities
+- `registry.get_agent` — get an agent and its linked entities, including a
+  `trust_summary` for the active version
 - `registry.list_skills` — list skills
-- `registry.get_skill` — get a skill and its linked artifacts
+- `registry.get_skill` — get a skill and its linked artifacts, including a
+  `trust_summary` for the active version
 - `registry.get_artifact` — fetch an artifact (content-addressed file)
 - `registry.get_provenance` — PROV-O provenance chain and audit replay
 - `registry.verify_publication` — verify a published version before use (envelope
