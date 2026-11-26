@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.97](https://github.com/therandomsecurityguy/signet/compare/v0.1.96...v0.1.97) (2026-11-26)
+
+
+### Features
+
+* **mcp:** trust summary on get_skill / get_agent outputs ([18d5dcb](https://github.com/therandomsecurityguy/signet/commit/18d5dcb2414f0d37c19681e685603944f3ab37a8))
+* **mcp:** trust summary on get_skill / get_agent outputs ([9babe65](https://github.com/therandomsecurityguy/signet/commit/9babe6547ac22276da978b163fee8966ece445c5))
+
 ## [0.1.96](https://github.com/therandomsecurityguy/signet/compare/v0.1.95...v0.1.96) (2026-11-26)
 
 
