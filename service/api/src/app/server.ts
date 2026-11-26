@@ -22,6 +22,7 @@ import { registerAgentLifecycleRoutes } from './routes/agent-lifecycle.js';
 import { registerCompileRoutes } from './routes/compile.js';
 import { registerReviewRoutes } from './routes/reviews.js';
 import { registerGovernanceLogRoutes } from './routes/governance-log.js';
+import { registerEventRoutes } from './routes/events.js';
 import { registerOntologyPackageRoutes } from './routes/ontology-packages.js';
 import { registerPolicyPackageRoutes } from './routes/policy-packages.js';
 import { registerAgentPublicationRoutes } from './routes/agent-publication.js';
@@ -197,6 +198,10 @@ export function buildApp(deps: AppDependencies) {
   });
   registerGovernanceLogRoutes(app, {
     governanceLog: deps.governanceLog,
+  });
+  registerEventRoutes(app, {
+    events: deps.governanceLog,
+    env: deps.env,
   });
   registerCompileRoutes(app, {
     compile: deps.compile,

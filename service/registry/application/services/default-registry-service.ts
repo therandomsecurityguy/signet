@@ -8286,6 +8286,96 @@ export class DefaultRegistryService implements RegistryService {
     };
   }
 
+  // Trust event feed (build plan 2.2): read-only projection of the recorded
+  // governance events with their Merkle log positions. No separate event
+  // store — the canonical event documents (CAS) and the log node are the
+  // source of truth. Default order is newest-first; `after_position` flips to
+  // ascending catch-up for streams (the cursor is the log position, so date
+  // bounds don't apply there).
+  async getGovernanceEvents(
+    input: {
+      event_type?: string;
+      publication_urn?: string;
+      logical_key?: string;
+      since?: string;
+      until?: string;
+      after_position?: number;
+      limit?: number;
+    } = {},
+  ): Promise<import('../ports/registry-service.js').RegistryGovernanceEventPage> {
+    const node = await this.deps.graph.getNode(GOVERNANCE_LOG_URN);
+    const eventUrns =
+      node && Array.isArray(node.properties['event_artifact_urns'])
+        ? (node.properties['event_artifact_urns'] as string[])
+        : [];
+    const latestPosition = eventUrns.length > 0 ? eventUrns.length - 1 : null;
+    const limit = Math.min(Math.max(Math.trunc(input.limit ?? 50), 1), 200);
+    const events: Array<import('../ports/registry-service.js').RegistryGovernanceEvent> = [];
+
+    const loadEvent = async (
+      position: number,
+    ): Promise<import('../ports/registry-service.js').RegistryGovernanceEvent | null> => {
+      const urn = eventUrns[position];
+      if (!urn) return null;
+      const sha = parseArtifactSha256(urn);
+      if (!sha) return null;
+      const stored = await this.readCasArtifact(sha).catch(() => null);
+      if (!stored || !stored.digest_verified) return null;
+      let parsed: Record<string, unknown>;
+      try {
+        parsed = JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+      return {
+        position,
+        event_artifact_urn: urn,
+        event_sha256: sha,
+        event_type: String(parsed['event_type'] ?? ''),
+        occurred_at: String(parsed['occurred_at'] ?? ''),
+        actor: String(parsed['actor'] ?? ''),
+        logical_urn: String(parsed['logical_urn'] ?? ''),
+        entity_type: String(parsed['entity_type'] ?? ''),
+        publication_urn: String(parsed['publication_urn'] ?? ''),
+        task_urn: String(parsed['task_urn'] ?? ''),
+        ...(stringOrUndefined(parsed['policy_version']) ? { policy_version: String(parsed['policy_version']) } : {}),
+        ...(stringOrUndefined(parsed['ontology_version']) ? { ontology_version: String(parsed['ontology_version']) } : {}),
+        ...(stringOrUndefined(parsed['envelope_sha256']) ? { envelope_sha256: String(parsed['envelope_sha256']) } : {}),
+      };
+    };
+
+    const matchesFilters = (event: import('../ports/registry-service.js').RegistryGovernanceEvent): boolean => {
+      if (input.event_type && event.event_type !== input.event_type) return false;
+      if (input.publication_urn && event.publication_urn !== input.publication_urn) return false;
+      if (input.logical_key && event.logical_urn !== skillUrn(input.logical_key) && event.logical_urn !== agentUrn(input.logical_key)) {
+        return false;
+      }
+      return true;
+    };
+
+    if (typeof input.after_position === 'number') {
+      for (
+        let position = Math.max(0, Math.trunc(input.after_position) + 1);
+        position < eventUrns.length && events.length < limit;
+        position += 1
+      ) {
+        const event = await loadEvent(position);
+        if (event && matchesFilters(event)) events.push(event);
+      }
+    } else {
+      // Newest first. Events are recorded in occurrence order, so a `since`
+      // cutoff ends the scan instead of filtering every historical event.
+      for (let position = eventUrns.length - 1; position >= 0 && events.length < limit; position -= 1) {
+        const event = await loadEvent(position);
+        if (!event) continue;
+        if (input.since && event.occurred_at && event.occurred_at < input.since) break;
+        if (input.until && event.occurred_at && event.occurred_at > input.until) continue;
+        if (matchesFilters(event)) events.push(event);
+      }
+    }
+    return { events, latest_position: latestPosition };
+  }
+
   /**
    * Immutability report for one artifact: whether the CAS backend (S3
    * Object Lock) currently enforces retention for the object. Read-only;

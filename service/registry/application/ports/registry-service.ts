@@ -988,6 +988,31 @@ export type RegistryGovernanceLogReplay = {
   consistent: boolean;
 };
 
+// Trust event feed (build plan 2.2): filtered, cursor-friendly projections of
+// the governance events already recorded at lifecycle operations. Position is
+// the Merkle log leaf index, so consumers can request inclusion proofs for
+// exactly the events they act on.
+export type RegistryGovernanceEvent = {
+  position: number;
+  event_artifact_urn: string;
+  event_sha256: string;
+  event_type: string;
+  occurred_at: string;
+  actor: string;
+  logical_urn: string;
+  entity_type: string;
+  publication_urn: string;
+  task_urn: string;
+  policy_version?: string;
+  ontology_version?: string;
+  envelope_sha256?: string;
+};
+
+export type RegistryGovernanceEventPage = {
+  events: RegistryGovernanceEvent[];
+  latest_position: number | null;
+};
+
 export type RegistryProvenanceActivity = {
   task_urn: string;
   operation: string;
@@ -1518,6 +1543,15 @@ export interface RegistryService {
   compareGovernanceTransparencyLog(): Promise<RegistryGovernanceTransparencyComparison>;
   getGovernanceLogProof(input: { leaf_index: number }): Promise<RegistryGovernanceLogProof | null>;
   replayGovernanceLog(): Promise<RegistryGovernanceLogReplay>;
+  getGovernanceEvents(input?: {
+    event_type?: string;
+    publication_urn?: string;
+    logical_key?: string;
+    since?: string;
+    until?: string;
+    after_position?: number;
+    limit?: number;
+  }): Promise<RegistryGovernanceEventPage>;
   getSkillPublicationVerification(input: { skill_key: string; version: number }): Promise<RegistryPublicationVerification | null>;
   createSkillDraft(input: CreateSkillDraftInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>>;
   validateSkillVersion(input: SkillVersionOperationInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>>;
