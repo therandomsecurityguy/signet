@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.96](https://github.com/therandomsecurityguy/signet/compare/v0.1.95...v0.1.96) (2026-11-26)
+
+
+### Features
+
+* **lock:** signet.lock pins with a fail-closed verify lock doctor ([e277c1a](https://github.com/therandomsecurityguy/signet/commit/e277c1aa72a0b5004a387fdd6da40797750f33ba))
+* **lock:** signet.lock pins with a fail-closed verify lock doctor ([8d8aaff](https://github.com/therandomsecurityguy/signet/commit/8d8aaff68fee4e60b869d4f4edc34d2000439e14))
+
+
+### Bug Fixes
+
+* **lock:** drop credential plumbing from lock/verify-lock ([916c684](https://github.com/therandomsecurityguy/signet/commit/916c6843d8e8f75bc703ae2b0eba3a127252b7ee))
+
 ## [0.1.95](https://github.com/therandomsecurityguy/signet/compare/v0.1.94...v0.1.95) (2026-11-26)
 
 
