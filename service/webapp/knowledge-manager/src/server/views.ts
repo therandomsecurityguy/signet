@@ -4,6 +4,7 @@ import type {
   Freshness,
   GraphSubgraph,
   ProvenanceRecord,
+  RecertificationQueue,
   SearchMatch,
   SkillVersionOperationInput,
   SkillDetails,
@@ -566,6 +567,81 @@ export function renderSkills(input: {
       ${input.skills.length > 0 ? '<div class="toolbar"><input type="search" id="table-filter" placeholder="Filter skills…" aria-label="Filter skills" /></div>' : ''}
       ${renderTable(headers, rows, input.search ? '' : '<a role="button" href="/skills/new">Register a skill</a>', 'filterable-table')}
       ${renderPager(input.paging)}
+    `,
+    input.page,
+  );
+}
+
+export function renderRecertificationQueue(input: {
+  queue: RecertificationQueue;
+  canReview: boolean;
+  flash?: string;
+  error?: string;
+  registryError?: string;
+  page?: PageChromeInput;
+}) {
+  const rows = input.queue.items.map((item) => {
+    const basePath = `/recertification/${item.entity_type === 'SKILL_VERSION' ? 'skills' : 'agents'}/${encodeURIComponent(
+      item.logical_key,
+    )}/versions/${item.version}`;
+    const detailsPath =
+      item.entity_type === 'SKILL_VERSION'
+        ? `/skills/${encodeURIComponent(item.logical_key)}`
+        : `/agents/${encodeURIComponent(item.logical_key)}`;
+    const stateChip = `<span class="chip freshness-chip ${
+      item.recertification_state === 'due' ? 'freshness-stale' : 'freshness-aging'
+    }" title="${escapeHtml(item.reasons.join(', '))}">${escapeHtml(item.recertification_state)}</span>`;
+    const actions = input.canReview
+      ? `
+        <form class="lifecycle-form" method="post" action="${basePath}/revalidate">
+          ${csrfHiddenField(input.page)}
+          <div class="form-inline">
+            ${renderTextInput('author', 'Author', '', 'text', true)}
+            ${renderTextInput('certification_expires_at', 'New expiry (Recertify)', '', 'date')}
+          </div>
+          <div class="button-row">
+            <button type="submit">Revalidate</button>
+            ${
+              item.lifecycle_status === 'certified'
+                ? `<button type="submit" formaction="${basePath}/recertify">Recertify</button>`
+                : ''
+            }
+          </div>
+        </form>
+      `
+      : '<span class="muted">Sign in to act.</span>';
+    return [
+      `<a href="${detailsPath}">${escapeHtml(item.logical_key)}</a>`,
+      escapeHtml(item.entity_type === 'SKILL_VERSION' ? 'skill' : 'agent'),
+      escapeHtml(String(item.version)),
+      renderStateBadge(item.lifecycle_status),
+      stateChip,
+      renderFreshnessChip(item.freshness),
+      escapeHtml(item.reasons.join(', ')),
+      item.last_revalidated_at ? escapeHtml(item.last_revalidated_at) : '<span class="muted">—</span>',
+      actions,
+    ];
+  });
+  const headers = ['Key', 'Type', 'Version', 'Status', 'Queue', 'Freshness', 'Reasons', 'Last revalidated', 'Actions'];
+  return renderPage(
+    'Recertification',
+    `
+      <p class="breadcrumb"><a href="/">Home</a> / Recertification</p>
+      ${renderFlash(input.flash)}
+      ${renderError(input.error)}
+      ${input.registryError ? renderError(input.registryError) : ''}
+      <section class="panel">
+        <h1>Recertification queue</h1>
+        <p class="muted">Live versions whose verification is aging (<em>approaching</em>) or stale, expired, or failed (<em>due</em>). Revalidate records a fresh validation run; Recertify additionally renews the certification (validation must pass first).</p>
+        <p>${escapeHtml(String(input.queue.due_count))} due · ${escapeHtml(String(input.queue.approaching_count))} approaching · ${escapeHtml(
+          String(input.queue.total),
+        )} total</p>
+        ${
+          input.queue.items.length > 0
+            ? renderTable(headers, rows)
+            : '<p class="muted">Nothing needs recertification right now.</p>'
+        }
+      </section>
     `,
     input.page,
   );
@@ -1447,6 +1523,7 @@ function activeNavKey(path?: string): string {
   if (path.startsWith('/agents')) return 'agents';
   if (path.startsWith('/skills')) return 'skills';
   if (path.startsWith('/reviews')) return 'reviews';
+  if (path.startsWith('/recertification')) return 'recertification';
   if (path.startsWith('/graph')) return 'graph';
   if (path.startsWith('/ontology')) return 'ontology';
   if (path.startsWith('/fuseki')) return 'fuseki';
@@ -1477,6 +1554,7 @@ function renderPage(title: string, body: string, page?: PageChromeInput) {
           ${navItem('/agents', 'Agents', active, 'agents')}
           ${navItem('/skills', 'Skills', active, 'skills')}
           ${navItem('/reviews', 'Reviews', active, 'reviews')}
+          ${navItem('/recertification', 'Recertification', active, 'recertification')}
           ${navItem('/graph', 'Graph', active, 'graph')}
           ${navItem('/ontology-projects', 'Ontology', active, 'ontology')}
           ${navItem('/fuseki-queries', 'Fuseki', active, 'fuseki')}
@@ -1806,15 +1884,19 @@ function renderLifecycleActionForm(input: {
   skillKey: string;
   versionNumber: number;
   defaults: SkillVersionOperationInput;
-  actions: Array<'validate' | 'publish' | 'promote' | 'deprecate' | 'certify'>;
+  actions: Array<'validate' | 'revalidate' | 'publish' | 'promote' | 'deprecate' | 'certify' | 'recertify'>;
   page?: PageChromeInput;
 }) {
+  const expiryField = input.actions.includes('recertify')
+    ? renderTextInput('certification_expires_at', 'New certification expiry (optional)', '', 'date')
+    : '';
   return `
     <form class="lifecycle-form" method="post" action="/skills/${encodeURIComponent(input.skillKey)}/versions/${input.versionNumber}/${input.actions[0]}">
       ${csrfHiddenField(input.page)}
       <div class="form-inline">
         ${renderTextInput('author', 'Author', input.defaults.author ?? '', 'text', true)}
         ${renderTextArea('note', 'Note', input.defaults.note ?? '')}
+        ${expiryField}
       </div>
       <div class="button-row">
         ${input.actions
@@ -1910,7 +1992,9 @@ function isVersionCertified(version: SkillVersionDetails) {
   return version.skill_version.properties.certified === true;
 }
 
-function lifecycleActions(version: SkillVersionDetails): Array<'validate' | 'publish' | 'promote' | 'deprecate' | 'certify'> {
+function lifecycleActions(
+  version: SkillVersionDetails,
+): Array<'validate' | 'revalidate' | 'publish' | 'promote' | 'deprecate' | 'certify' | 'recertify'> {
   const status = skillLifecycleStatus(version);
   const active = isVersionActive(version);
   const certified = isVersionCertified(version);
@@ -1918,20 +2002,26 @@ function lifecycleActions(version: SkillVersionDetails): Array<'validate' | 'pub
   if (status === 'draft') return ['validate'];
   if (status === 'validated') return ['publish'];
   if (status === 'published') {
-    const actions: Array<'validate' | 'publish' | 'promote' | 'deprecate' | 'certify'> = [];
+    const actions: Array<'validate' | 'revalidate' | 'publish' | 'promote' | 'deprecate' | 'certify' | 'recertify'> = [];
     if (!active) actions.push('promote');
     actions.push('deprecate');
     if (!certified) actions.push('certify');
+    actions.push('revalidate');
     return actions;
   }
+  if (status === 'certified') return ['revalidate', 'recertify'];
 
   return [];
 }
 
-function lifecycleActionLabel(action: 'validate' | 'publish' | 'promote' | 'deprecate' | 'certify') {
+function lifecycleActionLabel(
+  action: 'validate' | 'revalidate' | 'publish' | 'promote' | 'deprecate' | 'certify' | 'recertify',
+) {
   switch (action) {
     case 'validate':
       return 'Validate';
+    case 'revalidate':
+      return 'Revalidate';
     case 'publish':
       return 'Publish';
     case 'promote':
@@ -1940,6 +2030,8 @@ function lifecycleActionLabel(action: 'validate' | 'publish' | 'promote' | 'depr
       return 'Deprecate';
     case 'certify':
       return 'Certify';
+    case 'recertify':
+      return 'Recertify';
   }
 }
 

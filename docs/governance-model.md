@@ -482,13 +482,14 @@ Each certification must preserve:
 - detached signature references
 - transparency-log references
 
-The staleness layer of this dimension is implemented: version read surfaces
-carry a `freshness` signal (fresh → aging → stale with certification-expiry
-tracking) derived from `certified_at` / `revalidated_at` / `published_at` /
-`validated_at`, and scheduled re-validation ships as bounded,
-non-destructive revalidation jobs driven by the recertification queue (chart
-CronJob, disabled by default). The in-UI recertification workflow is still
-open.
+The staleness layer of this dimension is fully implemented: version read
+surfaces carry a `freshness` signal (fresh → aging → stale with
+certification-expiry tracking) derived from `certified_at` /
+`revalidated_at` / `published_at` / `validated_at`; the recertification
+queue surfaces due/approaching versions; recorded revalidation and
+recertification operations (validation-first, non-destructive until they
+pass) run on demand, from bounded jobs, and from a chart CronJob; and the
+webapp drives the whole path from the queue page and version cards.
 
 ```mermaid
 stateDiagram-v2

@@ -19,6 +19,7 @@ import {
   type OntologyPackageDetails,
   type PendingReviewItem,
   type ProvenanceRecord,
+  type RecertificationQueue,
   type RegistryApiClient,
   type ReviewVersionInput,
   type SkillDetails,
@@ -46,6 +47,7 @@ import {
   renderNewAgentForm,
   renderNewSkillForm,
   renderOntologyProjects,
+  renderRecertificationQueue,
   renderReviews,
   renderSkillDetails,
   renderSkills,
@@ -878,6 +880,97 @@ const session = await readOperatorSession(c, deps);
     }),
   );
 
+  app.post('/skills/:skillKey/versions/:version/revalidate', async (c) =>
+    await handleSkillVersionWrite(c, deps, {
+      action: 'revalidate',
+      successMessage: 'Skill version revalidated.',
+      call: async (skillKey, version, input, apiToken) =>
+        await deps.registryApi.revalidateSkillVersion(skillKey, version, input, apiToken),
+    }),
+  );
+
+  app.post('/skills/:skillKey/versions/:version/recertify', async (c) =>
+    await handleSkillVersionWrite(c, deps, {
+      action: 'recertify',
+      successMessage: 'Skill version recertified.',
+      call: async (skillKey, version, input, apiToken) =>
+        await deps.registryApi.recertifySkillVersion(skillKey, version, input, apiToken),
+    }),
+  );
+
+  // Recertification queue actions (both entity types) hand off to the same
+  // revalidate/recertify operations; success returns to the queue with a
+  // flash instead of a details page.
+  app.post('/recertification/:entityType/:key/versions/:version/:action', async (c) => {
+    const entityType = c.req.param('entityType');
+    const action = c.req.param('action');
+    const key = c.req.param('key');
+    const rawVersion = c.req.param('version');
+    const version = rawVersion ? parseVersion(rawVersion) : null;
+    const values = await readFormValues(c);
+    const back = '/recertification';
+    if ((entityType !== 'skills' && entityType !== 'agents') || (action !== 'revalidate' && action !== 'recertify') || !version) {
+      return c.redirect(withSessionMessage(back, { sessionError: 'Unknown recertification action.' }), 303);
+    }
+    const session = await readOperatorSession(c, deps);
+    if (!session) {
+      return c.redirect(withSessionMessage(back, { sessionError: 'Sign in with an API bearer token first.' }), 303);
+    }
+    if (!isAdminSession(session, deps.env)) {
+      return c.redirect(
+        withSessionMessage(back, { sessionError: 'Admin access is required to run recertification operations.' }),
+        303,
+      );
+    }
+    const input = buildSkillVersionOperationInput(values);
+    try {
+      if (entityType === 'skills') {
+        if (action === 'revalidate') {
+          await deps.registryApi.revalidateSkillVersion(key, version, input, session.apiToken);
+        } else {
+          await deps.registryApi.recertifySkillVersion(key, version, input, session.apiToken);
+        }
+      } else if (action === 'revalidate') {
+        await deps.registryApi.revalidateAgentVersion(key, version, input, session.apiToken);
+      } else {
+        await deps.registryApi.recertifyAgentVersion(key, version, input, session.apiToken);
+      }
+      return c.redirect(
+        withSessionMessage(back, {
+          sessionFlash: action === 'revalidate' ? `${key}@v${version} revalidated.` : `${key}@v${version} recertified.`,
+        }),
+        303,
+      );
+    } catch (err) {
+      const mapped = mapRegistryApiError(err);
+      return c.redirect(withSessionMessage(back, { sessionError: mapped.message }), 303);
+    }
+  });
+
+  app.get('/recertification', async (c) => {
+    const session = await readOperatorSession(c, deps);
+    let queue: RecertificationQueue = {
+      items: [],
+      total: 0,
+      due_count: 0,
+      approaching_count: 0,
+    };
+    let registryError: string | undefined;
+    try {
+      queue = await deps.registryApi.getRecertificationQueue();
+    } catch (err) {
+      registryError = err instanceof Error ? err.message : 'Failed to load the recertification queue.';
+    }
+    return c.html(
+      renderRecertificationQueue({
+        queue,
+        canReview: Boolean(session),
+        ...(registryError ? { registryError } : {}),
+        page: buildPageChrome(deps.env, c.req.path, c.req.query(), session),
+      }),
+    );
+  });
+
   app.get('/ontology-projects', async (c) => {
     let ontologyPackages: OntologyPackageDetails[] = [];
     let deFactoTerms: DeFactoTermDetails[] = [];
@@ -1015,7 +1108,7 @@ async function handleSkillVersionWrite(
   c: Context,
   deps: KnowledgeManagerDeps,
   input: {
-    action: 'validate' | 'publish' | 'promote' | 'deprecate' | 'certify';
+    action: 'validate' | 'revalidate' | 'publish' | 'promote' | 'deprecate' | 'certify' | 'recertify';
     successMessage: string;
     call: (
       skillKey: string,
@@ -1242,9 +1335,13 @@ function buildCreateSkillDraftInput(values: Record<string, string>): CreateSkill
 }
 
 function buildSkillVersionOperationInput(values: Record<string, string>): SkillVersionOperationInput {
+  const certificationExpiresAt = (values.certification_expires_at ?? '').trim();
   return {
     author: (values.author ?? '').trim(),
     ...optionalField('note', values.note),
+    ...(certificationExpiresAt
+      ? { governance: { certification_expires_at: certificationExpiresAt } }
+      : {}),
   };
 }
 

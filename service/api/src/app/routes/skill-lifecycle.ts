@@ -294,6 +294,22 @@ const certifyVersionRoute = createRoute({
   },
 });
 
+const recertifyVersionRoute = createRoute({
+  method: 'post',
+  path: '/v1/skills/{skillKey}/versions/{version}/recertify',
+  request: {
+    params: z.object({ skillKey: entityKeySchema, version: z.string() }),
+    body: { content: { 'application/json': { schema: SkillVersionOperationInputSchema } } },
+  },
+  responses: {
+    200: { content: { 'application/json': { schema: SkillLifecycleOperationResultSchema } }, description: 'Skill version recertified (validation runs first; a failure is recorded, not renewed)' },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid skill version operation payload' },
+    404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Skill version not found' },
+    409: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Skill version conflict' },
+    500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Internal error' },
+  },
+});
+
 const revokeVersionRoute = createRoute({
   method: 'post',
   path: '/v1/skills/{skillKey}/versions/{version}/revoke',
@@ -579,6 +595,10 @@ app.openapi(validateVersionRoute, async (c) => {
     return await handleVersionAction({ c, deps, action: 'certify' });
   });
 
+  app.openapi(recertifyVersionRoute, async (c) => {
+    return await handleVersionAction({ c, deps, action: 'recertify' });
+  });
+
   app.openapi(revokeVersionRoute, async (c) => {
     return await handleVersionAction({ c, deps, action: 'revoke' });
   });
@@ -661,7 +681,7 @@ app.openapi(validateVersionRoute, async (c) => {
 async function handleVersionAction(input: {
   c: Context<AppEnv>;
   deps: { lifecycle: SkillLifecycleUseCase; audit: AuditPublisher };
-  action: 'validate' | 'revalidate' | 'publish' | 'promote' | 'deprecate' | 'certify' | 'revoke' | 'archive';
+  action: 'validate' | 'revalidate' | 'publish' | 'promote' | 'deprecate' | 'certify' | 'recertify' | 'revoke' | 'archive';
 }) {
   const raw = await input.c.req.json().catch(() => undefined);
   const parsed = SkillVersionOperationInputSchema.safeParse(raw);

@@ -21,6 +21,7 @@ export type RegistryOperationKind =
   | 'promote'
   | 'deprecate'
   | 'certify'
+  | 'recertify'
   | 'revoke'
   | 'archive'
   | 'review';
@@ -1459,6 +1460,7 @@ export interface RegistryService {
   promoteAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
   deprecateAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
   certifyAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
+  recertifyAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
   revokeAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
   archiveAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>>;
 
@@ -1525,6 +1527,7 @@ export interface RegistryService {
   promoteSkillVersion(input: SkillVersionOperationInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>>;
   deprecateSkillVersion(input: SkillVersionOperationInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>>;
   certifySkillVersion(input: SkillVersionOperationInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>>;
+  recertifySkillVersion(input: SkillVersionOperationInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>>;
   revokeSkillVersion(input: SkillVersionOperationInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>>;
   archiveSkillVersion(input: SkillVersionOperationInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>>;
   reviewSkillVersion(

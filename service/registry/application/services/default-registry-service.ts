@@ -4489,6 +4489,201 @@ export class DefaultRegistryService implements RegistryService {
     return { task, result: updated };
   }
 
+  // Recertification (build plan 2.1): renew a certification in place. Runs
+  // the validation layers first — a failing version gets the failure
+  // recorded (like revalidate) and its certification is NOT renewed. On
+  // success the certification fields are refreshed: certified_at restarts
+  // every clock (freshness, trust recency), and a supplied
+  // certification_expires_at replaces the old deadline (the old one is
+  // dropped either way — a renewal without a new deadline carries no
+  // deadline). The same human-review and publication trust gates as certify
+  // apply.
+  async recertifySkillVersion(
+    input: SkillVersionOperationInput,
+  ): Promise<RegistryOperationResult<RegistrySkillVersionDetails>> {
+    const version = await this.getRequiredSkillVersion(input.skill_key, input.version);
+    const currentStatus = lifecycleStatus(version.skill_version.properties);
+    const certified = currentStatus === 'certified' || version.skill_version.properties['certified'] === true;
+    if (!certified) {
+      throw new RegistryCoreError(
+        'SKILL_VERSION_RECERTIFY_CONFLICT',
+        'Only certified versions can be recertified; use certify to certify a published version.',
+      );
+    }
+    if (input.governance?.ontology_version) {
+      const ontologyNode = await this.findOntologyPackageNode(input.governance.ontology_version);
+      if (!ontologyNode) {
+        throw new RegistryCoreError(
+          'ONTOLOGY_PACKAGE_NOT_FOUND',
+          `Ontology package not found: ${input.governance.ontology_version}`,
+        );
+      }
+    }
+
+    const { failures, used_urns: validationUsedUrns } = await this.runPublicationValidation({
+      entity_type: 'SKILL_VERSION',
+      logical_key: input.skill_key,
+      version_urn: version.skill_version.urn,
+      properties: version.skill_version.properties,
+    });
+    if (failures.length > 0) {
+      const failedAt = nowIso();
+      const { revalidation_failures: _previousRevalidationFailures, ...base } = version.skill_version.properties;
+      await this.deps.graph.upsertNode({
+        urn: version.skill_version.urn,
+        entity_type: 'SKILL_VERSION',
+        properties: {
+          ...base,
+          revalidated_at: failedAt,
+          revalidation_status: 'failed',
+          revalidation_failures: failures,
+          updated_at: failedAt,
+        },
+      });
+      const failed = await this.getRequiredSkillVersion(input.skill_key, input.version);
+      const task = await this.createTask({
+        operation: 'recertify',
+        author: input.author,
+        target_urn: version.skill_version.urn,
+        skill_key: input.skill_key,
+        version: input.version,
+        status: 'completed',
+        validation_status: 'failed',
+        validation_failures: failures.join(','),
+        prov_used_urns: validationUsedUrns,
+        ...(input.note ? { note: input.note } : {}),
+      });
+      return { task, result: failed };
+    }
+
+    await this.enforceHumanReviewGate({
+      properties: version.skill_version.properties,
+      errorCode: 'SKILL_VERSION_RECERTIFY_CONFLICT',
+      action: 'certify',
+    });
+    await this.enforcePublicationTrustGates({
+      publication_urn: version.skill_version.urn,
+      properties: version.skill_version.properties,
+      operation: 'certify',
+      errorCodePrefix: 'SKILL_VERSION',
+      verification: await this.getSkillPublicationVerification({
+        skill_key: input.skill_key,
+        version: input.version,
+      }),
+    });
+
+    const renewedAt = nowIso();
+    const certificationPolicyVersion =
+      input.governance?.policy_version ??
+      stringOrUndefined(version.skill_version.properties['certification_policy_version']) ??
+      stringOrUndefined(version.skill_version.properties['policy_version']) ??
+      'registry-policy/v1';
+    const certificationArtifact = await this.createGovernanceArtifact({
+      role: 'certification_evidence',
+      logical_key: input.skill_key,
+      publication_urn: version.skill_version.urn,
+      payload: {
+        certification_note: input.note ?? '',
+        certified_by: input.author,
+        approved_by: input.governance?.approver ?? input.author,
+        approved_role: input.governance?.approver_role ?? 'certifier',
+        policy_version: certificationPolicyVersion,
+        recertification: true,
+        previous_certified_at: stringOrUndefined(version.skill_version.properties['certified_at']) ?? null,
+        ...(input.governance?.ontology_version ? { ontology_version: input.governance.ontology_version } : {}),
+        ...(input.governance?.certification_expires_at
+          ? { certification_expires_at: input.governance.certification_expires_at }
+          : {}),
+      },
+    });
+
+    const {
+      certification_expires_at: _previousCertificationExpiry,
+      revalidation_failures: _previousRevalidationFailures,
+      ...base
+    } = version.skill_version.properties;
+    await this.deps.graph.upsertNode({
+      urn: version.skill_version.urn,
+      entity_type: 'SKILL_VERSION',
+      properties: {
+        ...base,
+        lifecycle_status: 'certified',
+        certified: true,
+        certified_by: input.author,
+        certified_at: renewedAt,
+        revalidated_at: renewedAt,
+        revalidation_status: 'passed',
+        certification_policy_version: certificationPolicyVersion,
+        ...(input.governance?.ontology_version
+          ? { certification_ontology_version: input.governance.ontology_version }
+          : {}),
+        ...(input.governance?.certification_expires_at
+          ? { certification_expires_at: input.governance.certification_expires_at }
+          : {}),
+        ...(input.note ? { certification_note: input.note } : {}),
+        ...(input.governance?.approver_role ? { certified_role: input.governance.approver_role } : {}),
+        updated_at: renewedAt,
+      },
+    });
+    await this.attachGovernanceArtifacts(version.skill_version.urn, [certificationArtifact]);
+    await this.recordPublicationAppendIntent({
+      publication_urn: version.skill_version.urn,
+      logical_key: input.skill_key,
+      entity_type: 'SKILL_VERSION',
+      note: 'skill recertification publication state',
+    });
+    // A renewal is a governance checkpoint that changes the published graph
+    // (fresh certification evidence + timestamps): re-project the canonical
+    // RDF like certify.
+    {
+      const recertifiedNode = await this.deps.graph.getNode(version.skill_version.urn);
+      if (recertifiedNode) {
+        const canonicalRdf = await this.publishCanonicalRdfArtifact({
+          publication_urn: version.skill_version.urn,
+          logical_urn: skillUrn(input.skill_key),
+          properties: Object.fromEntries(
+            Object.entries(recertifiedNode.properties).filter(
+              ([propKey]) => propKey !== 'canonical_rdf_sha256' && propKey !== 'canonical_rdf_artifact_urn',
+            ),
+          ),
+        });
+        await this.deps.graph.upsertNode({
+          urn: recertifiedNode.urn,
+          entity_type: recertifiedNode.entity_type,
+          properties: {
+            ...recertifiedNode.properties,
+            canonical_rdf_sha256: canonicalRdf.sha256,
+            canonical_rdf_artifact_urn: canonicalRdf.artifact_urn,
+          },
+        });
+      }
+    }
+    const recertifyUsedUrns: string[] = [certificationArtifact.artifact_urn, ...validationUsedUrns];
+    const certificationPolicyNode = await this.findPolicyPackageNode(certificationPolicyVersion);
+    if (certificationPolicyNode) recertifyUsedUrns.push(certificationPolicyNode.urn);
+    if (input.governance?.ontology_version) {
+      const ontologyNode = await this.findOntologyPackageNode(input.governance.ontology_version);
+      if (ontologyNode) recertifyUsedUrns.push(ontologyNode.urn);
+    }
+    const approver = input.governance?.approver;
+    const updated = await this.getRequiredSkillVersion(input.skill_key, input.version);
+    const task = await this.createTask({
+      operation: 'recertify',
+      author: input.author,
+      target_urn: version.skill_version.urn,
+      skill_key: input.skill_key,
+      version: input.version,
+      status: 'completed',
+      validation_status: 'passed',
+      prov_used_urns: recertifyUsedUrns,
+      ...(approver && approver !== input.author
+        ? { prov_associated_agents: [{ agent: approver, role: input.governance?.approver_role ?? 'certifier' }] }
+        : {}),
+      ...(input.note ? { note: input.note } : {}),
+    });
+    return { task, result: updated };
+  }
+
   async archiveSkillVersion(input: SkillVersionOperationInput): Promise<RegistryOperationResult<RegistrySkillVersionDetails>> {
     const version = await this.getRequiredSkillVersion(input.skill_key, input.version);
     const currentStatus = lifecycleStatus(version.skill_version.properties);
@@ -5398,6 +5593,191 @@ export class DefaultRegistryService implements RegistryService {
         : {}),
       ...(input.note ? { note: input.note } : {}),
       ...publication.taskEvidence,
+    });
+    return { task, result: updated };
+  }
+
+  // See recertifySkillVersion: recorded-outcome certification renewal for
+  // agent versions; a failing validation never renews.
+  async recertifyAgentVersion(
+    input: AgentVersionOperationInput,
+  ): Promise<RegistryOperationResult<RegistryAgentVersionDetails>> {
+    const version = await this.getRequiredAgentVersion(input.agent_key, input.version);
+    const currentStatus = lifecycleStatus(version.agent_version.properties);
+    const certified = currentStatus === 'certified' || version.agent_version.properties['certified'] === true;
+    if (!certified) {
+      throw new RegistryCoreError(
+        'AGENT_VERSION_RECERTIFY_CONFLICT',
+        'Only certified versions can be recertified; use certify to certify a published version.',
+      );
+    }
+    if (input.governance?.ontology_version) {
+      const ontologyNode = await this.findOntologyPackageNode(input.governance.ontology_version);
+      if (!ontologyNode) {
+        throw new RegistryCoreError(
+          'ONTOLOGY_PACKAGE_NOT_FOUND',
+          `Ontology package not found: ${input.governance.ontology_version}`,
+        );
+      }
+    }
+
+    const { failures, used_urns: validationUsedUrns } = await this.runPublicationValidation({
+      entity_type: 'AGENT_VERSION',
+      logical_key: input.agent_key,
+      version_urn: version.agent_version.urn,
+      properties: version.agent_version.properties,
+    });
+    if (failures.length > 0) {
+      const failedAt = nowIso();
+      const { revalidation_failures: _previousRevalidationFailures, ...base } = version.agent_version.properties;
+      await this.deps.graph.upsertNode({
+        urn: version.agent_version.urn,
+        entity_type: 'AGENT_VERSION',
+        properties: {
+          ...base,
+          revalidated_at: failedAt,
+          revalidation_status: 'failed',
+          revalidation_failures: failures,
+          updated_at: failedAt,
+        },
+      });
+      const failed = await this.getRequiredAgentVersion(input.agent_key, input.version);
+      const task = await this.createTask({
+        operation: 'recertify',
+        author: input.author,
+        target_urn: version.agent_version.urn,
+        agent_key: input.agent_key,
+        version: input.version,
+        status: 'completed',
+        validation_status: 'failed',
+        validation_failures: failures.join(','),
+        prov_used_urns: validationUsedUrns,
+        ...(input.note ? { note: input.note } : {}),
+      });
+      return { task, result: failed };
+    }
+
+    await this.enforceHumanReviewGate({
+      properties: version.agent_version.properties,
+      errorCode: 'AGENT_VERSION_RECERTIFY_CONFLICT',
+      action: 'certify',
+    });
+    await this.enforcePublicationTrustGates({
+      publication_urn: version.agent_version.urn,
+      properties: version.agent_version.properties,
+      operation: 'certify',
+      errorCodePrefix: 'AGENT_VERSION',
+      verification: await this.getAgentPublicationVerification({
+        agent_key: input.agent_key,
+        version: input.version,
+      }),
+    });
+
+    const renewedAt = nowIso();
+    const certificationPolicyVersion =
+      input.governance?.policy_version ??
+      stringOrUndefined(version.agent_version.properties['certification_policy_version']) ??
+      stringOrUndefined(version.agent_version.properties['policy_version']) ??
+      'registry-policy/v1';
+    const certificationArtifact = await this.createGovernanceArtifact({
+      role: 'certification_evidence',
+      logical_key: input.agent_key,
+      publication_urn: version.agent_version.urn,
+      payload: {
+        certification_note: input.note ?? '',
+        certified_by: input.author,
+        approved_by: input.governance?.approver ?? input.author,
+        approved_role: input.governance?.approver_role ?? 'certifier',
+        policy_version: certificationPolicyVersion,
+        recertification: true,
+        previous_certified_at: stringOrUndefined(version.agent_version.properties['certified_at']) ?? null,
+        ...(input.governance?.ontology_version ? { ontology_version: input.governance.ontology_version } : {}),
+        ...(input.governance?.certification_expires_at
+          ? { certification_expires_at: input.governance.certification_expires_at }
+          : {}),
+      },
+    });
+
+    const {
+      certification_expires_at: _previousCertificationExpiry,
+      revalidation_failures: _previousRevalidationFailures,
+      ...base
+    } = version.agent_version.properties;
+    await this.deps.graph.upsertNode({
+      urn: version.agent_version.urn,
+      entity_type: 'AGENT_VERSION',
+      properties: {
+        ...base,
+        lifecycle_status: 'certified',
+        certified: true,
+        certified_by: input.author,
+        certified_at: renewedAt,
+        revalidated_at: renewedAt,
+        revalidation_status: 'passed',
+        certification_policy_version: certificationPolicyVersion,
+        ...(input.governance?.ontology_version
+          ? { certification_ontology_version: input.governance.ontology_version }
+          : {}),
+        ...(input.governance?.certification_expires_at
+          ? { certification_expires_at: input.governance.certification_expires_at }
+          : {}),
+        ...(input.note ? { certification_note: input.note } : {}),
+        ...(input.governance?.approver_role ? { certified_role: input.governance.approver_role } : {}),
+        updated_at: renewedAt,
+      },
+    });
+    await this.attachGovernanceArtifacts(version.agent_version.urn, [certificationArtifact]);
+    await this.recordPublicationAppendIntent({
+      publication_urn: version.agent_version.urn,
+      logical_key: input.agent_key,
+      entity_type: 'AGENT_VERSION',
+      note: 'agent recertification publication state',
+    });
+    {
+      const recertifiedNode = await this.deps.graph.getNode(version.agent_version.urn);
+      if (recertifiedNode) {
+        const canonicalRdf = await this.publishCanonicalRdfArtifact({
+          publication_urn: version.agent_version.urn,
+          logical_urn: agentUrn(input.agent_key),
+          properties: Object.fromEntries(
+            Object.entries(recertifiedNode.properties).filter(
+              ([propKey]) => propKey !== 'canonical_rdf_sha256' && propKey !== 'canonical_rdf_artifact_urn',
+            ),
+          ),
+        });
+        await this.deps.graph.upsertNode({
+          urn: recertifiedNode.urn,
+          entity_type: recertifiedNode.entity_type,
+          properties: {
+            ...recertifiedNode.properties,
+            canonical_rdf_sha256: canonicalRdf.sha256,
+            canonical_rdf_artifact_urn: canonicalRdf.artifact_urn,
+          },
+        });
+      }
+    }
+    const recertifyUsedUrns: string[] = [certificationArtifact.artifact_urn, ...validationUsedUrns];
+    const certificationPolicyNode = await this.findPolicyPackageNode(certificationPolicyVersion);
+    if (certificationPolicyNode) recertifyUsedUrns.push(certificationPolicyNode.urn);
+    if (input.governance?.ontology_version) {
+      const ontologyNode = await this.findOntologyPackageNode(input.governance.ontology_version);
+      if (ontologyNode) recertifyUsedUrns.push(ontologyNode.urn);
+    }
+    const approver = input.governance?.approver;
+    const updated = await this.getRequiredAgentVersion(input.agent_key, input.version);
+    const task = await this.createTask({
+      operation: 'recertify',
+      author: input.author,
+      target_urn: version.agent_version.urn,
+      agent_key: input.agent_key,
+      version: input.version,
+      status: 'completed',
+      validation_status: 'passed',
+      prov_used_urns: recertifyUsedUrns,
+      ...(approver && approver !== input.author
+        ? { prov_associated_agents: [{ agent: approver, role: input.governance?.approver_role ?? 'certifier' }] }
+        : {}),
+      ...(input.note ? { note: input.note } : {}),
     });
     return { task, result: updated };
   }

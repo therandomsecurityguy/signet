@@ -337,6 +337,19 @@ function makeRegistryApiClient(): RegistryApiClient {
     }),
     setSkillTags: async (_skillKey, tags) => ({ tags }),
     setAgentTags: async (_agentKey, tags) => ({ tags }),
+    revalidateSkillVersion: async () => {
+      throw new Error('revalidateSkillVersion not stubbed');
+    },
+    recertifySkillVersion: async () => {
+      throw new Error('recertifySkillVersion not stubbed');
+    },
+    revalidateAgentVersion: async () => {
+      throw new Error('revalidateAgentVersion not stubbed');
+    },
+    recertifyAgentVersion: async () => {
+      throw new Error('recertifyAgentVersion not stubbed');
+    },
+    getRecertificationQueue: async () => ({ items: [], total: 0, due_count: 0, approaching_count: 0 }),
   };
 }
 

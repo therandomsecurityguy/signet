@@ -287,6 +287,146 @@ describe('knowledge-manager app', () => {
     expect(detailsText).toContain('certification expires in 180d');
   });
 
+  it('renders the recertification queue with actions for signed-in operators', async () => {
+    const queueFixture = {
+      items: [
+        {
+          publication_urn: 'urn:sg:skill-version:skill:stale@v1',
+          entity_type: 'SKILL_VERSION' as const,
+          logical_key: 'skill:stale',
+          version: 1,
+          lifecycle_status: 'certified',
+          freshness: {
+            freshness: 'stale' as const,
+            last_verified_at: '2026-01-01T00:00:00.000Z',
+            verification_basis: 'certified_at' as const,
+            age_days: 328,
+            certification_expires_at: null,
+            certification_expired: false,
+            expires_in_days: null,
+            reasons: ['aged'],
+          },
+          last_revalidated_at: null,
+          revalidation_status: null,
+          recertification_state: 'due' as const,
+          reasons: ['aged'],
+        },
+      ],
+      total: 1,
+      due_count: 1,
+      approaching_count: 0,
+    };
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({ getRecertificationQueue: async () => queueFixture }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const anonymous = await app.request('/recertification');
+    expect(anonymous.status).toBe(200);
+    const anonymousText = await anonymous.text();
+    expect(anonymousText).toContain('skill:stale');
+    expect(anonymousText).toContain('Sign in to act.');
+
+    const login = await app.request('/session/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ return_to: '/recertification' }).toString(),
+    });
+    expect(login.status).toBe(303);
+    const cookie = login.headers.get('set-cookie') ?? '';
+    const signedIn = await app.request('/recertification', { headers: { cookie } });
+    expect(signedIn.status).toBe(200);
+    const text = await signedIn.text();
+    expect(text).toContain('/recertification/skills/skill%3Astale/versions/1/revalidate');
+    expect(text).toContain('/recertification/skills/skill%3Astale/versions/1/recertify');
+    expect(text).toContain('Recertify');
+    expect(text).toContain('certification_expires_at');
+  });
+
+  it('posts queue actions with the operator session and expiry input', async () => {
+    const calls: Array<{ action: string; token: string; payload: Record<string, unknown> }> = [];
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        recertifySkillVersion: async (_skillKey, _version, input, apiToken) =>
+          recordLifecycleCall('recertify', input as unknown as Record<string, unknown>, apiToken, calls),
+        getRecertificationQueue: async () => ({ items: [], total: 0, due_count: 0, approaching_count: 0 }),
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const login = await app.request('/session/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ return_to: '/recertification' }).toString(),
+    });
+    expect(login.status).toBe(303);
+    const cookie = login.headers.get('set-cookie') ?? '';
+    const csrf = await csrfTokenFor(app, cookie);
+
+    const submit = await app.request('/recertification/skills/skill%3Astale/versions/1/recertify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', cookie },
+      body: new URLSearchParams({
+        _csrf: csrf,
+        author: 'Jane Doe',
+        certification_expires_at: '2027-06-01',
+      }).toString(),
+    });
+    expect(submit.status).toBe(303);
+    const location = submit.headers.get('location') ?? '';
+    expect(location).toContain('/recertification');
+    expect(location).toContain('session_flash');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.action).toBe('recertify');
+    expect(calls[0]?.payload).toMatchObject({
+      author: 'Jane Doe',
+      governance: { certification_expires_at: '2027-06-01' },
+    });
+  });
+
+  it('offers recertify with an expiry field on certified version cards', async () => {
+    const version = {
+      skill_version: {
+        urn: 'urn:sg:skill-version:skill:certified@v2',
+        properties: { version: 2, lifecycle_status: 'certified', certified: true, active: true },
+      },
+      artifacts: [],
+      upstream_versions: [],
+      governance_artifacts: [],
+    };
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        getSkill: async () => ({
+          skill: { urn: 'urn:sg:skill:skill:certified', properties: { skill_key: 'skill:certified' } },
+          active_version: version,
+          artifacts: [],
+        }),
+        getActiveSkillVersion: async () => version,
+        listSkillVersions: async () => ({ versions: [version] }),
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const page = await app.request('/skills/skill%3Acertified');
+    expect(page.status).toBe(200);
+    const text = await page.text();
+    expect(text).toContain('Recertify');
+    expect(text).toContain('Revalidate');
+    expect(text).toContain('certification_expires_at');
+  });
+
   it('adds contextual graph links on agent and skill detail pages', async () => {
     const app = buildApp({
       env,
@@ -1517,6 +1657,19 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
     }),
     setSkillTags: async () => ({ tags: [] }),
     setAgentTags: async () => ({ tags: [] }),
+    revalidateSkillVersion: async () => {
+      throw new Error('revalidateSkillVersion not stubbed');
+    },
+    recertifySkillVersion: async () => {
+      throw new Error('recertifySkillVersion not stubbed');
+    },
+    revalidateAgentVersion: async () => {
+      throw new Error('revalidateAgentVersion not stubbed');
+    },
+    recertifyAgentVersion: async () => {
+      throw new Error('recertifyAgentVersion not stubbed');
+    },
+    getRecertificationQueue: async () => ({ items: [], total: 0, due_count: 0, approaching_count: 0 }),
     ...overrides,
   };
 }
