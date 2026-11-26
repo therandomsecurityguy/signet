@@ -333,7 +333,7 @@ export interface paths {
                                     freshness: "fresh" | "aging" | "stale";
                                     last_verified_at: string;
                                     /** @enum {string} */
-                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    verification_basis: "certified_at" | "revalidated_at" | "published_at" | "validated_at";
                                     age_days: number;
                                     certification_expires_at: string | null;
                                     certification_expired: boolean;
@@ -445,7 +445,7 @@ export interface paths {
                                     freshness: "fresh" | "aging" | "stale";
                                     last_verified_at: string;
                                     /** @enum {string} */
-                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    verification_basis: "certified_at" | "revalidated_at" | "published_at" | "validated_at";
                                     age_days: number;
                                     certification_expires_at: string | null;
                                     certification_expired: boolean;
@@ -511,7 +511,7 @@ export interface paths {
                                     freshness: "fresh" | "aging" | "stale";
                                     last_verified_at: string;
                                     /** @enum {string} */
-                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    verification_basis: "certified_at" | "revalidated_at" | "published_at" | "validated_at";
                                     age_days: number;
                                     certification_expires_at: string | null;
                                     certification_expired: boolean;
@@ -645,7 +645,7 @@ export interface paths {
                                     freshness: "fresh" | "aging" | "stale";
                                     last_verified_at: string;
                                     /** @enum {string} */
-                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    verification_basis: "certified_at" | "revalidated_at" | "published_at" | "validated_at";
                                     age_days: number;
                                     certification_expires_at: string | null;
                                     certification_expired: boolean;
@@ -2020,6 +2020,141 @@ export interface paths {
             };
             responses: {
                 /** @description Agent version validated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Invalid agent version operation payload */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Agent version not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Agent version conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/agents/{agentKey}/versions/{version}/revalidate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    agentKey: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        author: string;
+                        note?: string;
+                        governance?: {
+                            publisher?: string;
+                            policy_version?: string;
+                            ontology_version?: string;
+                            validation_report?: string;
+                            signature_ref?: string;
+                            approver?: string;
+                            approver_role?: string;
+                            certification_expires_at?: string;
+                        };
+                        prepared_publication_urn?: string;
+                        signatures?: {
+                            signer: string;
+                            key_ref?: string;
+                            algorithm?: string;
+                            signature?: string;
+                            keyless_bundle?: {
+                                [key: string]: unknown;
+                            };
+                            /** @enum {string} */
+                            signed_payload?: "canonical_json" | "canonical_rdf";
+                            transparency_log_ref?: string;
+                            inclusion_proof_ref?: string;
+                            inclusion_proof?: {
+                                log_id: string;
+                                tree_size: number;
+                                leaf_index: number;
+                                root_hash: string;
+                                proof_hashes: string[];
+                                checkpoint_body: string;
+                                checkpoint_signature: string;
+                                transparency_log_ref?: string;
+                            };
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Agent version revalidated (recorded outcome; lifecycle status unchanged) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -5871,7 +6006,7 @@ export interface paths {
                                     freshness: "fresh" | "aging" | "stale";
                                     last_verified_at: string;
                                     /** @enum {string} */
-                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    verification_basis: "certified_at" | "revalidated_at" | "published_at" | "validated_at";
                                     age_days: number;
                                     certification_expires_at: string | null;
                                     certification_expired: boolean;
@@ -5965,7 +6100,7 @@ export interface paths {
                                     freshness: "fresh" | "aging" | "stale";
                                     last_verified_at: string;
                                     /** @enum {string} */
-                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    verification_basis: "certified_at" | "revalidated_at" | "published_at" | "validated_at";
                                     age_days: number;
                                     certification_expires_at: string | null;
                                     certification_expired: boolean;
@@ -6018,7 +6153,7 @@ export interface paths {
                                     freshness: "fresh" | "aging" | "stale";
                                     last_verified_at: string;
                                     /** @enum {string} */
-                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    verification_basis: "certified_at" | "revalidated_at" | "published_at" | "validated_at";
                                     age_days: number;
                                     certification_expires_at: string | null;
                                     certification_expired: boolean;
@@ -6139,7 +6274,7 @@ export interface paths {
                                     freshness: "fresh" | "aging" | "stale";
                                     last_verified_at: string;
                                     /** @enum {string} */
-                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    verification_basis: "certified_at" | "revalidated_at" | "published_at" | "validated_at";
                                     age_days: number;
                                     certification_expires_at: string | null;
                                     certification_expired: boolean;
@@ -6243,7 +6378,7 @@ export interface paths {
                                     freshness: "fresh" | "aging" | "stale";
                                     last_verified_at: string;
                                     /** @enum {string} */
-                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    verification_basis: "certified_at" | "revalidated_at" | "published_at" | "validated_at";
                                     age_days: number;
                                     certification_expires_at: string | null;
                                     certification_expired: boolean;
@@ -6280,7 +6415,7 @@ export interface paths {
                                     freshness: "fresh" | "aging" | "stale";
                                     last_verified_at: string;
                                     /** @enum {string} */
-                                    verification_basis: "certified_at" | "published_at" | "validated_at";
+                                    verification_basis: "certified_at" | "revalidated_at" | "published_at" | "validated_at";
                                     age_days: number;
                                     certification_expires_at: string | null;
                                     certification_expired: boolean;
@@ -7818,6 +7953,168 @@ export interface paths {
             };
             responses: {
                 /** @description Skill version validated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            task: {
+                                task: {
+                                    urn: string;
+                                    properties: {
+                                        [key: string]: unknown;
+                                    };
+                                };
+                                targets: {
+                                    target_urn: string;
+                                }[];
+                            };
+                            result: {
+                                skill_version: {
+                                    urn: string;
+                                    properties: {
+                                        [key: string]: unknown;
+                                    };
+                                };
+                                artifacts: {
+                                    artifact_urn: string;
+                                    sha256?: string;
+                                }[];
+                                upstream_versions: {
+                                    skill_version_urn: string;
+                                }[];
+                            };
+                        };
+                    };
+                };
+                /** @description Invalid skill version operation payload */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Skill version not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Skill version conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/skills/{skillKey}/versions/{version}/revalidate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    skillKey: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        author: string;
+                        note?: string;
+                        governance?: {
+                            publisher?: string;
+                            policy_version?: string;
+                            ontology_version?: string;
+                            validation_report?: string;
+                            signature_ref?: string;
+                            approver?: string;
+                            approver_role?: string;
+                            certification_expires_at?: string;
+                        };
+                        prepared_publication_urn?: string;
+                        signatures?: {
+                            signer: string;
+                            key_ref?: string;
+                            algorithm?: string;
+                            signature?: string;
+                            keyless_bundle?: {
+                                [key: string]: unknown;
+                            };
+                            /** @enum {string} */
+                            signed_payload?: "canonical_json" | "canonical_rdf";
+                            transparency_log_ref?: string;
+                            inclusion_proof_ref?: string;
+                            inclusion_proof?: {
+                                log_id: string;
+                                tree_size: number;
+                                leaf_index: number;
+                                root_hash: string;
+                                proof_hashes: string[];
+                                checkpoint_body: string;
+                                checkpoint_signature: string;
+                                transparency_log_ref?: string;
+                            };
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Skill version revalidated (recorded outcome; lifecycle status unchanged) */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -11141,6 +11438,413 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/recertification/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    state?: "due" | "approaching" | "all";
+                    entity_type?: "skill" | "agent" | "all";
+                    limit?: number;
+                    offset?: number | null;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Recertification queue (due first, then approaching) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: {
+                                publication_urn: string;
+                                /** @enum {string} */
+                                entity_type: "SKILL_VERSION" | "AGENT_VERSION";
+                                logical_key: string;
+                                version: number;
+                                lifecycle_status: string;
+                                freshness: {
+                                    /** @enum {string} */
+                                    freshness: "fresh" | "aging" | "stale";
+                                    last_verified_at: string;
+                                    /** @enum {string} */
+                                    verification_basis: "certified_at" | "revalidated_at" | "published_at" | "validated_at";
+                                    age_days: number;
+                                    certification_expires_at: string | null;
+                                    certification_expired: boolean;
+                                    expires_in_days: number | null;
+                                    reasons: string[];
+                                };
+                                last_revalidated_at: string | null;
+                                revalidation_status: string | null;
+                                /** @enum {string} */
+                                recertification_state: "due" | "approaching";
+                                reasons: string[];
+                            }[];
+                            total: number;
+                            due_count: number;
+                            approaching_count: number;
+                        };
+                    };
+                };
+                /** @description Invalid queue query parameters */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/revalidation-jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List revalidation jobs */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            jobs: {
+                                urn: string;
+                                properties: {
+                                    [key: string]: unknown;
+                                };
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        job_id: string;
+                        author: string;
+                        /**
+                         * @default due
+                         * @enum {string}
+                         */
+                        scope?: "due" | "approaching" | "all";
+                        /**
+                         * @default all
+                         * @enum {string}
+                         */
+                        entity_type?: "skill" | "agent" | "all";
+                        limit?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description Revalidation job already exists (idempotent) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            revalidation_job: {
+                                urn: string;
+                                properties: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                            created: boolean;
+                        };
+                    };
+                };
+                /** @description Revalidation job created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            revalidation_job: {
+                                urn: string;
+                                properties: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                            created: boolean;
+                        };
+                    };
+                };
+                /** @description Invalid revalidation job payload */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/revalidation-jobs/{jobId}/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    jobId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        author: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Revalidation job executed (idempotent on replay) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            revalidation_job: {
+                                urn: string;
+                                properties: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Invalid revalidation job execute payload */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/revalidation-jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    jobId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Get revalidation job */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            revalidation_job: {
+                                urn: string;
+                                properties: {
+                                    [key: string]: unknown;
+                                };
+                            };
+                        };
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;

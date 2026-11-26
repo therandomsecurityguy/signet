@@ -198,6 +198,22 @@ const validateVersionRoute = createRoute({
   },
 });
 
+const revalidateVersionRoute = createRoute({
+  method: 'post',
+  path: '/v1/skills/{skillKey}/versions/{version}/revalidate',
+  request: {
+    params: z.object({ skillKey: entityKeySchema, version: z.string() }),
+    body: { content: { 'application/json': { schema: SkillVersionOperationInputSchema } } },
+  },
+  responses: {
+    200: { content: { 'application/json': { schema: SkillLifecycleOperationResultSchema } }, description: 'Skill version revalidated (recorded outcome; lifecycle status unchanged)' },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid skill version operation payload' },
+    404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Skill version not found' },
+    409: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Skill version conflict' },
+    500: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Internal error' },
+  },
+});
+
 const publishVersionRoute = createRoute({
   method: 'post',
   path: '/v1/skills/{skillKey}/versions/{version}/publish',
@@ -522,6 +538,10 @@ app.openapi(validateVersionRoute, async (c) => {
     return await handleVersionAction({ c, deps, action: 'validate' });
   });
 
+  app.openapi(revalidateVersionRoute, async (c) => {
+    return await handleVersionAction({ c, deps, action: 'revalidate' });
+  });
+
   app.openapi(publishVersionRoute, async (c) => {
     return await handleVersionAction({ c, deps, action: 'publish' });
   });
@@ -641,7 +661,7 @@ app.openapi(validateVersionRoute, async (c) => {
 async function handleVersionAction(input: {
   c: Context<AppEnv>;
   deps: { lifecycle: SkillLifecycleUseCase; audit: AuditPublisher };
-  action: 'validate' | 'publish' | 'promote' | 'deprecate' | 'certify' | 'revoke' | 'archive';
+  action: 'validate' | 'revalidate' | 'publish' | 'promote' | 'deprecate' | 'certify' | 'revoke' | 'archive';
 }) {
   const raw = await input.c.req.json().catch(() => undefined);
   const parsed = SkillVersionOperationInputSchema.safeParse(raw);

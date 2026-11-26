@@ -659,6 +659,34 @@
           "type": "string"
         }
       }
+    },
+    "revalidation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "schedule": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "due",
+            "approaching",
+            "all"
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "apiKeySecretRef": {
+          "type": "string"
+        }
+      }
     }
   },
   "$defs": {

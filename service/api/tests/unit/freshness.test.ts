@@ -34,15 +34,27 @@ describe('freshness signal', () => {
     expect(stale?.reasons).toEqual(['aged']);
   });
 
-  it('measures age from the newest verification moment (certification first)', () => {
-    const certified = computeFreshness(
+  it('measures age from the newest verification moment', () => {
+    // Newest wins across all four bases: a revalidation after certification
+    // restarts the clock, and only when no newer moment exists does the
+    // earlier basis survive.
+    const revalidated = computeFreshness(
+      { certified_at: daysAgo(100), revalidated_at: daysAgo(2), published_at: daysAgo(101) },
+      now,
+    );
+    expect(revalidated?.verification_basis).toBe('revalidated_at');
+    expect(revalidated?.age_days).toBe(2);
+    const published = computeFreshness(
       { certified_at: daysAgo(100), published_at: daysAgo(1) },
       now,
     );
-    expect(certified?.verification_basis).toBe('certified_at');
-    expect(certified?.age_days).toBe(100);
-    const published = computeFreshness({ published_at: daysAgo(5), validated_at: daysAgo(9) }, now);
     expect(published?.verification_basis).toBe('published_at');
+    expect(published?.age_days).toBe(1);
+    const certified = computeFreshness(
+      { certified_at: daysAgo(5), published_at: daysAgo(9) },
+      now,
+    );
+    expect(certified?.verification_basis).toBe('certified_at');
     const validated = computeFreshness({ validated_at: daysAgo(3) }, now);
     expect(validated?.verification_basis).toBe('validated_at');
   });

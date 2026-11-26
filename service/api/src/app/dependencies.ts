@@ -21,6 +21,7 @@ import { ApiKeyUseCase } from '../application/usecases/api-keys.js';
 import { AgentLifecycleUseCase } from '../application/usecases/agent-lifecycle.js';
 import { CompileUseCase, DeFactoTermsUseCase } from '../application/usecases/compile.js';
 import { ReviewsUseCase } from '../application/usecases/reviews.js';
+import { RevalidationUseCase } from '../application/usecases/revalidation.js';
 import { GovernanceLogUseCase } from '../application/usecases/governance-log.js';
 import { OntologyPackageUseCase } from '../application/usecases/ontology-packages.js';
 import { PolicyPackageUseCase } from '../application/usecases/policy-packages.js';
@@ -171,6 +172,7 @@ export function buildAppDependencies(env: Env) {
     compile: new CompileUseCase(registryCore.service),
     deFactoTerms: new DeFactoTermsUseCase(registryCore.service),
     reviews: new ReviewsUseCase(registryCore.service),
+    revalidation: new RevalidationUseCase(registryCore.service),
     listPublicKeys: new ListPublicKeysUseCase(registryCore.service),
     getPublicKey: new GetPublicKeyUseCase(registryCore.service),
     createPublicKey: new CreatePublicKeyUseCase(registryCore.service),

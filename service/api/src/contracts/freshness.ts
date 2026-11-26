@@ -6,7 +6,7 @@ export const FreshnessSchema = z.object({
   freshness: z.enum(['fresh', 'aging', 'stale']),
   /** The timestamp age is measured from (echoed as stored). */
   last_verified_at: z.string(),
-  verification_basis: z.enum(['certified_at', 'published_at', 'validated_at']),
+  verification_basis: z.enum(['certified_at', 'revalidated_at', 'published_at', 'validated_at']),
   age_days: z.number().int().nonnegative(),
   /** Null when the certification carries no expiry. */
   certification_expires_at: z.string().nullable(),

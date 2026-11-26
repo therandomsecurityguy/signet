@@ -1,0 +1,9 @@
+name: REVALIDATION_JOB
+doc: A bounded, non-destructive revalidation run over recertification-queue versions; records per-version outcomes as a CAS evidence artifact.
+urn_template: "urn:sg:revalidation-job:{job_id}"
+key_fields:
+  - job_id
+aspects:
+  - RevalidationJobProperties
+  - Ownership
+  - Tags

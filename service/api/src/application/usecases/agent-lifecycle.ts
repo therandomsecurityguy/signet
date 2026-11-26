@@ -43,6 +43,15 @@ export class AgentLifecycleUseCase {
     });
   }
 
+  async revalidate(input: { agent_key: string; version: number } & AgentVersionOperationInput) {
+    return await this.registry.revalidateAgentVersion({
+      agent_key: input.agent_key,
+      version: input.version,
+      author: input.author,
+      ...(input.note ? { note: input.note } : {}),
+    });
+  }
+
   async publish(input: { agent_key: string; version: number } & AgentVersionOperationInput) {
     return await this.registry.publishAgentVersion({
       agent_key: input.agent_key,

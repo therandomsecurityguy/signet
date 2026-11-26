@@ -12,6 +12,7 @@ export type TagUrn = `urn:sg:tag:${string}`;
 export type WorkspaceUrn = `urn:sg:workspace:${string}`;
 export type RetentionRootUrn = `urn:sg:retention-root:${string}`;
 export type GcJobUrn = `urn:sg:gc-job:${string}`;
+export type RevalidationJobUrn = `urn:sg:revalidation-job:${string}`;
 export type HarnessUrn = `urn:sg:harness:${string}`;
 export type ToolUrn = `urn:sg:tool:${string}`;
 export type PublicKeyUrn = `urn:sg:public-key:${string}`;
@@ -73,6 +74,10 @@ export function retentionRootUrn(root_id: string): RetentionRootUrn {
 
 export function gcJobUrn(job_id: string): GcJobUrn {
   return `urn:sg:gc-job:${job_id}` as const;
+}
+
+export function revalidationJobUrn(job_id: string): RevalidationJobUrn {
+  return `urn:sg:revalidation-job:${job_id}` as const;
 }
 
 export type DeFactoTermUrn = `urn:sg:defacto-term:${string}`;
