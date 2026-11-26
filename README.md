@@ -277,6 +277,16 @@ Discovery and freshness:
   `expires_in_days`); exposed on API version details, version lists,
   ranked lists, and search, on MCP `registry.search` and
   `registry.get_skill` / `registry.get_agent`, and as webapp chips
+- trust event feed: `GET /v1/events` reads the recorded governance
+  events (publication, revocation, deprecation, certification,
+  revalidation, recertification, …) newest-first with filters
+  (`event_type`, `publication_urn`, `logical_key`, `since`/`until`) and
+  their Merkle log positions (so consumers can request inclusion proofs
+  for exactly the events they act on); `GET /v1/events/stream` is a
+  Server-Sent Events stream over the same filters with a position cursor
+  (`since_position`, `-1` replays from the start) — poll-backed against
+  the shared log, so it is cross-replica safe with delivery latency equal
+  to the poll cadence (`EVENTS_STREAM_POLL_MS`, default 3s)
 - recertification queue + scheduled re-validation: `GET
   /v1/recertification/queue` ranks live versions whose verification is
   aging (`approaching`) or stale/expired/failed (`due`); recorded

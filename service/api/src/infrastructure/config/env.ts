@@ -123,6 +123,9 @@ const EnvSchema = z.object({
   AUTH_FAILURE_LIMIT: z.coerce.number().int().positive().default(20),
   AUTH_FAILURE_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60_000),
   REDIS_URL: z.string().optional(),
+  // Trust event feed: the SSE stream polls the shared governance log for new
+  // events on this cadence (cross-replica safe; delivery latency = cadence).
+  EVENTS_STREAM_POLL_MS: z.coerce.number().int().positive().default(3000),
   // Optional bearer token protecting /metrics. When unset, /metrics stays
   // open and must be restricted at the network layer (the chart's
   // NetworkPolicies allow only ingress-controller and Prometheus namespaces).

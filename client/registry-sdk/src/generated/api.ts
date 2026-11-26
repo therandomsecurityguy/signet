@@ -4096,6 +4096,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    event_type?: string;
+                    publication_urn?: string;
+                    logical_key?: string;
+                    since?: string;
+                    until?: string;
+                    after_position?: number | null;
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Governance events (newest first; ascending with after_position) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            events: {
+                                position: number;
+                                event_artifact_urn: string;
+                                event_sha256: string;
+                                event_type: string;
+                                occurred_at: string;
+                                actor: string;
+                                logical_urn: string;
+                                entity_type: string;
+                                publication_urn: string;
+                                task_urn: string;
+                                policy_version?: string;
+                                ontology_version?: string;
+                                envelope_sha256?: string;
+                            }[];
+                            latest_position: number | null;
+                        };
+                    };
+                };
+                /** @description Invalid event query parameters */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/compile/skill": {
         parameters: {
             query?: never;
