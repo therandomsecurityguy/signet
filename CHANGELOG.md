@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.94](https://github.com/therandomsecurityguy/signet/compare/v0.1.93...v0.1.94) (2026-11-26)
+
+
+### Features
+
+* **revalidation:** recertification queue and scheduled re-validation ([376d868](https://github.com/therandomsecurityguy/signet/commit/376d86881cea8c12da3fc09396721a6eebcb9043))
+* **revalidation:** recertification queue and scheduled re-validation ([45f475d](https://github.com/therandomsecurityguy/signet/commit/45f475df0314c32a8811208e2778f2e1bd9fcd6b))
+
 ## [0.1.93](https://github.com/therandomsecurityguy/signet/compare/v0.1.92...v0.1.93) (2026-11-25)
 
 

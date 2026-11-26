@@ -4,5 +4,5 @@ description: >-
   Signet — graph-first semantic governance registry for agents and skills (api,
   mcp, webapp, tessera-sidecar, fuseki).
 type: application
-version: 0.1.93
-appVersion: 0.1.93
+version: 0.1.94
+appVersion: 0.1.94
