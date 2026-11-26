@@ -1,4 +1,5 @@
 import type { RegistryService } from '../../../../registry/application/ports/registry-service.js';
+import { skillVersionUrn } from '../../../../registry/domain/signet/db/graph/freeform/registry/urn.js';
 import type { CreateSkillDraftInput, SkillVersionOperationInput } from '../../contracts/skills/lifecycle.js';
 
 export class SkillLifecycleUseCase {
@@ -21,7 +22,21 @@ export class SkillLifecycleUseCase {
   }
 
   async getPublicationVerification(input: { skill_key: string; version: number }) {
-    return await this.registry.getSkillPublicationVerification(input);
+    const verification = await this.registry.getSkillPublicationVerification(input);
+    if (verification) {
+      // Aggregate verify-encounter signal (build plan 3.1) — this endpoint
+      // is the surface the CLI's `verify publication` hits, so CLI runs are
+      // counted here too. Best-effort.
+      try {
+        await this.registry.recordUsageSignal({
+          publication_urn: skillVersionUrn(input.skill_key, input.version),
+          signal: verification.verification_status === 'verified' ? 'verify' : 'verify_failure',
+        });
+      } catch {
+        // Ignored by design.
+      }
+    }
+    return verification;
   }
 
   async getProvenance(input: { skill_key: string; version: number }) {

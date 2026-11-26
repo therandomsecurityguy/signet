@@ -1,4 +1,5 @@
 import type { RegistryService } from '../../../../registry/application/ports/registry-service.js';
+import { agentVersionUrn } from '../../../../registry/domain/signet/db/graph/freeform/registry/urn.js';
 
 export class AgentPublicationUseCase {
   constructor(private readonly registry: RegistryService) {}
@@ -20,7 +21,19 @@ export class AgentPublicationUseCase {
   }
 
   async getPublicationVerification(input: { agent_key: string; version: number }) {
-    return await this.registry.getAgentPublicationVerification(input);
+    const verification = await this.registry.getAgentPublicationVerification(input);
+    if (verification) {
+      // Aggregate verify-encounter signal (build plan 3.1). Best-effort.
+      try {
+        await this.registry.recordUsageSignal({
+          publication_urn: agentVersionUrn(input.agent_key, input.version),
+          signal: verification.verification_status === 'verified' ? 'verify' : 'verify_failure',
+        });
+      } catch {
+        // Ignored by design.
+      }
+    }
+    return verification;
   }
 
   async getProvenance(input: { agent_key: string; version: number }) {

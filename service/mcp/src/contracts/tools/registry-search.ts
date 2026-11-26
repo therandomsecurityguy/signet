@@ -8,6 +8,10 @@ export const RegistrySearchTrustSchema = z.object({
   tier_weight: z.number(),
   recency_days: z.number().nullable(),
   recency_component: z.number(),
+  /** Aggregate loads recorded for the version (build plan 3.1); null = none. */
+  usage_loads: z.number().int().nullable(),
+  /** Capped usage bonus (100 loads saturate at 0.5). */
+  usage_component: z.number(),
 });
 
 export const RegistrySearchMatchSchema = z.object({

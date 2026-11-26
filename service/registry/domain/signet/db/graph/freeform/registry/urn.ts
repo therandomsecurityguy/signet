@@ -13,6 +13,7 @@ export type WorkspaceUrn = `urn:sg:workspace:${string}`;
 export type RetentionRootUrn = `urn:sg:retention-root:${string}`;
 export type GcJobUrn = `urn:sg:gc-job:${string}`;
 export type RevalidationJobUrn = `urn:sg:revalidation-job:${string}`;
+export type UsageSignalUrn = `urn:sg:usage-signal:${string}`;
 export type HarnessUrn = `urn:sg:harness:${string}`;
 export type ToolUrn = `urn:sg:tool:${string}`;
 export type PublicKeyUrn = `urn:sg:public-key:${string}`;
@@ -78,6 +79,13 @@ export function gcJobUrn(job_id: string): GcJobUrn {
 
 export function revalidationJobUrn(job_id: string): RevalidationJobUrn {
   return `urn:sg:revalidation-job:${job_id}` as const;
+}
+
+// Usage signals are keyed by the target they describe: a publication URN
+// (`version` kind) or an artifact sha256 (`artifact` kind). Both identifiers
+// are IRI-safe (no characters needing escaping).
+export function usageSignalUrn(kind: 'version' | 'artifact', target_id: string): UsageSignalUrn {
+  return `urn:sg:usage-signal:${kind}:${target_id}` as const;
 }
 
 export type DeFactoTermUrn = `urn:sg:defacto-term:${string}`;

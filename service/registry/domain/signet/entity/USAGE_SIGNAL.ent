@@ -1,0 +1,9 @@
+name: USAGE_SIGNAL
+doc: Aggregate, deployment-local usage counters for a publication or artifact (loads, fetches, verify encounters). Counts and timestamps only — no identities.
+urn_template: "urn:sg:usage-signal:{kind}:{target_id}"
+key_fields:
+  - kind
+  - target_id
+aspects:
+  - UsageSignalProperties
+  - Tags

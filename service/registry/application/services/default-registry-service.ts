@@ -18,6 +18,7 @@ import {
   transparencyGossipEventUrn,
   transparencyLogUrn,
   transparencyWitnessUrn,
+  usageSignalUrn,
 } from '../../domain/signet/db/graph/freeform/registry/urn.js';
 import {
   DEDUPE_MAX_CANDIDATES,
@@ -2352,10 +2353,17 @@ export class DefaultRegistryService implements RegistryService {
       const active = activeUrn ? await this.getSkillVersionByUrn(activeUrn) : null;
       const versionProperties = active?.skill_version.properties ?? {};
       const freshness = computeFreshness(freshnessInputFromProperties(versionProperties), now);
+      const usage = activeUrn ? await this.getUsageSignal({ publication_urn: activeUrn }) : null;
       ranked.push({
         summary: {
           ...summarizeSkillNode(node),
-          trust: scoreTrust(trustInputFromProperties(active !== null, versionProperties), now),
+          trust: scoreTrust(
+            {
+              ...trustInputFromProperties(active !== null, versionProperties),
+              ...(usage ? { load_count: usage.load_count } : {}),
+            },
+            now,
+          ),
           ...(freshness ? { freshness } : {}),
         },
         versionProperties,
@@ -2392,10 +2400,17 @@ export class DefaultRegistryService implements RegistryService {
       const active = activeUrn ? await this.getAgentVersionByUrn(activeUrn) : null;
       const versionProperties = active?.agent_version.properties ?? {};
       const freshness = computeFreshness(freshnessInputFromProperties(versionProperties), now);
+      const usage = activeUrn ? await this.getUsageSignal({ publication_urn: activeUrn }) : null;
       ranked.push({
         summary: {
           ...summarizeAgentNode(node),
-          trust: scoreTrust(trustInputFromProperties(active !== null, versionProperties), now),
+          trust: scoreTrust(
+            {
+              ...trustInputFromProperties(active !== null, versionProperties),
+              ...(usage ? { load_count: usage.load_count } : {}),
+            },
+            now,
+          ),
           ...(freshness ? { freshness } : {}),
         },
         versionProperties,
@@ -5357,6 +5372,79 @@ export class DefaultRegistryService implements RegistryService {
       newer_available: latestTrustedVersion !== null && latestTrustedVersion > version,
       expires_at: expiresAt,
       latest_trusted_version: latestTrustedVersion,
+    };
+  }
+
+  // ---- Usage signals (build plan 3.1) ----
+
+  // Counts and timestamps only: no actor, no principal, no request identity
+  // ever lands on a usage node.
+  async recordUsageSignal(input: {
+    signal: 'load' | 'artifact_fetch' | 'verify' | 'verify_failure';
+    publication_urn?: string;
+    artifact_sha256?: string;
+  }): Promise<void> {
+    const target = input.publication_urn
+      ? { kind: 'version' as const, id: input.publication_urn }
+      : input.artifact_sha256
+        ? { kind: 'artifact' as const, id: input.artifact_sha256 }
+        : null;
+    if (!target) return;
+    const urn = usageSignalUrn(target.kind, target.id);
+    const existing = await this.deps.graph.getNode(urn);
+    const props = existing?.properties ?? {};
+    const counter = (key: string) => (typeof props[key] === 'number' && Number.isFinite(props[key]) ? (props[key] as number) : 0);
+    const now = nowIso();
+    const next: Record<string, unknown> = {
+      ...props,
+      kind: target.kind,
+      ...(target.kind === 'version' ? { publication_urn: target.id } : { artifact_sha256: target.id }),
+      updated_at: now,
+    };
+    if (input.signal === 'load') {
+      next['load_count'] = counter('load_count') + 1;
+      next['last_loaded_at'] = now;
+    } else if (input.signal === 'artifact_fetch') {
+      next['artifact_fetch_count'] = counter('artifact_fetch_count') + 1;
+      next['last_fetched_at'] = now;
+    } else if (input.signal === 'verify') {
+      next['verify_count'] = counter('verify_count') + 1;
+      next['last_verified_at'] = now;
+    } else {
+      next['verify_failure_count'] = counter('verify_failure_count') + 1;
+      next['last_verify_failed_at'] = now;
+    }
+    await this.deps.graph.upsertNode({ urn, entity_type: 'USAGE_SIGNAL', properties: next });
+  }
+
+  async getUsageSignal(input: {
+    publication_urn?: string;
+    artifact_sha256?: string;
+  }): Promise<import('../ports/registry-service.js').RegistryUsageSignal | null> {
+    const target = input.publication_urn
+      ? { kind: 'version' as const, id: input.publication_urn }
+      : input.artifact_sha256
+        ? { kind: 'artifact' as const, id: input.artifact_sha256 }
+        : null;
+    if (!target) return null;
+    const node = await this.deps.graph.getNode(usageSignalUrn(target.kind, target.id));
+    if (!node || node.entity_type !== 'USAGE_SIGNAL') return null;
+    const props = node.properties;
+    const count = (key: string) =>
+      typeof props[key] === 'number' && Number.isFinite(props[key]) ? (props[key] as number) : 0;
+    const timestamp = (key: string) => stringOrUndefined(props[key]) ?? null;
+    return {
+      kind: target.kind,
+      ...(target.kind === 'version' ? { publication_urn: target.id } : { artifact_sha256: target.id }),
+      load_count: count('load_count'),
+      artifact_fetch_count: count('artifact_fetch_count'),
+      verify_count: count('verify_count'),
+      verify_failure_count: count('verify_failure_count'),
+      last_loaded_at: timestamp('last_loaded_at'),
+      last_fetched_at: timestamp('last_fetched_at'),
+      last_verified_at: timestamp('last_verified_at'),
+      last_verify_failed_at: timestamp('last_verify_failed_at'),
+      updated_at: timestamp('updated_at') ?? '',
     };
   }
 

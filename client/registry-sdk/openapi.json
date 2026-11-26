@@ -675,6 +675,13 @@
                               },
                               "recency_component": {
                                 "type": "number"
+                              },
+                              "usage_loads": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "usage_component": {
+                                "type": "number"
                               }
                             },
                             "required": [
@@ -682,7 +689,9 @@
                               "lifecycle_status",
                               "tier_weight",
                               "recency_days",
-                              "recency_component"
+                              "recency_component",
+                              "usage_loads",
+                              "usage_component"
                             ]
                           },
                           "freshness": {
@@ -14216,6 +14225,13 @@
                               },
                               "recency_component": {
                                 "type": "number"
+                              },
+                              "usage_loads": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "usage_component": {
+                                "type": "number"
                               }
                             },
                             "required": [
@@ -14223,7 +14239,9 @@
                               "lifecycle_status",
                               "tier_weight",
                               "recency_days",
-                              "recency_component"
+                              "recency_component",
+                              "usage_loads",
+                              "usage_component"
                             ]
                           },
                           "freshness": {
@@ -15277,6 +15295,13 @@
                               },
                               "recency_component": {
                                 "type": "number"
+                              },
+                              "usage_loads": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "usage_component": {
+                                "type": "number"
                               }
                             },
                             "required": [
@@ -15284,7 +15309,9 @@
                               "lifecycle_status",
                               "tier_weight",
                               "recency_days",
-                              "recency_component"
+                              "recency_component",
+                              "usage_loads",
+                              "usage_component"
                             ]
                           },
                           "freshness": {
@@ -15439,6 +15466,13 @@
                               },
                               "recency_component": {
                                 "type": "number"
+                              },
+                              "usage_loads": {
+                                "type": "integer",
+                                "nullable": true
+                              },
+                              "usage_component": {
+                                "type": "number"
                               }
                             },
                             "required": [
@@ -15446,7 +15480,9 @@
                               "lifecycle_status",
                               "tier_weight",
                               "recency_days",
-                              "recency_component"
+                              "recency_component",
+                              "usage_loads",
+                              "usage_component"
                             ]
                           },
                           "freshness": {

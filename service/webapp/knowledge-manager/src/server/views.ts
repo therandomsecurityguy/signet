@@ -1604,6 +1604,9 @@ function renderTrustCell(trust: TrustScore | undefined) {
   } else {
     parts.push('no certification/publication timestamp');
   }
+  if (trust.usage_loads !== null) {
+    parts.push(`${trust.usage_loads} recorded load${trust.usage_loads === 1 ? '' : 's'}`);
+  }
   parts.push(`score ${trust.score}`);
   return `<span class="chip" title="${escapeHtml(parts.join(' · '))}">${escapeHtml(trust.score.toFixed(1))}</span>`;
 }

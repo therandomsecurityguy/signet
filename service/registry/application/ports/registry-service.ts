@@ -421,6 +421,10 @@ export type RegistryTrustScore = {
   tier_weight: number;
   recency_days: number | null;
   recency_component: number;
+  /** Aggregate loads recorded for the version (build plan 3.1); null = none. */
+  usage_loads: number | null;
+  /** Capped usage bonus (100 loads saturate at 0.5). */
+  usage_component: number;
 };
 
 // Freshness/staleness signal derived from version timestamps (build plan
@@ -486,6 +490,24 @@ export type RegistryTrustSummary = {
   expires_at: string | null;
   /** Highest trusted version seen (evidence for newer_available). */
   latest_trusted_version: number | null;
+};
+
+// Aggregate usage signals (build plan 3.1). Deployment-local counters and
+// recencies — counts and timestamps only, deliberately no identities and no
+// per-user data.
+export type RegistryUsageSignal = {
+  kind: 'version' | 'artifact';
+  publication_urn?: string;
+  artifact_sha256?: string;
+  load_count: number;
+  artifact_fetch_count: number;
+  verify_count: number;
+  verify_failure_count: number;
+  last_loaded_at: string | null;
+  last_fetched_at: string | null;
+  last_verified_at: string | null;
+  last_verify_failed_at: string | null;
+  updated_at: string;
 };
 
 export type RegistrySearchMatch = {
@@ -1631,4 +1653,17 @@ export interface RegistryService {
   // Trust summary (build plan 2.2c): derived state for one version, used by
   // the MCP get_skill / get_agent read surfaces.
   getTrustSummary(input: { publication_urn: string }): Promise<RegistryTrustSummary | null>;
+
+  // Usage signals (build plan 3.1): surface planes record aggregate
+  // encounters (loads, artifact fetches, verify outcomes); reads are
+  // deployment-local counters with no identity attached.
+  recordUsageSignal(input: {
+    signal: 'load' | 'artifact_fetch' | 'verify' | 'verify_failure';
+    publication_urn?: string;
+    artifact_sha256?: string;
+  }): Promise<void>;
+  getUsageSignal(input: {
+    publication_urn?: string;
+    artifact_sha256?: string;
+  }): Promise<RegistryUsageSignal | null>;
 }

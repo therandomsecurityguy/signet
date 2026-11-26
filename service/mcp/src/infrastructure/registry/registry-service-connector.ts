@@ -86,6 +86,17 @@ export class RegistryServiceConnector implements RegistryConnector {
     const trustSummary = got.active_version?.agent_version.urn
       ? await this.service.getTrustSummary({ publication_urn: got.active_version.agent_version.urn })
       : null;
+    if (got.active_version?.agent_version.urn) {
+      // Aggregate load signal (build plan 3.1). Best-effort.
+      try {
+        await this.service.recordUsageSignal({
+          publication_urn: got.active_version.agent_version.urn,
+          signal: 'load',
+        });
+      } catch {
+        // Ignored by design.
+      }
+    }
     return { ...got, ...(trustSummary ? { trust_summary: trustSummary } : {}) };
   }
 
@@ -123,6 +134,17 @@ export class RegistryServiceConnector implements RegistryConnector {
     const trustSummary = got.active_version?.skill_version.urn
       ? await this.service.getTrustSummary({ publication_urn: got.active_version.skill_version.urn })
       : null;
+    if (got.active_version?.skill_version.urn) {
+      // Aggregate load signal (build plan 3.1). Best-effort.
+      try {
+        await this.service.recordUsageSignal({
+          publication_urn: got.active_version.skill_version.urn,
+          signal: 'load',
+        });
+      } catch {
+        // Ignored by design.
+      }
+    }
     return { ...got, ...(trustSummary ? { trust_summary: trustSummary } : {}) };
   }
 
@@ -165,6 +187,15 @@ export class RegistryServiceConnector implements RegistryConnector {
         httpStatus: 404,
         safeMessage: 'Registry entity not found.',
       });
+    }
+    // Aggregate verify-encounter signal (build plan 3.1). Best-effort.
+    try {
+      await this.service.recordUsageSignal({
+        publication_urn: input.version_urn,
+        signal: got.verification_status === 'verified' ? 'verify' : 'verify_failure',
+      });
+    } catch {
+      // Ignored by design.
     }
     return toVerifyPublicationOutput(got);
   }
@@ -215,6 +246,12 @@ export class RegistryServiceConnector implements RegistryConnector {
       });
     }
     await this.readGate.assertArtifactReadable({ artifact_urn: artifactUrn(got.sha256) });
+    // Aggregate artifact-fetch signal (build plan 3.1). Best-effort.
+    try {
+      await this.service.recordUsageSignal({ artifact_sha256: got.sha256, signal: 'artifact_fetch' });
+    } catch {
+      // Ignored by design.
+    }
     // Map explicitly: the tool surface stays intentional, and future core
     // fields cannot leak into structured content unnoticed.
     return {
