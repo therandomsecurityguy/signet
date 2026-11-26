@@ -2911,6 +2911,141 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agents/{agentKey}/versions/{version}/recertify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    agentKey: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        author: string;
+                        note?: string;
+                        governance?: {
+                            publisher?: string;
+                            policy_version?: string;
+                            ontology_version?: string;
+                            validation_report?: string;
+                            signature_ref?: string;
+                            approver?: string;
+                            approver_role?: string;
+                            certification_expires_at?: string;
+                        };
+                        prepared_publication_urn?: string;
+                        signatures?: {
+                            signer: string;
+                            key_ref?: string;
+                            algorithm?: string;
+                            signature?: string;
+                            keyless_bundle?: {
+                                [key: string]: unknown;
+                            };
+                            /** @enum {string} */
+                            signed_payload?: "canonical_json" | "canonical_rdf";
+                            transparency_log_ref?: string;
+                            inclusion_proof_ref?: string;
+                            inclusion_proof?: {
+                                log_id: string;
+                                tree_size: number;
+                                leaf_index: number;
+                                root_hash: string;
+                                proof_hashes: string[];
+                                checkpoint_body: string;
+                                checkpoint_signature: string;
+                                transparency_log_ref?: string;
+                            };
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Agent version recertified (validation runs first; a failure is recorded, not renewed) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Invalid agent version operation payload */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Agent version not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Agent version conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agents/{agentKey}/versions/{version}/revoke": {
         parameters: {
             query?: never;
@@ -8907,6 +9042,168 @@ export interface paths {
             };
             responses: {
                 /** @description Skill version certified */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            task: {
+                                task: {
+                                    urn: string;
+                                    properties: {
+                                        [key: string]: unknown;
+                                    };
+                                };
+                                targets: {
+                                    target_urn: string;
+                                }[];
+                            };
+                            result: {
+                                skill_version: {
+                                    urn: string;
+                                    properties: {
+                                        [key: string]: unknown;
+                                    };
+                                };
+                                artifacts: {
+                                    artifact_urn: string;
+                                    sha256?: string;
+                                }[];
+                                upstream_versions: {
+                                    skill_version_urn: string;
+                                }[];
+                            };
+                        };
+                    };
+                };
+                /** @description Invalid skill version operation payload */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Skill version not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Skill version conflict */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/skills/{skillKey}/versions/{version}/recertify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    skillKey: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        author: string;
+                        note?: string;
+                        governance?: {
+                            publisher?: string;
+                            policy_version?: string;
+                            ontology_version?: string;
+                            validation_report?: string;
+                            signature_ref?: string;
+                            approver?: string;
+                            approver_role?: string;
+                            certification_expires_at?: string;
+                        };
+                        prepared_publication_urn?: string;
+                        signatures?: {
+                            signer: string;
+                            key_ref?: string;
+                            algorithm?: string;
+                            signature?: string;
+                            keyless_bundle?: {
+                                [key: string]: unknown;
+                            };
+                            /** @enum {string} */
+                            signed_payload?: "canonical_json" | "canonical_rdf";
+                            transparency_log_ref?: string;
+                            inclusion_proof_ref?: string;
+                            inclusion_proof?: {
+                                log_id: string;
+                                tree_size: number;
+                                leaf_index: number;
+                                root_hash: string;
+                                proof_hashes: string[];
+                                checkpoint_body: string;
+                                checkpoint_signature: string;
+                                transparency_log_ref?: string;
+                            };
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Skill version recertified (validation runs first; a failure is recorded, not renewed) */
                 200: {
                     headers: {
                         [name: string]: unknown;

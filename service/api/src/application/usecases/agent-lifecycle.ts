@@ -106,6 +106,16 @@ export class AgentLifecycleUseCase {
     });
   }
 
+  async recertify(input: { agent_key: string; version: number } & AgentVersionOperationInput) {
+    return await this.registry.recertifyAgentVersion({
+      agent_key: input.agent_key,
+      version: input.version,
+      author: input.author,
+      ...(input.note ? { note: input.note } : {}),
+      ...(input.governance ? { governance: compactGovernanceInput(input.governance) } : {}),
+    });
+  }
+
   async revoke(input: { agent_key: string; version: number } & AgentVersionOperationInput) {
     return await this.registry.revokeAgentVersion({
       agent_key: input.agent_key,

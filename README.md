@@ -283,10 +283,17 @@ Discovery and freshness:
   `revalidate` operations (`POST .../versions/:v/revalidate`) re-run the
   validation layers and store the outcome (`revalidated_at`,
   `revalidation_status`, failures as evidence) without ever changing
-  lifecycle status, and restart the freshness clock; bounded revalidation
+  lifecycle status, and restart the freshness clock; `recertify` (`POST
+  .../versions/:v/recertify`) runs validation first and — only when it
+  passes — renews the certification in place (fresh `certified_at`, a
+  supplied `certification_expires_at` replacing the old deadline, fresh
+  certification evidence, same gates as certify); bounded revalidation
   jobs (`/v1/revalidation-jobs`, durable planned → completed with a
   results evidence artifact, idempotent replay) run the queue on demand
-  and from a chart CronJob (`revalidation.enabled`, disabled by default)
+  and from a chart CronJob (`revalidation.enabled`, disabled by default);
+  the webapp surfaces the queue at `/recertification` with one-click
+  Revalidate/Recertify forms, and certified version cards offer both
+  actions
 
 Storage and operations:
 - content-addressed artifact storage (filesystem or S3) with per-artifact WORM reporting: `GET /v1/artifacts/{sha256}/retention` surfaces S3 Object Lock mode/retention/legal hold straight from the bucket, so immutability is provable per artifact
@@ -299,9 +306,6 @@ Storage and operations:
   tessera-sidecar
 
 Proposed next (not implemented yet):
-- the in-UI recertification workflow (the freshness signal, recertification
-  queue, recorded revalidation ops, and scheduled re-validation jobs ship
-  now — see "Discovery and freshness")
 - SHACL node expressions and `sh:js` (refused at registration; no
   execution semantics implemented); AF execution intentionally stays
   out-of-process — decided in `docs/shacl-af-in-process-design.md`

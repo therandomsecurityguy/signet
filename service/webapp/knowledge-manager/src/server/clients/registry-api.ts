@@ -287,6 +287,46 @@ export type CreateSkillDraftInput = {
 export type SkillVersionOperationInput = {
   author: string;
   note?: string;
+  governance?: {
+    certification_expires_at?: string;
+    approver?: string;
+    approver_role?: string;
+    policy_version?: string;
+    ontology_version?: string;
+  };
+};
+
+export type AgentVersionOperationInput = {
+  author: string;
+  note?: string;
+  governance?: {
+    certification_expires_at?: string;
+    approver?: string;
+    approver_role?: string;
+    policy_version?: string;
+    ontology_version?: string;
+  };
+};
+
+// Recertification queue (build plan 2.1c): live versions needing attention.
+export type RecertificationQueueItem = {
+  publication_urn: string;
+  entity_type: 'SKILL_VERSION' | 'AGENT_VERSION';
+  logical_key: string;
+  version: number;
+  lifecycle_status: string;
+  freshness: Freshness;
+  last_revalidated_at: string | null;
+  revalidation_status: string | null;
+  recertification_state: 'due' | 'approaching';
+  reasons: string[];
+};
+
+export type RecertificationQueue = {
+  items: RecertificationQueueItem[];
+  total: number;
+  due_count: number;
+  approaching_count: number;
 };
 
 export type SkillLifecycleOperationResult = {
@@ -403,6 +443,36 @@ export interface RegistryApiClient {
     input: SkillVersionOperationInput,
     apiToken: string,
   ): Promise<SkillLifecycleOperationResult>;
+  revalidateSkillVersion(
+    skillKey: string,
+    version: number,
+    input: SkillVersionOperationInput,
+    apiToken: string,
+  ): Promise<SkillLifecycleOperationResult>;
+  recertifySkillVersion(
+    skillKey: string,
+    version: number,
+    input: SkillVersionOperationInput,
+    apiToken: string,
+  ): Promise<SkillLifecycleOperationResult>;
+  revalidateAgentVersion(
+    agentKey: string,
+    version: number,
+    input: AgentVersionOperationInput,
+    apiToken: string,
+  ): Promise<SkillLifecycleOperationResult>;
+  recertifyAgentVersion(
+    agentKey: string,
+    version: number,
+    input: AgentVersionOperationInput,
+    apiToken: string,
+  ): Promise<SkillLifecycleOperationResult>;
+  getRecertificationQueue(opts?: {
+    state?: 'due' | 'approaching' | 'all';
+    entity_type?: 'skill' | 'agent' | 'all';
+    limit?: number;
+    offset?: number;
+  }): Promise<RecertificationQueue>;
   listOntologyPackages(): Promise<{ ontology_packages: OntologyPackageDetails[] }>;
   listDeFactoTerms(opts?: { status?: DeFactoTermDetails['status'] }): Promise<{ terms: DeFactoTermDetails[] }>;
   reviewDeFactoTerm(
@@ -561,6 +631,57 @@ export class HttpRegistryApiClient implements RegistryApiClient {
     apiToken: string,
   ): Promise<SkillLifecycleOperationResult> {
     return await this.postSkillVersionAction('certify', skillKey, version, input, apiToken);
+  }
+
+  async revalidateSkillVersion(
+    skillKey: string,
+    version: number,
+    input: SkillVersionOperationInput,
+    apiToken: string,
+  ): Promise<SkillLifecycleOperationResult> {
+    return await this.postSkillVersionAction('revalidate', skillKey, version, input, apiToken);
+  }
+
+  async recertifySkillVersion(
+    skillKey: string,
+    version: number,
+    input: SkillVersionOperationInput,
+    apiToken: string,
+  ): Promise<SkillLifecycleOperationResult> {
+    return await this.postSkillVersionAction('recertify', skillKey, version, input, apiToken);
+  }
+
+  async revalidateAgentVersion(
+    agentKey: string,
+    version: number,
+    input: AgentVersionOperationInput,
+    apiToken: string,
+  ): Promise<SkillLifecycleOperationResult> {
+    return await this.postAgentVersionAction('revalidate', agentKey, version, input, apiToken);
+  }
+
+  async recertifyAgentVersion(
+    agentKey: string,
+    version: number,
+    input: AgentVersionOperationInput,
+    apiToken: string,
+  ): Promise<SkillLifecycleOperationResult> {
+    return await this.postAgentVersionAction('recertify', agentKey, version, input, apiToken);
+  }
+
+  async getRecertificationQueue(opts?: {
+    state?: 'due' | 'approaching' | 'all';
+    entity_type?: 'skill' | 'agent' | 'all';
+    limit?: number;
+    offset?: number;
+  }): Promise<RecertificationQueue> {
+    const query = new URLSearchParams();
+    if (opts?.state) query.set('state', opts.state);
+    if (opts?.entity_type) query.set('entity_type', opts.entity_type);
+    if (typeof opts?.limit === 'number') query.set('limit', String(opts.limit));
+    if (typeof opts?.offset === 'number') query.set('offset', String(opts.offset));
+    const suffix = query.size > 0 ? `?${query.toString()}` : '';
+    return await this.fetchJson(`/v1/recertification/queue${suffix}`);
   }
 
   private async fetchJson<T>(path: string, init?: RequestInit, apiToken?: string): Promise<T> {
@@ -723,7 +844,7 @@ export class HttpRegistryApiClient implements RegistryApiClient {
   }
 
   private async postSkillVersionAction(
-    action: 'validate' | 'publish' | 'promote' | 'deprecate' | 'certify',
+    action: 'validate' | 'revalidate' | 'publish' | 'promote' | 'deprecate' | 'certify' | 'recertify',
     skillKey: string,
     version: number,
     input: SkillVersionOperationInput,
@@ -731,6 +852,23 @@ export class HttpRegistryApiClient implements RegistryApiClient {
   ): Promise<SkillLifecycleOperationResult> {
     return await this.fetchJson(
       `/v1/skills/${encodeURIComponent(skillKey)}/versions/${version}/${action}`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      apiToken,
+    );
+  }
+
+  private async postAgentVersionAction(
+    action: 'revalidate' | 'recertify',
+    agentKey: string,
+    version: number,
+    input: AgentVersionOperationInput,
+    apiToken: string,
+  ): Promise<SkillLifecycleOperationResult> {
+    return await this.fetchJson(
+      `/v1/agents/${encodeURIComponent(agentKey)}/versions/${version}/${action}`,
       {
         method: 'POST',
         body: JSON.stringify(input),
