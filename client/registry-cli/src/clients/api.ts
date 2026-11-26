@@ -48,8 +48,11 @@ export type RegistryOperatorApiClient = {
     input: { agent_key: string; version: number; author: string; note?: string },
     apiToken: string,
   ): Promise<void>;
-  getActiveSkillVersion(skillKey: string, apiToken: string): Promise<Record<string, unknown>>;
-  getSkill(skillKey: string, apiToken: string): Promise<Record<string, unknown>>;
+  getActiveSkillVersion(skillKey: string, apiToken?: string): Promise<Record<string, unknown>>;
+  getSkillVersion(skillKey: string, version: number, apiToken?: string): Promise<Record<string, unknown>>;
+  getSkill(skillKey: string, apiToken?: string): Promise<Record<string, unknown>>;
+  getActiveAgentVersion(agentKey: string, apiToken?: string): Promise<Record<string, unknown>>;
+  getAgentVersions(agentKey: string, apiToken?: string): Promise<Record<string, unknown>>;
   createAgent(plan: AgentCreatePlan, apiToken: string): Promise<Record<string, unknown>>;
   getAgent(agentKey: string, apiToken: string): Promise<Record<string, unknown>>;
   createTrustedPublicKey(
@@ -297,12 +300,28 @@ export class HttpRegistryOperatorApiClient implements RegistryOperatorApiClient 
     );
   }
 
-  async getActiveSkillVersion(skillKey: string, apiToken: string): Promise<Record<string, unknown>> {
+  async getActiveSkillVersion(skillKey: string, apiToken?: string): Promise<Record<string, unknown>> {
     return await this.fetchJson(`/v1/skills/${encodeURIComponent(skillKey)}/active`, undefined, apiToken);
   }
 
-  async getSkill(skillKey: string, apiToken: string): Promise<Record<string, unknown>> {
+  async getSkillVersion(skillKey: string, version: number, apiToken?: string): Promise<Record<string, unknown>> {
+    return await this.fetchJson(
+      `/v1/skills/${encodeURIComponent(skillKey)}/versions/${version}`,
+      undefined,
+      apiToken,
+    );
+  }
+
+  async getSkill(skillKey: string, apiToken?: string): Promise<Record<string, unknown>> {
     return await this.fetchJson(`/v1/skills/${encodeURIComponent(skillKey)}`, undefined, apiToken);
+  }
+
+  async getActiveAgentVersion(agentKey: string, apiToken?: string): Promise<Record<string, unknown>> {
+    return await this.fetchJson(`/v1/agents/${encodeURIComponent(agentKey)}/active`, undefined, apiToken);
+  }
+
+  async getAgentVersions(agentKey: string, apiToken?: string): Promise<Record<string, unknown>> {
+    return await this.fetchJson(`/v1/agents/${encodeURIComponent(agentKey)}/versions`, undefined, apiToken);
   }
 
   async createAgent(plan: AgentCreatePlan, apiToken: string): Promise<Record<string, unknown>> {

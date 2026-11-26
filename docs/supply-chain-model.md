@@ -121,6 +121,16 @@ consumer:
   `registry-operator verify artifact` checks bytes.
 - `verify mcp` re-hashes every artifact fetched through MCP instead of only
   checking tool success.
+- **`signet.lock`** pins the exact publications a consumer depends on:
+  `registry-operator lock (--skill <key>[@<v>] | --agent <key>[@<v>])`
+  writes/updates `{type, key, version, publication_urn, envelope_sha256,
+  artifact sha256s}` entries (upsert by key; other pins are preserved), and
+  `registry-operator verify lock [--strict]` is the fail-closed **doctor**:
+  missing / revoked / envelope-drift / artifact-drift / expired pins fail
+  (non-zero exit, machine-readable report), while deprecated and
+  newer-active versions warn — `--strict` escalates warnings and requires a
+  `verified` publication. Run it in CI for repos and at session start for
+  agents.
 - Validation reports carry a `sh:ValidationReport` JSON-LD representation
   with its own RDFC-1.0 canonical digest + artifact, and are signable by
   trusted keys over that canonical RDF (`GET|POST .../report-signatures`),
