@@ -1068,11 +1068,10 @@ async function runLock(env: Env, args: Record<string, string | boolean | string[
   const agentTargets = asStringArray(args.agent);
   if (skillTargets.length === 0 && agentTargets.length === 0) {
     throw new Error(
-      'Usage: registry-operator lock (--skill <key>[@<version>] | --agent <key>[@<version>]) [--lock-file <path>] [--api-token <token>]',
+      'Usage: registry-operator lock (--skill <key>[@<version>] | --agent <key>[@<version>]) [--lock-file <path>]',
     );
   }
   const lockPath = path.resolve(asString(args['lock-file']) ?? DEFAULT_LOCK_FILE);
-  const apiToken = asString(args['api-token']);
   const api = new HttpRegistryOperatorApiClient({ apiOrigin: env.API_ORIGIN, extraHeaders: cfAccessHeaders(env) });
 
   const targets = [
@@ -1085,7 +1084,7 @@ async function runLock(env: Env, args: Record<string, string | boolean | string[
     if (target.type !== expected) {
       throw new Error(`Invalid lock target "${raw}": expected a ${expected} key.`);
     }
-    entries.push(await resolveLockTarget(api, target, apiToken));
+    entries.push(await resolveLockTarget(api, target));
   }
 
   const existing = await readLockFile(lockPath);
@@ -1113,21 +1112,20 @@ async function runLock(env: Env, args: Record<string, string | boolean | string[
 async function resolveLockTarget(
   api: HttpRegistryOperatorApiClient,
   target: { type: 'skill' | 'agent'; key: string; version?: number },
-  apiToken: string | undefined,
 ): Promise<LockEntry> {
   let version = target.version;
   if (!version) {
     const active =
       target.type === 'skill'
-        ? await api.getActiveSkillVersion(target.key, apiToken)
-        : await api.getActiveAgentVersion(target.key, apiToken);
+        ? await api.getActiveSkillVersion(target.key)
+        : await api.getActiveAgentVersion(target.key);
     const activeVersion = Number(versionPropsOf(active, target.type)?.['version']);
     if (!Number.isInteger(activeVersion) || activeVersion <= 0) {
       throw new Error(`${target.key} has no active version to lock; specify --${target.type} ${target.key}@<version>.`);
     }
     version = activeVersion;
   }
-  const details = await fetchLockedVersion(api, target.type, target.key, version, apiToken);
+  const details = await fetchLockedVersion(api, target.type, target.key, version);
   const props = versionPropsOf(details, target.type) ?? {};
   const envelopeSha = typeof props['canonical_json_sha256'] === 'string' ? props['canonical_json_sha256'] : '';
   if (!envelopeSha) {
@@ -1147,7 +1145,6 @@ async function resolveLockTarget(
 async function runVerifyLock(env: Env, args: Record<string, string | boolean | string[] | undefined>) {
   const lockPath = path.resolve(asString(args['lock-file']) ?? DEFAULT_LOCK_FILE);
   const strict = args.strict === true;
-  const apiToken = asString(args['api-token']);
   const lock = await readLockFile(lockPath);
   if (!lock) {
     throw new Error(`Lock file not found: ${lockPath} (run registry-operator lock first).`);
@@ -1170,7 +1167,7 @@ async function runVerifyLock(env: Env, args: Record<string, string | boolean | s
     const evidence: Record<string, unknown> = {};
     let details: Record<string, unknown> | null = null;
     try {
-      details = await fetchLockedVersion(api, entry.type, entry.key, entry.version, apiToken);
+      details = await fetchLockedVersion(api, entry.type, entry.key, entry.version);
     } catch (err) {
       if (err instanceof RegistryOperatorApiError && err.status === 404) {
         failures.push('missing');
@@ -1208,8 +1205,8 @@ async function runVerifyLock(env: Env, args: Record<string, string | boolean | s
       try {
         const active =
           entry.type === 'skill'
-            ? await api.getActiveSkillVersion(entry.key, apiToken)
-            : await api.getActiveAgentVersion(entry.key, apiToken);
+            ? await api.getActiveSkillVersion(entry.key)
+            : await api.getActiveAgentVersion(entry.key);
         const activeVersion = Number(versionPropsOf(active, entry.type)?.['version']);
         if (Number.isInteger(activeVersion) && activeVersion > entry.version) {
           warnings.push('newer_available');
@@ -1221,8 +1218,8 @@ async function runVerifyLock(env: Env, args: Record<string, string | boolean | s
       try {
         const verification =
           entry.type === 'skill'
-            ? await api.getSkillPublicationVerification(entry.key, entry.version, apiToken)
-            : await api.getAgentPublicationVerification(entry.key, entry.version, apiToken);
+            ? await api.getSkillPublicationVerification(entry.key, entry.version)
+            : await api.getAgentPublicationVerification(entry.key, entry.version);
         const status = String(verification['verification_status'] ?? 'unknown');
         evidence.verification_status = status;
         if (strict && status !== 'verified') failures.push(`verification_status:${status}`);
@@ -1274,12 +1271,11 @@ async function fetchLockedVersion(
   type: 'skill' | 'agent',
   key: string,
   version: number,
-  apiToken: string | undefined,
 ): Promise<Record<string, unknown>> {
   if (type === 'skill') {
-    return await api.getSkillVersion(key, version, apiToken);
+    return await api.getSkillVersion(key, version);
   }
-  const listing = await api.getAgentVersions(key, apiToken);
+  const listing = await api.getAgentVersions(key);
   const versions = Array.isArray(listing['versions']) ? (listing['versions'] as Array<Record<string, unknown>>) : [];
   const found = versions.find((candidate) => Number(versionPropsOf(candidate, 'agent')?.['version']) === version);
   if (!found) {
