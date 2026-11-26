@@ -83,7 +83,10 @@ export class RegistryServiceConnector implements RegistryConnector {
       publication_urn: got.active_version?.agent_version.urn,
       properties: got.active_version?.agent_version.properties,
     });
-    return got;
+    const trustSummary = got.active_version?.agent_version.urn
+      ? await this.service.getTrustSummary({ publication_urn: got.active_version.agent_version.urn })
+      : null;
+    return { ...got, ...(trustSummary ? { trust_summary: trustSummary } : {}) };
   }
 
   async listSkills(input: RegistryListSkillsInput, _ctx: ExecutionContext): Promise<RegistryListSkillsOutput> {
@@ -117,7 +120,10 @@ export class RegistryServiceConnector implements RegistryConnector {
       publication_urn: got.active_version?.skill_version.urn,
       properties: got.active_version?.skill_version.properties,
     });
-    return got;
+    const trustSummary = got.active_version?.skill_version.urn
+      ? await this.service.getTrustSummary({ publication_urn: got.active_version.skill_version.urn })
+      : null;
+    return { ...got, ...(trustSummary ? { trust_summary: trustSummary } : {}) };
   }
 
   async getAttestations(

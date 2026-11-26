@@ -5307,6 +5307,59 @@ export class DefaultRegistryService implements RegistryService {
     return { jobs: nodes.map((node) => ({ urn: node.urn, properties: node.properties })) };
   }
 
+  // Trust summary for one version (build plan 2.2c): verified_at / revoked /
+  // newer_available / expires_at, derived from recorded evidence only.
+  // "Trusted" for newer_available means a published or certified sibling
+  // snapshot newer than this version — drafts never count.
+  async getTrustSummary(input: {
+    publication_urn: string;
+  }): Promise<import('../ports/registry-service.js').RegistryTrustSummary | null> {
+    const node = await this.deps.graph.getNode(input.publication_urn);
+    if (!node || (node.entity_type !== 'SKILL_VERSION' && node.entity_type !== 'AGENT_VERSION')) return null;
+    const properties = node.properties;
+    const revoked =
+      properties['revoked'] === true ||
+      stringOrUndefined(properties['publication_status']) === 'revoked' ||
+      stringOrUndefined(properties['lifecycle_status']) === 'revoked';
+    const freshness = computeFreshness(freshnessInputFromProperties(properties));
+    const expiresAt = stringOrUndefined(properties['certification_expires_at']) ?? null;
+    const version = getVersionNumber(properties);
+
+    let latestTrustedVersion: number | null = null;
+    const considerVersion = (candidate: Record<string, unknown>) => {
+      const status = lifecycleStatus(candidate);
+      const trusted =
+        status === 'published' || status === 'certified' || candidate['certified'] === true;
+      if (!trusted) return;
+      const candidateVersion = getVersionNumber(candidate);
+      if (latestTrustedVersion === null || candidateVersion > latestTrustedVersion) {
+        latestTrustedVersion = candidateVersion;
+      }
+    };
+    if (node.entity_type === 'SKILL_VERSION') {
+      const skillKey = stringOrUndefined(properties['skill_key']);
+      if (skillKey) {
+        const versions = await this.listSkillVersions({ skill_key: skillKey });
+        for (const candidate of versions.versions) considerVersion(candidate.skill_version.properties);
+      }
+    } else {
+      const agentKey = stringOrUndefined(properties['agent_key']);
+      if (agentKey) {
+        const versions = await this.listAgentVersions({ agent_key: agentKey });
+        for (const candidate of versions.versions) considerVersion(candidate.agent_version.properties);
+      }
+    }
+
+    return {
+      publication_urn: node.urn,
+      verified_at: freshness?.last_verified_at ?? null,
+      revoked,
+      newer_available: latestTrustedVersion !== null && latestTrustedVersion > version,
+      expires_at: expiresAt,
+      latest_trusted_version: latestTrustedVersion,
+    };
+  }
+
   async publishAgentVersion(input: AgentVersionOperationInput): Promise<RegistryOperationResult<RegistryAgentVersionDetails>> {
     return await this.transitionAgentVersion({
       ...input,

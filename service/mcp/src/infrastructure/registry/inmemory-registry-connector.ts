@@ -144,6 +144,12 @@ export class InMemoryRegistryConnector implements RegistryConnector {
       properties: activeVersionProps,
     });
     const freshness = computeFreshness(freshnessInputFromProperties(activeVersionProps ?? {}));
+    const trustSummary =
+      typeof node.properties['active_version_urn'] === 'string'
+        ? await this.verifier.getTrustSummary({
+            publication_urn: String(node.properties['active_version_urn']),
+          })
+        : null;
 
     return {
       agent: { urn: node.urn, properties: node.properties },
@@ -162,6 +168,7 @@ export class InMemoryRegistryConnector implements RegistryConnector {
             },
           }
         : {}),
+      ...(trustSummary ? { trust_summary: trustSummary } : {}),
       skills: skillsEdges.map((e) => ({ skill_urn: e.to_urn })),
       artifacts: artifactEdges.map((e) => ({
         artifact_urn: e.to_urn,
@@ -205,6 +212,12 @@ export class InMemoryRegistryConnector implements RegistryConnector {
       properties: activeVersionProps,
     });
     const freshness = computeFreshness(freshnessInputFromProperties(activeVersionProps ?? {}));
+    const trustSummary =
+      typeof node.properties['active_version_urn'] === 'string'
+        ? await this.verifier.getTrustSummary({
+            publication_urn: String(node.properties['active_version_urn']),
+          })
+        : null;
     return {
       skill: { urn: node.urn, properties: node.properties },
       ...(typeof node.properties['active_version_urn'] === 'string'
@@ -221,6 +234,7 @@ export class InMemoryRegistryConnector implements RegistryConnector {
             },
           }
         : {}),
+      ...(trustSummary ? { trust_summary: trustSummary } : {}),
       artifacts: artifactEdges.map((e) => ({
         artifact_urn: e.to_urn,
         sha256: parseArtifactSha256(e.to_urn),

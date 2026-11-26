@@ -472,6 +472,22 @@ export type RegistryRevalidationJobSummary = {
   properties: Record<string, unknown>;
 };
 
+// MCP trust summary (build plan 2.2c): the questions a consumer asks about
+// the version it is about to load, answered from recorded evidence — no new
+// recording, purely derived.
+export type RegistryTrustSummary = {
+  publication_urn: string;
+  /** Newest verification moment (freshness basis); null when never verified. */
+  verified_at: string | null;
+  revoked: boolean;
+  /** A trusted (published/certified) version newer than this one exists. */
+  newer_available: boolean;
+  /** Certification expiry; null when the certification carries none. */
+  expires_at: string | null;
+  /** Highest trusted version seen (evidence for newer_available). */
+  latest_trusted_version: number | null;
+};
+
 export type RegistrySearchMatch = {
   mode: 'keyword' | 'semantic';
   score: number;
@@ -1611,4 +1627,8 @@ export interface RegistryService {
   executeRevalidationJob(input: { job_id: string; author: string }): Promise<RegistryRevalidationJobSummary>;
   getRevalidationJob(input: { job_id: string }): Promise<RegistryRevalidationJobSummary | null>;
   listRevalidationJobs(input?: { limit?: number; offset?: number }): Promise<{ jobs: RegistryRevalidationJobSummary[] }>;
+
+  // Trust summary (build plan 2.2c): derived state for one version, used by
+  // the MCP get_skill / get_agent read surfaces.
+  getTrustSummary(input: { publication_urn: string }): Promise<RegistryTrustSummary | null>;
 }

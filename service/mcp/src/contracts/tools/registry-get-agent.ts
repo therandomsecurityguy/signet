@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { FreshnessSchema } from '../freshness.js';
+import { TrustSummarySchema } from '../trust-summary.js';
 
 export const RegistryGetAgentInputSchema = z.object({
   agent_urn: z.string().min(1),
@@ -46,6 +47,8 @@ export const RegistryGetAgentOutputSchema = z.object({
       freshness: FreshnessSchema.optional(),
     })
     .optional(),
+  /** Consumer-facing trust summary for the active version (build plan 2.2c). */
+  trust_summary: TrustSummarySchema.optional(),
   skills: z.array(
     z.object({
       skill_urn: z.string(),
