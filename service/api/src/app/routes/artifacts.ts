@@ -70,6 +70,13 @@ export function registerArtifactRoutes(
     c.header('content-digest', contentDigestHeader(sha256));
     c.header('x-artifact-digest-verified', 'true');
     c.header('content-length', String(artifact.bytes.byteLength));
+    // Aggregate usage signal (build plan 3.1): count served bytes fetches.
+    // Best-effort — a read must never fail because counting did.
+    try {
+      await deps.registry.recordUsageSignal({ artifact_sha256: sha256, signal: 'artifact_fetch' });
+    } catch {
+      // Ignored by design.
+    }
     return c.body(new Uint8Array(artifact.bytes), 200);
   });
   // HEAD is served by Hono's automatic GET dispatch, which reuses these

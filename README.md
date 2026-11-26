@@ -267,9 +267,16 @@ Ingestion and vocabulary:
 
 Discovery and freshness:
 - trust-ranked lists and search (`sort=trust`): structural tier dominance
-  (certification state outranks freshness), 180-day recency decay, and
-  score components always exposed next to the score; default ordering for
-  MCP search
+  (certification state outranks freshness), 180-day recency decay, and a
+  **bounded usage component** (aggregate loads, 100 saturate at +0.5 —
+  together with recency this can never cross a tier); score components
+  always exposed next to the score; default ordering for MCP search
+- reliability signals (aggregate only): API and MCP read surfaces record
+  deployment-local counts for loads (`get_skill`/`get_agent`),
+  artifact fetches (byte access + `get_artifact`), and verify
+  encounters/failures (verification reads + `verify_publication`) as
+  `USAGE_SIGNAL` nodes — counts and timestamps only, never identities —
+  and they feed the ranking's usage component
 - deterministic semantic search (`mode=keyword|semantic`) over
   descriptions, capability claims, and ontology concepts with match
   evidence (`matched_claims` / `matched_terms`); keyword behavior preserved

@@ -75,6 +75,15 @@ export class InMemoryRegistryConnector implements RegistryConnector {
         safeMessage: 'Registry entity not found.',
       });
     }
+    // Aggregate verify-encounter signal (build plan 3.1). Best-effort.
+    try {
+      await this.verifier.recordUsageSignal({
+        publication_urn: input.version_urn,
+        signal: got.verification_status === 'verified' ? 'verify' : 'verify_failure',
+      });
+    } catch {
+      // Ignored by design.
+    }
     return toVerifyPublicationOutput(got);
   }
 
@@ -150,6 +159,17 @@ export class InMemoryRegistryConnector implements RegistryConnector {
             publication_urn: String(node.properties['active_version_urn']),
           })
         : null;
+    if (typeof node.properties['active_version_urn'] === 'string') {
+      // Aggregate load signal (build plan 3.1). Best-effort.
+      try {
+        await this.verifier.recordUsageSignal({
+          publication_urn: String(node.properties['active_version_urn']),
+          signal: 'load',
+        });
+      } catch {
+        // Ignored by design.
+      }
+    }
 
     return {
       agent: { urn: node.urn, properties: node.properties },
@@ -218,6 +238,17 @@ export class InMemoryRegistryConnector implements RegistryConnector {
             publication_urn: String(node.properties['active_version_urn']),
           })
         : null;
+    if (typeof node.properties['active_version_urn'] === 'string') {
+      // Aggregate load signal (build plan 3.1). Best-effort.
+      try {
+        await this.verifier.recordUsageSignal({
+          publication_urn: String(node.properties['active_version_urn']),
+          signal: 'load',
+        });
+      } catch {
+        // Ignored by design.
+      }
+    }
     return {
       skill: { urn: node.urn, properties: node.properties },
       ...(typeof node.properties['active_version_urn'] === 'string'
@@ -346,6 +377,13 @@ export class InMemoryRegistryConnector implements RegistryConnector {
     }
 
     await this.readGate.assertArtifactReadable({ artifact_urn: artifactUrn(sha256) });
+
+    // Aggregate artifact-fetch signal (build plan 3.1). Best-effort.
+    try {
+      await this.verifier.recordUsageSignal({ artifact_sha256: sha256, signal: 'artifact_fetch' });
+    } catch {
+      // Ignored by design.
+    }
 
     const content = decodeUtf8(got.bytes);
     return {

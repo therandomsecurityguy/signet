@@ -2,16 +2,17 @@ import type { RegistryTrustScore } from '../ports/registry-service.js';
 
 // Deterministic trust ranking for list/search surfaces.
 //
-// score = tier_weight * 10 + recency_component
+// score = tier_weight * 10 + recency_component + usage_component
 //
 // Tier dominance is structural: the 10-point gap between lifecycle tiers is
-// larger than the maximum recency bonus (1), so a fresh published entity can
-// never outrank an older certified one — "certification state > publication
-// recency". Ties break on the logical key (ascending) for stable ordering.
+// larger than the maximum recency bonus (1) plus the maximum usage bonus
+// (0.5), so a fresh, heavily used published entity can never outrank an
+// older certified one — "certification state > publication recency". Ties
+// break on the logical key (ascending) for stable ordering.
 //
-// Recency currently uses the newest of certified_at / published_at; when the
-// usage/feedback loop (build plan 3.1) lands it joins as a reserved
-// component and the weights here get revisited. Components are always
+// Recency uses the newest of certified_at / published_at / validated_at /
+// revalidated_at. Usage (build plan 3.1) joins as an aggregate, capped
+// component: 100 recorded loads saturate at 0.5. Components are always
 // exposed next to the score so ordering is never a black box.
 
 const TIER_WEIGHTS: Record<string, number> = {
@@ -26,6 +27,8 @@ const TIER_WEIGHTS: Record<string, number> = {
 };
 
 const RECENCY_WINDOW_DAYS = 180;
+const USAGE_SATURATION_LOADS = 100;
+const USAGE_MAX_COMPONENT = 0.5;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type TrustScoreInput = {
@@ -33,6 +36,8 @@ export type TrustScoreInput = {
   certified?: boolean;
   certified_at?: string;
   published_at?: string;
+  /** Aggregate load count for the version (build plan 3.1); absent = 0. */
+  load_count?: number;
 };
 
 export function scoreTrust(input: TrustScoreInput, now: Date = new Date()): RegistryTrustScore {
@@ -50,12 +55,21 @@ export function scoreTrust(input: TrustScoreInput, now: Date = new Date()): Regi
     }
   }
 
+  const usageLoads =
+    typeof input.load_count === 'number' && Number.isFinite(input.load_count)
+      ? Math.max(0, Math.floor(input.load_count))
+      : null;
+  const usageComponent =
+    usageLoads === null ? 0 : Math.min(usageLoads, USAGE_SATURATION_LOADS) / USAGE_SATURATION_LOADS * USAGE_MAX_COMPONENT;
+
   return {
-    score: round4(tierWeight * 10 + recencyComponent),
+    score: round4(tierWeight * 10 + recencyComponent + usageComponent),
     lifecycle_status: status,
     tier_weight: tierWeight,
     recency_days: recencyDays,
     recency_component: round4(recencyComponent),
+    usage_loads: usageLoads,
+    usage_component: round4(usageComponent),
   };
 }
 

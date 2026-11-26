@@ -14,6 +14,7 @@ export type EntityType =
   | 'RETENTION_ROOT'
   | 'GC_JOB'
   | 'REVALIDATION_JOB'
+  | 'USAGE_SIGNAL'
   | 'HARNESS'
   | 'TOOL'
   | 'PUBLIC_KEY'

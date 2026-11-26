@@ -187,7 +187,7 @@ function makeRegistryApiClient(): RegistryApiClient {
           harness_name: 'cursor',
           display_name: 'Registry Demo Agent',
           tags: ['platform'],
-          trust: { score: 20.9, lifecycle_status: 'published', tier_weight: 2, recency_days: 1, recency_component: 0.9944 },
+          trust: { score: 20.9, lifecycle_status: 'published', tier_weight: 2, recency_days: 1, recency_component: 0.9944, usage_loads: null, usage_component: 0 },
         },
         {
           agent_urn: SECURITY_AGENT_URN,
@@ -323,6 +323,8 @@ function makeRegistryApiClient(): RegistryApiClient {
                   tier_weight: 2,
                   recency_days: 1,
                   recency_component: 0.9944,
+                  usage_loads: null,
+                  usage_component: 0,
                 },
                 match: {
                   mode: input.mode,

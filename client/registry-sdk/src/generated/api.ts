@@ -327,6 +327,8 @@ export interface paths {
                                     tier_weight: number;
                                     recency_days: number | null;
                                     recency_component: number;
+                                    usage_loads: number | null;
+                                    usage_component: number;
                                 };
                                 freshness?: {
                                     /** @enum {string} */
@@ -6209,6 +6211,8 @@ export interface paths {
                                     tier_weight: number;
                                     recency_days: number | null;
                                     recency_component: number;
+                                    usage_loads: number | null;
+                                    usage_component: number;
                                 };
                                 freshness?: {
                                     /** @enum {string} */
@@ -6581,6 +6585,8 @@ export interface paths {
                                     tier_weight: number;
                                     recency_days: number | null;
                                     recency_component: number;
+                                    usage_loads: number | null;
+                                    usage_component: number;
                                 };
                                 freshness?: {
                                     /** @enum {string} */
@@ -6618,6 +6624,8 @@ export interface paths {
                                     tier_weight: number;
                                     recency_days: number | null;
                                     recency_component: number;
+                                    usage_loads: number | null;
+                                    usage_component: number;
                                 };
                                 freshness?: {
                                     /** @enum {string} */
