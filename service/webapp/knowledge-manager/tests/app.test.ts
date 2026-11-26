@@ -269,6 +269,19 @@ describe('knowledge-manager app', () => {
         }),
         getActiveSkillVersion: async () => version,
         listSkillVersions: async () => ({ versions: [version] }),
+        getUsageSignal: async () => ({
+          kind: 'version' as const,
+          publication_urn: version.skill_version.urn,
+          load_count: 5,
+          artifact_fetch_count: 2,
+          verify_count: 3,
+          verify_failure_count: 0,
+          last_loaded_at: '2026-11-25T10:00:00.000Z',
+          last_fetched_at: null,
+          last_verified_at: null,
+          last_verify_failed_at: null,
+          updated_at: '2026-11-25T10:00:00.000Z',
+        }),
       }),
       semanticTurkey: {
         listProjects: async () => ({ status: 'not_configured', projects: [] }),
@@ -287,6 +300,7 @@ describe('knowledge-manager app', () => {
     const detailsText = await details.text();
     expect(detailsText).toContain('freshness-chip freshness-fresh');
     expect(detailsText).toContain('certification expires in 180d');
+    expect(detailsText).toContain('loaded 5×');
   });
 
   it('renders the recertification queue with actions for signed-in operators', async () => {
@@ -312,6 +326,8 @@ describe('knowledge-manager app', () => {
           revalidation_status: null,
           recertification_state: 'due' as const,
           reasons: ['aged'],
+          usage_loads: 7,
+          last_loaded_at: '2026-11-20T00:00:00.000Z',
         },
       ],
       total: 1,
@@ -347,6 +363,7 @@ describe('knowledge-manager app', () => {
     expect(text).toContain('/recertification/skills/skill%3Astale/versions/1/recertify');
     expect(text).toContain('Recertify');
     expect(text).toContain('certification_expires_at');
+    expect(text).toContain('7 loads');
   });
 
   it('posts queue actions with the operator session and expiry input', async () => {
@@ -1676,6 +1693,7 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
       throw new Error('recertifyAgentVersion not stubbed');
     },
     getRecertificationQueue: async () => ({ items: [], total: 0, due_count: 0, approaching_count: 0 }),
+    getUsageSignal: async () => null,
     ...overrides,
   };
 }

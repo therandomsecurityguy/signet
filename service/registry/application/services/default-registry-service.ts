@@ -5113,7 +5113,9 @@ export class DefaultRegistryService implements RegistryService {
     const now = new Date();
     const wantSkills = (input.entity_type ?? 'all') !== 'agent';
     const wantAgents = (input.entity_type ?? 'all') !== 'skill';
-    const items: Array<import('../ports/registry-service.js').RegistryRecertificationQueueItem> = [];
+    const items: Array<
+      Omit<import('../ports/registry-service.js').RegistryRecertificationQueueItem, 'usage_loads' | 'last_loaded_at'>
+    > = [];
     if (wantSkills) {
       for (const node of await this.deps.graph.listNodesByType('SKILL_VERSION')) {
         const item = recertificationQueueItem(node, 'SKILL_VERSION', now);
@@ -5127,7 +5129,19 @@ export class DefaultRegistryService implements RegistryService {
       }
     }
     const state = input.state ?? 'all';
-    const filtered = state === 'all' ? items : items.filter((item) => item.recertification_state === state);
+    // Enrich with aggregate usage evidence (build plan 3.1). Counts stay
+    // identity-free; ordering below remains driven by state and age.
+    const enriched = await Promise.all(
+      items.map(async (item) => {
+        const usage = await this.getUsageSignal({ publication_urn: item.publication_urn });
+        return {
+          ...item,
+          usage_loads: usage?.load_count ?? 0,
+          last_loaded_at: usage?.last_loaded_at ?? null,
+        };
+      }),
+    );
+    const filtered = state === 'all' ? enriched : enriched.filter((item) => item.recertification_state === state);
     // Worst first: `due` before `approaching`, then oldest verification
     // first, then URN for a stable order.
     const stateRank = { due: 0, approaching: 1 } as const;
@@ -5365,6 +5379,7 @@ export class DefaultRegistryService implements RegistryService {
       }
     }
 
+    const usage = await this.getUsageSignal({ publication_urn: node.urn });
     return {
       publication_urn: node.urn,
       verified_at: freshness?.last_verified_at ?? null,
@@ -5372,6 +5387,8 @@ export class DefaultRegistryService implements RegistryService {
       newer_available: latestTrustedVersion !== null && latestTrustedVersion > version,
       expires_at: expiresAt,
       latest_trusted_version: latestTrustedVersion,
+      load_count: usage?.load_count ?? null,
+      last_loaded_at: usage?.last_loaded_at ?? null,
     };
   }
 
@@ -10861,7 +10878,7 @@ function recertificationQueueItem(
   node: { urn: string; properties: Record<string, unknown> },
   entity_type: 'SKILL_VERSION' | 'AGENT_VERSION',
   now: Date,
-): import('../ports/registry-service.js').RegistryRecertificationQueueItem | null {
+): Omit<import('../ports/registry-service.js').RegistryRecertificationQueueItem, 'usage_loads' | 'last_loaded_at'> | null {
   const status = lifecycleStatus(node.properties);
   if (!REVALIDATABLE_LIFECYCLE_STATUSES.includes(status)) return null;
   const freshness = computeFreshness(freshnessInputFromProperties(node.properties), now);

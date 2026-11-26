@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { buildAppDependencies } from '../../src/app/dependencies.js';
 import { buildApp } from '../../src/app/server.js';
 import { loadEnv } from '../../src/infrastructure/config/env.js';
-import { usageSignalUrn } from '../../../registry/domain/signet/db/graph/freeform/registry/urn.js';
+import {
+  skillVersionUrn,
+  usageSignalUrn,
+} from '../../../registry/domain/signet/db/graph/freeform/registry/urn.js';
 
 async function buildTestApp() {
   const env = loadEnv({
@@ -106,5 +109,50 @@ describe('usage signals (aggregate)', () => {
     for (const forbidden of ['actor', 'author', 'principal', 'client_name', 'request_id', 'api_key_id']) {
       expect(keys).not.toContain(forbidden);
     }
+  });
+
+  it('serves usage counts over the read endpoint and in recertification-queue evidence', async () => {
+    const { app, token, deps } = await buildTestApp();
+    await seedPublishedSkill(app, token, 'skill:usage-queued');
+    const versionUrn = skillVersionUrn('skill:usage-queued', 1);
+
+    for (let i = 0; i < 4; i += 1) {
+      await deps.registryCore.recordUsageSignal({ publication_urn: versionUrn, signal: 'load' });
+    }
+
+    const res = await app.request(`/v1/usage-signals?publication_urn=${encodeURIComponent(versionUrn)}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      usage: { kind: string; load_count: number; last_loaded_at: string | null } | null;
+    };
+    expect(body.usage?.kind).toBe('version');
+    expect(body.usage?.load_count).toBe(4);
+    expect(body.usage?.last_loaded_at).toBeTruthy();
+
+    // Validation: exactly one target, and unknown targets are null (never an error).
+    expect((await app.request('/v1/usage-signals')).status).toBe(400);
+    expect(
+      (await app.request(`/v1/usage-signals?publication_urn=x&artifact_sha256=${'a'.repeat(64)}`)).status,
+    ).toBe(400);
+    const unknown = await app.request(`/v1/usage-signals?publication_urn=${encodeURIComponent('urn:sg:skill-version:skill:nope@v1')}`);
+    expect(unknown.status).toBe(200);
+    expect(((await unknown.json()) as { usage: unknown }).usage).toBeNull();
+
+    // Queue evidence (build plan 3.1 → 2.1): aging versions carry their loads.
+    const versionNode = await deps.graph.getNode(versionUrn);
+    expect(versionNode).toBeTruthy();
+    const aged = { ...versionNode?.properties };
+    for (const key of ['published_at', 'validated_at']) {
+      if (typeof aged[key] === 'string') aged[key] = new Date(Date.now() - 300 * 86_400_000).toISOString();
+    }
+    await deps.graph.upsertNode({ urn: versionUrn, entity_type: 'SKILL_VERSION', properties: aged });
+    const queueRes = await app.request('/v1/recertification/queue');
+    expect(queueRes.status).toBe(200);
+    const queue = (await queueRes.json()) as {
+      items: Array<{ logical_key: string; usage_loads: number; last_loaded_at: string | null }>;
+    };
+    const item = queue.items.find((entry) => entry.logical_key === 'skill:usage-queued');
+    expect(item?.usage_loads).toBe(4);
+    expect(item?.last_loaded_at).toBeTruthy();
   });
 });

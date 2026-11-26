@@ -275,8 +275,12 @@ Discovery and freshness:
   deployment-local counts for loads (`get_skill`/`get_agent`),
   artifact fetches (byte access + `get_artifact`), and verify
   encounters/failures (verification reads + `verify_publication`) as
-  `USAGE_SIGNAL` nodes — counts and timestamps only, never identities —
-  and they feed the ranking's usage component
+  `USAGE_SIGNAL` nodes — counts and timestamps only, never identities;
+  they feed the ranking's usage component and surface via
+  `GET /v1/usage-signals` (exactly one target per request; null when
+  unrecorded), recertification-queue evidence (`usage_loads` /
+  `last_loaded_at`), the MCP `trust_summary` on `get_skill`/`get_agent`,
+  and a "loaded N×" chip on webapp details pages
 - deterministic semantic search (`mode=keyword|semantic`) over
   descriptions, capability claims, and ontology concepts with match
   evidence (`matched_claims` / `matched_terms`); keyword behavior preserved

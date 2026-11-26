@@ -20,6 +20,9 @@ export const RecertificationQueueItemSchema = z.object({
   recertification_state: RecertificationStateSchema,
   /** Freshness reasons plus `revalidation_failed` when the last run failed. */
   reasons: z.array(z.string()),
+  /** Aggregate loads recorded for this version (build plan 3.1); 0 = none. */
+  usage_loads: z.number().int(),
+  last_loaded_at: z.string().nullable(),
 });
 
 export const RecertificationQueueOutputSchema = z.object({

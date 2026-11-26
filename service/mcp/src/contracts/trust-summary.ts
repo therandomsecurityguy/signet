@@ -13,6 +13,9 @@ export const TrustSummarySchema = z.object({
   expires_at: z.string().nullable(),
   /** Highest trusted version seen (evidence for newer_available). */
   latest_trusted_version: z.number().int().nullable(),
+  /** Aggregate loads recorded for this version (build plan 3.1); null = none. */
+  load_count: z.number().int().nullable(),
+  last_loaded_at: z.string().nullable(),
 });
 
 export type TrustSummary = z.infer<typeof TrustSummarySchema>;

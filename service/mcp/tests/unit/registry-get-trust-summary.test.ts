@@ -101,7 +101,17 @@ describe('registry.get_skill / get_agent trust summary', () => {
       newer_available: true,
       expires_at: null,
       latest_trusted_version: 2,
+      // The summary describes usage recorded before this load; the load
+      // being served is counted after the summary is derived.
+      load_count: null,
+      last_loaded_at: null,
     });
+
+    // Loads become visible to subsequent consumers (aggregate, no identities).
+    await connector.getSkill({ skill_urn: skillUrn('skill:trusted') }, ctx);
+    const second = await connector.getSkill({ skill_urn: skillUrn('skill:trusted') }, ctx);
+    expect(second.trust_summary?.load_count).toBe(2);
+    expect(second.trust_summary?.last_loaded_at).toBeTruthy();
   });
 
   it('reports revoked certifications with their expiry and never invents newer versions', async () => {

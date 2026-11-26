@@ -9904,6 +9904,140 @@
         }
       }
     },
+    "/v1/usage-signals": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500
+            },
+            "required": false,
+            "name": "publication_urn",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F]{64}$"
+            },
+            "required": false,
+            "name": "artifact_sha256",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aggregate usage signal for one publication or artifact (null when none recorded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "usage": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "version",
+                            "artifact"
+                          ]
+                        },
+                        "publication_urn": {
+                          "type": "string"
+                        },
+                        "artifact_sha256": {
+                          "type": "string"
+                        },
+                        "load_count": {
+                          "type": "integer"
+                        },
+                        "artifact_fetch_count": {
+                          "type": "integer"
+                        },
+                        "verify_count": {
+                          "type": "integer"
+                        },
+                        "verify_failure_count": {
+                          "type": "integer"
+                        },
+                        "last_loaded_at": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "last_fetched_at": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "last_verified_at": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "last_verify_failed_at": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "updated_at": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "load_count",
+                        "artifact_fetch_count",
+                        "verify_count",
+                        "verify_failure_count",
+                        "last_loaded_at",
+                        "last_fetched_at",
+                        "last_verified_at",
+                        "last_verify_failed_at",
+                        "updated_at"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "usage"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid usage query parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/compile/skill": {
       "post": {
         "requestBody": {
@@ -28183,6 +28317,13 @@
                             "items": {
                               "type": "string"
                             }
+                          },
+                          "usage_loads": {
+                            "type": "integer"
+                          },
+                          "last_loaded_at": {
+                            "type": "string",
+                            "nullable": true
                           }
                         },
                         "required": [
@@ -28195,7 +28336,9 @@
                           "last_revalidated_at",
                           "revalidation_status",
                           "recertification_state",
-                          "reasons"
+                          "reasons",
+                          "usage_loads",
+                          "last_loaded_at"
                         ]
                       }
                     },
