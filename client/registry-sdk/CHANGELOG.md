@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.19](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.18...registry-sdk-v0.1.19) (2026-11-26)
+
+
+### Features
+
+* **events:** trust event feed (filtered read + SSE stream) ([9299b09](https://github.com/therandomsecurityguy/signet/commit/9299b09c13e3637dc371ec71e07568852e875d2e))
+* **events:** trust event feed (filtered read + SSE stream) ([99180f4](https://github.com/therandomsecurityguy/signet/commit/99180f4878fec831a88997afb3d51b45bc03c5d5))
+* **recertify:** in-UI recertification and certification renewal ([a543a86](https://github.com/therandomsecurityguy/signet/commit/a543a86a09394fba50298de4d0fe83d5c24ced06))
+
 ## [0.1.18](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.17...registry-sdk-v0.1.18) (2026-11-26)
 
 
