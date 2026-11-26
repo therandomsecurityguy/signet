@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.95](https://github.com/therandomsecurityguy/signet/compare/v0.1.94...v0.1.95) (2026-11-26)
+
+
+### Features
+
+* **recertify:** in-UI recertification and certification renewal ([a543a86](https://github.com/therandomsecurityguy/signet/commit/a543a86a09394fba50298de4d0fe83d5c24ced06))
+
 ## [0.1.94](https://github.com/therandomsecurityguy/signet/compare/v0.1.93...v0.1.94) (2026-11-26)
 
 
