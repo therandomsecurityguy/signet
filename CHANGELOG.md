@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.99](https://github.com/therandomsecurityguy/signet/compare/v0.1.98...v0.1.99) (2026-11-27)
+
+
+### Features
+
+* **pull:** registry-operator pull materializes verified bytes + manifest ([92ebd8a](https://github.com/therandomsecurityguy/signet/commit/92ebd8a6dda31899a49344e174225f9232e507c6))
+* **pull:** registry-operator pull materializes verified bytes + manifest ([3605d09](https://github.com/therandomsecurityguy/signet/commit/3605d09ed5032fdb0434bf9a835acafbcc2b68d6))
+* **usage:** surface reliability signals (queue, MCP, webapp) ([bd45719](https://github.com/therandomsecurityguy/signet/commit/bd4571992f5fe72a963288b51dd9903434033d83))
+
 ## [0.1.98](https://github.com/therandomsecurityguy/signet/compare/v0.1.97...v0.1.98) (2026-11-27)
 
 
