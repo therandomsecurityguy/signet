@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.22](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.21...registry-sdk-v0.1.22) (2026-11-27)
+
+
+### Features
+
+* **policy:** dry-run simulation endpoint (zero side effects) ([81c66b6](https://github.com/therandomsecurityguy/signet/commit/81c66b6af9f18e3ff9ec0902221c0112ba44a4b1))
+* **policy:** dry-run simulation endpoint (zero side effects) ([916e1aa](https://github.com/therandomsecurityguy/signet/commit/916e1aa78fe25cbd1d14c8f2232f5817f672b84d))
+
 ## [0.1.21](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.20...registry-sdk-v0.1.21) (2026-11-27)
 
 
