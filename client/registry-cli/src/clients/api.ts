@@ -100,7 +100,7 @@ export type RegistryOperatorApiClient = {
   ): Promise<Record<string, unknown>>;
   listPublicKeys(apiToken?: string): Promise<Record<string, unknown>>;
   getPublicKey(keyRef: string, apiToken?: string): Promise<Record<string, unknown>>;
-  getArtifactBytes(sha256: string, apiToken?: string): Promise<{ bytes: Uint8Array; contentDigest?: string }>;
+  getArtifactBytes(sha256: string, apiToken?: string): Promise<{ bytes: Uint8Array; contentDigest?: string; mediaType?: string }>;
   createSkillDetachedSignature(
     skillKey: string,
     version: number,
@@ -533,7 +533,10 @@ export class HttpRegistryOperatorApiClient implements RegistryOperatorApiClient 
     return await this.fetchJson(`/v1/public-keys/${encodeURIComponent(keyRef)}`, undefined, apiToken);
   }
 
-  async getArtifactBytes(sha256: string, apiToken?: string): Promise<{ bytes: Uint8Array; contentDigest?: string }> {
+  async getArtifactBytes(
+    sha256: string,
+    apiToken?: string,
+  ): Promise<{ bytes: Uint8Array; contentDigest?: string; mediaType?: string }> {
     const headers = this.buildHeaders(undefined, apiToken);
     const response = await (this.deps.fetchFn ?? fetch)(new URL(`/v1/artifacts/${sha256}`, this.deps.apiOrigin), {
       headers,
@@ -550,9 +553,11 @@ export class HttpRegistryOperatorApiClient implements RegistryOperatorApiClient 
     }
     const bytes = new Uint8Array(await response.arrayBuffer());
     const contentDigest = response.headers.get('content-digest');
+    const mediaType = response.headers.get('content-type') ?? undefined;
     return {
       bytes,
       ...(contentDigest ? { contentDigest } : {}),
+      ...(mediaType ? { mediaType: mediaType.split(';')[0]?.trim() } : {}),
     };
   }
 

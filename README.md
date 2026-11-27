@@ -140,6 +140,15 @@ Canonicalization and signatures:
   missing/revoked/drifted/expired pins fail with a non-zero exit;
   deprecated and newer-active versions warn (fail under `--strict`); run in
   CI for repos and at session start for agents
+- `registry-operator pull skill:foo[@2] --out .signet/skills/`: materialize
+  verified bytes in one command — revocation, envelope digest (recomputed
+  locally against the frozen publication anchor), detached signatures
+  (trusted keys verified locally, keyless verdicts from the registry), and
+  a local re-hash of every artifact are all checked **before anything is
+  written**; writes the artifact files (named by source basename),
+  `envelope.json` (the exact served frozen bytes), and a `manifest.json`
+  integrity manifest; `--strict` additionally requires the full
+  publication-verification contract (server-verified + a valid signature)
 - dual signatures: detached signatures over operational (JSON) or
   semantic (RDF) canonical bytes with cross-verification
 
