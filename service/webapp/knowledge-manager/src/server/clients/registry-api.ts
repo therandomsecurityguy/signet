@@ -322,6 +322,23 @@ export type RecertificationQueueItem = {
   revalidation_status: string | null;
   recertification_state: 'due' | 'approaching';
   reasons: string[];
+  usage_loads: number;
+  last_loaded_at: string | null;
+};
+
+export type RegistryUsageSignal = {
+  kind: 'version' | 'artifact';
+  publication_urn?: string;
+  artifact_sha256?: string;
+  load_count: number;
+  artifact_fetch_count: number;
+  verify_count: number;
+  verify_failure_count: number;
+  last_loaded_at: string | null;
+  last_fetched_at: string | null;
+  last_verified_at: string | null;
+  last_verify_failed_at: string | null;
+  updated_at: string;
 };
 
 export type RecertificationQueue = {
@@ -475,6 +492,10 @@ export interface RegistryApiClient {
     limit?: number;
     offset?: number;
   }): Promise<RecertificationQueue>;
+  getUsageSignal(input: {
+    publicationUrn?: string;
+    artifactSha256?: string;
+  }): Promise<RegistryUsageSignal | null>;
   listOntologyPackages(): Promise<{ ontology_packages: OntologyPackageDetails[] }>;
   listDeFactoTerms(opts?: { status?: DeFactoTermDetails['status'] }): Promise<{ terms: DeFactoTermDetails[] }>;
   reviewDeFactoTerm(
@@ -684,6 +705,19 @@ export class HttpRegistryApiClient implements RegistryApiClient {
     if (typeof opts?.offset === 'number') query.set('offset', String(opts.offset));
     const suffix = query.size > 0 ? `?${query.toString()}` : '';
     return await this.fetchJson(`/v1/recertification/queue${suffix}`);
+  }
+
+  async getUsageSignal(input: {
+    publicationUrn?: string;
+    artifactSha256?: string;
+  }): Promise<RegistryUsageSignal | null> {
+    const query = new URLSearchParams();
+    if (input.publicationUrn) query.set('publication_urn', input.publicationUrn);
+    if (input.artifactSha256) query.set('artifact_sha256', input.artifactSha256);
+    const body = await this.fetchJson<{ usage: RegistryUsageSignal | null }>(
+      `/v1/usage-signals?${query.toString()}`,
+    );
+    return body.usage;
   }
 
   private async fetchJson<T>(path: string, init?: RequestInit, apiToken?: string): Promise<T> {

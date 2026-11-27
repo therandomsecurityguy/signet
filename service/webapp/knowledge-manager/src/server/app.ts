@@ -21,6 +21,7 @@ import {
   type ProvenanceRecord,
   type RecertificationQueue,
   type RegistryApiClient,
+  type RegistryUsageSignal,
   type ReviewVersionInput,
   type SkillDetails,
   type SkillLifecycleOperationResult,
@@ -604,8 +605,10 @@ const session = await readOperatorSession(c, deps);
       let activeEvidence: ReviewEvidenceArtifact[] = [];
       let evidenceErrors: string[] = [];
       let provenance: ProvenanceRecord | undefined;
+      let usage: RegistryUsageSignal | null = null;
       const activeUrn = body.active_version?.agent_version.urn;
       if (activeUrn) {
+        usage = await deps.registryApi.getUsageSignal({ publicationUrn: activeUrn }).catch(() => null);
         try {
           const { versions } = await deps.registryApi.listAgentVersions(c.req.param('agentKey'));
           const activeVersion = versions.find((candidate) => candidate.agent_version.urn === activeUrn);
@@ -631,6 +634,7 @@ const session = await readOperatorSession(c, deps);
           ...(flash ? { flash } : {}),
           activeEvidence,
           evidenceErrors,
+          usage,
           ...(provenance ? { provenance } : {}),
           page: buildPageChrome(deps.env, c.req.path, c.req.query(), await readOperatorSession(c, deps)),
         }),
@@ -772,7 +776,7 @@ const session = await readOperatorSession(c, deps);
   app.get('/skills/:skillKey', async (c) => {
     const skillKey = c.req.param('skillKey');
     try {
-      const { details, versions, activeVersion } = await loadSkillPageData(deps.registryApi, skillKey);
+      const { details, versions, activeVersion, usage } = await loadSkillPageData(deps.registryApi, skillKey);
       const flash = c.req.query('flash');
       const usedByAgents = await agentsUsingSkill(deps.registryApi, details.skill.urn, skillKey);
 
@@ -793,6 +797,7 @@ const session = await readOperatorSession(c, deps);
           details,
           versions,
           activeVersion,
+          usage,
           usedByAgents,
           activeEvidence: loaded.evidence,
           evidenceErrors: loaded.errors,
@@ -1056,14 +1061,22 @@ async function loadSkillPageData(registryApi: RegistryApiClient, skillKey: strin
   details: SkillDetails;
   versions: SkillVersionDetails[];
   activeVersion: SkillVersionDetails | null;
+  usage: RegistryUsageSignal | null;
 }> {
   const [details, versions, activeVersion] = await Promise.all([
     registryApi.getSkill(skillKey),
     registryApi.listSkillVersions(skillKey).then((body) => body.versions),
     registryApi.getActiveSkillVersion(skillKey),
   ]);
+  // Aggregate usage for the active version (build plan 3.1); best-effort —
+  // the page renders without it when unavailable.
+  const usage = activeVersion
+    ? await registryApi
+        .getUsageSignal({ publicationUrn: activeVersion.skill_version.urn })
+        .catch(() => null)
+    : null;
 
-  return { details, versions, activeVersion };
+  return { details, versions, activeVersion, usage };
 }
 
 async function handleSkillDraftWrite(c: Context, deps: KnowledgeManagerDeps) {
@@ -1179,13 +1192,14 @@ async function renderSkillPage(
     sessionError?: string;
   },
 ) {
-  const { details, versions, activeVersion } = await loadSkillPageData(deps.registryApi, skillKey);
+  const { details, versions, activeVersion, usage } = await loadSkillPageData(deps.registryApi, skillKey);
   const session = await readOperatorSession(c, deps);
   return c.html(
     renderSkillDetails({
       details,
       versions,
       activeVersion,
+      usage,
       ...(input.flash ? { flash: input.flash } : {}),
       ...(input.error ? { error: input.error } : {}),
       ...(input.lifecycleResult ? { lifecycleResult: input.lifecycleResult } : {}),

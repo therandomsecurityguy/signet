@@ -5,6 +5,7 @@ import type {
   GraphSubgraph,
   ProvenanceRecord,
   RecertificationQueue,
+  RegistryUsageSignal,
   SearchMatch,
   SkillVersionOperationInput,
   SkillDetails,
@@ -404,6 +405,7 @@ export function renderAgentDetails(input: {
   activeEvidence?: ReviewEvidenceArtifact[];
   evidenceErrors?: string[];
   provenance?: ProvenanceRecord;
+  usage?: RegistryUsageSignal | null;
   flash?: string;
   page?: PageChromeInput;
 }) {
@@ -455,7 +457,7 @@ export function renderAgentDetails(input: {
             input.details.active_version
               ? `
                 <p><strong>Agent Version URN:</strong> <code>${escapeHtml(input.details.active_version.agent_version.urn)}</code> ${copyButton(input.details.active_version.agent_version.urn)}</p>
-                ${input.details.active_version.freshness ? `<p>${renderFreshnessChip(input.details.active_version.freshness)}</p>` : ''}
+                ${input.details.active_version.freshness ? `<p>${renderFreshnessChip(input.details.active_version.freshness)}${renderUsageChip(input.usage)}</p>` : renderUsageChip(input.usage)}
                 ${renderPropertiesTable(input.details.active_version.agent_version.properties)}
               `
               : '<p>No active version.</p>'
@@ -616,7 +618,10 @@ export function renderRecertificationQueue(input: {
       escapeHtml(String(item.version)),
       renderStateBadge(item.lifecycle_status),
       stateChip,
-      renderFreshnessChip(item.freshness),
+      renderFreshnessChip(item.freshness) +
+        (item.usage_loads > 0
+          ? `<span class="chip" title="aggregate loads (no identities)">${item.usage_loads} loads</span>`
+          : ''),
       escapeHtml(item.reasons.join(', ')),
       item.last_revalidated_at ? escapeHtml(item.last_revalidated_at) : '<span class="muted">—</span>',
       actions,
@@ -655,6 +660,7 @@ export function renderSkillDetails(input: {
   activeEvidence?: ReviewEvidenceArtifact[];
   evidenceErrors?: string[];
   provenance?: ProvenanceRecord;
+  usage?: RegistryUsageSignal | null;
   flash?: string;
   lifecycleResult?: SkillLifecycleOperationResult;
   error?: string;
@@ -686,6 +692,7 @@ export function renderSkillDetails(input: {
             ${displayName ? `<span class="chip">${escapeHtml(displayName)}</span>` : ''}
             ${input.activeVersion ? renderStateBadge(skillLifecycleStatus(input.activeVersion)) : ''}
             ${renderFreshnessChip(input.activeVersion?.freshness)}
+            ${renderUsageChip(input.usage)}
           </div>
           ${description ? `<p class="detail-desc">${escapeHtml(description)}</p>` : ''}
           <p class="detail-urn">URN <code>${escapeHtml(skillUrn)}</code> ${copyButton(skillUrn)}</p>
@@ -1637,6 +1644,15 @@ function renderFreshnessChip(freshness: Freshness | undefined): string {
     parts.push(`reasons: ${freshness.reasons.join(',')}`);
   }
   return `<span class="chip freshness-chip freshness-${freshness.freshness}" title="${escapeHtml(parts.join(' · '))}">${escapeHtml(label)}</span>`;
+}
+
+// Aggregate usage chip (build plan 3.1). Counts only — never identities.
+function renderUsageChip(usage: RegistryUsageSignal | null | undefined): string {
+  if (!usage || usage.load_count <= 0) return '';
+  const parts = [`${usage.load_count} recorded loads (aggregate, no identities)`];
+  if (usage.last_loaded_at) parts.push(`last loaded ${usage.last_loaded_at}`);
+  if (usage.verify_failure_count > 0) parts.push(`${usage.verify_failure_count} verify failure(s)`);
+  return `<span class="chip" title="${escapeHtml(parts.join(' · '))}">loaded ${usage.load_count}×</span>`;
 }
 
 function stringArrayProperty(properties: Record<string, unknown>, key: string): string[] {

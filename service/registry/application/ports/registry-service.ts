@@ -462,6 +462,9 @@ export type RegistryRecertificationQueueItem = {
   recertification_state: RegistryRecertificationState;
   /** Freshness reasons plus `revalidation_failed` when the last run failed. */
   reasons: string[];
+  /** Aggregate loads recorded for this version (build plan 3.1); 0 = none. */
+  usage_loads: number;
+  last_loaded_at: string | null;
 };
 
 export type RegistryRecertificationQueue = {
@@ -490,6 +493,9 @@ export type RegistryTrustSummary = {
   expires_at: string | null;
   /** Highest trusted version seen (evidence for newer_available). */
   latest_trusted_version: number | null;
+  /** Aggregate loads recorded for this version (build plan 3.1); null = none. */
+  load_count: number | null;
+  last_loaded_at: string | null;
 };
 
 // Aggregate usage signals (build plan 3.1). Deployment-local counters and

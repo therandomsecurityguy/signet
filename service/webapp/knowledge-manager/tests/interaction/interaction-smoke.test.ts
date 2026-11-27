@@ -352,6 +352,7 @@ function makeRegistryApiClient(): RegistryApiClient {
       throw new Error('recertifyAgentVersion not stubbed');
     },
     getRecertificationQueue: async () => ({ items: [], total: 0, due_count: 0, approaching_count: 0 }),
+    getUsageSignal: async () => null,
   };
 }
 

@@ -4172,6 +4172,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/usage-signals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    publication_urn?: string;
+                    artifact_sha256?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Aggregate usage signal for one publication or artifact (null when none recorded) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            usage: {
+                                /** @enum {string} */
+                                kind: "version" | "artifact";
+                                publication_urn?: string;
+                                artifact_sha256?: string;
+                                load_count: number;
+                                artifact_fetch_count: number;
+                                verify_count: number;
+                                verify_failure_count: number;
+                                last_loaded_at: string | null;
+                                last_fetched_at: string | null;
+                                last_verified_at: string | null;
+                                last_verify_failed_at: string | null;
+                                updated_at: string;
+                            } | null;
+                        };
+                    };
+                };
+                /** @description Invalid usage query parameters */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/compile/skill": {
         parameters: {
             query?: never;
@@ -11875,6 +11943,8 @@ export interface paths {
                                 /** @enum {string} */
                                 recertification_state: "due" | "approaching";
                                 reasons: string[];
+                                usage_loads: number;
+                                last_loaded_at: string | null;
                             }[];
                             total: number;
                             due_count: number;
