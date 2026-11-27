@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.20](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.19...registry-sdk-v0.1.20) (2026-11-26)
+
+
+### Features
+
+* **usage:** aggregate reliability signals feeding trust ranking ([f0019bd](https://github.com/therandomsecurityguy/signet/commit/f0019bd481240955d8f6730eda74bbdc2d86ac21))
+* **usage:** aggregate reliability signals feeding trust ranking ([deb2995](https://github.com/therandomsecurityguy/signet/commit/deb299551c9bad2403bdffd72614c886b63c3b82))
+
 ## [0.1.19](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.18...registry-sdk-v0.1.19) (2026-11-26)
 
 
