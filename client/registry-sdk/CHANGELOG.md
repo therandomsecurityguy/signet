@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.21](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.20...registry-sdk-v0.1.21) (2026-11-27)
+
+
+### Features
+
+* **usage:** surface reliability signals (queue, MCP, webapp) ([bd45719](https://github.com/therandomsecurityguy/signet/commit/bd4571992f5fe72a963288b51dd9903434033d83))
+
 ## [0.1.20](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.19...registry-sdk-v0.1.20) (2026-11-26)
 
 
