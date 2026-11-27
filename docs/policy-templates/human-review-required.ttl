@@ -1,0 +1,29 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+# Template: human-review-required
+#
+# A gate policy: publishing and certifying a version is blocked until a
+# human review recorded `review_status: approved` (the review workflow
+# writes that through POST .../versions/:v/review).
+#
+# The shapes slot is required for every authored policy; this starts with a
+# no-op shape — replace or extend it with real constraints (see
+# description-required.ttl) as the policy grows.
+#
+# Register with:
+#   POST /v1/policy-packages
+#   {
+#     "policy_version": "policy/human-review/v1",
+#     "author": "<you>",
+#     "shapes_format": "shacl-turtle",
+#     "shapes": "<contents of this file>",
+#     "require_human_review": true
+#   }
+
+<urn:policy:human-review-placeholder> a sh:NodeShape ;
+    sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;
+    sh:property [
+        sh:path <urn:sg:property:human_review_placeholder> ;
+        sh:minCount 0 ;
+        sh:message "placeholder_shape_never_fires" ;
+    ] .

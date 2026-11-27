@@ -158,7 +158,10 @@ Validation (five layers):
 - built-in graph-shape validation (authored as W3C SHACL Turtle) and
   policy packages as versioned CAS artifacts
   (`POST /v1/policy-packages`) in legacy JSON and authored SHACL Turtle
-  formats
+  formats; a **template library** of common starting points
+  (description-required, human-review-required, sbom-required,
+  trusted-publisher) lives in `docs/policy-templates/` and is
+  registration-tested on every build
 - W3C SHACL Core execution (`rdf-validate-shacl`, in-process) over
   derived RDF with focus-scoped targeting and RE2-backed pattern
   execution (ReDoS-safe by construction); SPARQL constraints/targets run

@@ -1,0 +1,26 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+# Template: description-required
+#
+# Requires every SKILL_VERSION to carry a description before it can be
+# validated. This is the canonical baseline shape every other template
+# builds on; pair it with `require_validation: true` if publishing should
+# also require a completed validation run.
+#
+# Register with:
+#   POST /v1/policy-packages
+#   {
+#     "policy_version": "policy/description-required/v1",
+#     "author": "<you>",
+#     "shapes_format": "shacl-turtle",
+#     "shapes": "<contents of this file>",
+#     "require_validation": true
+#   }
+
+<urn:policy:description-required> a sh:NodeShape ;
+    sh:targetClass <urn:sg:entity-type:SKILL_VERSION> ;
+    sh:property [
+        sh:path <urn:sg:property:description> ;
+        sh:minCount 1 ;
+        sh:message "description_required" ;
+    ] .
