@@ -2,7 +2,7 @@
 # Production image for the Signet knowledge-manager webapp
 # (service/webapp/knowledge-manager). Build context is the repo root.
 
-FROM node:26-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1 AS build
+FROM node:26-bookworm-slim@sha256:0042e17d232a87a2cd485be1da7900fca4d10a4ad11b29e9285da1d2e54798c9 AS build
 
 WORKDIR /workspace
 
@@ -23,7 +23,7 @@ COPY service/webapp/knowledge-manager service/webapp/knowledge-manager
 RUN cd service/webapp/knowledge-manager && npm run build
 
 
-FROM node:26-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1
+FROM node:26-bookworm-slim@sha256:0042e17d232a87a2cd485be1da7900fca4d10a4ad11b29e9285da1d2e54798c9
 
 ENV NODE_ENV=production
 WORKDIR /workspace
