@@ -349,6 +349,20 @@ updates:
       prefix: "chore(deps)"
       include: "scope"
 
+  - package-ecosystem: "pip"
+    directory: "/client/registry-sdk-py"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+
   - package-ecosystem: "gomod"
     directory: "/service/tessera-runtime"
     schedule:
