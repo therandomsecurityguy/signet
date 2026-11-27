@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.100](https://github.com/therandomsecurityguy/signet/compare/v0.1.99...v0.1.100) (2026-11-27)
+
+
+### Features
+
+* **sdk-py:** Python SDK with verify-before-load helpers ([8481d0c](https://github.com/therandomsecurityguy/signet/commit/8481d0c8d04f54cd28e757aea50ed7a0a7d98229))
+* **sdk-py:** Python SDK with verify-before-load helpers ([6fb75e0](https://github.com/therandomsecurityguy/signet/commit/6fb75e0dbb5246f34bc154ce8acc53b403a3f8d0))
+
+
+### Bug Fixes
+
+* **sdk-py:** pin cryptography &gt;=50 (CI pip-audit found 7 advisories in 46.x) ([9a4da61](https://github.com/therandomsecurityguy/signet/commit/9a4da6112ab01266710bf1ac3de3f971fe91ec88))
+
 ## [0.1.99](https://github.com/therandomsecurityguy/signet/compare/v0.1.98...v0.1.99) (2026-11-27)
 
 
