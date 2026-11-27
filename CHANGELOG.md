@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.98](https://github.com/therandomsecurityguy/signet/compare/v0.1.97...v0.1.98) (2026-11-27)
+
+
+### Features
+
+* **usage:** aggregate reliability signals feeding trust ranking ([f0019bd](https://github.com/therandomsecurityguy/signet/commit/f0019bd481240955d8f6730eda74bbdc2d86ac21))
+
 ## [0.1.97](https://github.com/therandomsecurityguy/signet/compare/v0.1.96...v0.1.97) (2026-11-26)
 
 
