@@ -635,7 +635,7 @@ Current implementation status (incremental):
 Signet is designed to be available to every agent workflow. The current surfaces:
 - **OpenAPI 3.1 spec + Swagger UI** — `GET /v1/openapi.json` and `GET /v1/docs` on `service/api`. See `docs/api-reference.md`.
 - **Typed read-first SDK** — `@signet-registry/sdk` under `client/registry-sdk`, generated from the spec. See `client/registry-sdk/README.md`.
-- **MCP gateway** — `service/mcp` exposes read-only `registry.*` tools (including `registry.search`, `registry.verify_publication`, and `registry.get_attestations`) over Streamable HTTP at `/mcp`. See `docs/mcp-onboarding.md` for per-harness config (Claude Code, Cursor, opencode, generic MCP clients).
+- **MCP gateway** — `service/mcp` exposes read-only `registry.*` tools (including `registry.search`, `registry.verify_publication`, and `registry.get_attestations`) over Streamable HTTP at `/mcp`, plus native resources (`signet://skill/{key}`, `signet://agent/{key}`, and the `signet://index` catalog) so harnesses can attach verified bodies directly. See `docs/mcp-onboarding.md` for per-harness config (Claude Code, Cursor, opencode, generic MCP clients).
 - **Cognitive layer** — opt-in token-context estimation + summarization in `service/mcp` (see `service/mcp/README.md`).
 - **Operator CLI** — `@signet-registry/operator` under `client/registry-cli`, packaged for CLI-first agents (see `client/registry-cli/README.md`).
 - **Onboarding skill** — a distributable `signet-registry` skill teaching the discover → inspect → load → trust → use flow (see `skills/` and `.cursor/skills/signet-registry/`).

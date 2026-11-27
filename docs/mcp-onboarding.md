@@ -40,6 +40,29 @@ All tools are read-only. The canonical list is the source of truth
 - `registry.get_attestations` — list attached DSSE/in-toto attestations (build
   provenance, SBOMs, scan results) with their verification status
 
+### Resources
+
+Harnesses can attach registry content natively instead of copying bodies out of
+tool responses:
+
+- `resources/templates/list` exposes `signet://skill/{skill_key}` and
+  `signet://agent/{agent_key}`; reading one returns the **active version's
+  body** (mimeType from the artifact), fetched through the exact same tool
+  execution path — so read gates (revoked/publication-verification), artifact
+  digest verification, and audit all apply. A body that fails verification is
+  refused, never served.
+- `resources/list` exposes `signet://index` — a JSON catalog of published
+  skills and agents with their resource URIs, for discovery in one read.
+
+Example resource attach (Claude Code / Cursor style):
+
+```json
+{ "mcpServers": { "signet": { "url": "http://localhost:3000/mcp",
+  "headers": { "Authorization": "Bearer <mcp token>" } } } }
+```
+
+then reference `signet://skill/skill:registry-mcp` as a resource.
+
 ### Read gates
 
 Two environment flags harden the read path:
