@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.102](https://github.com/therandomsecurityguy/signet/compare/v0.1.101...v0.1.102) (2026-11-27)
+
+
+### Features
+
+* **policy:** template library of common authored-SHACL policies ([ed0087b](https://github.com/therandomsecurityguy/signet/commit/ed0087b27d2dd2c616502223d533fe28a9d12a26))
+* **policy:** template library of common authored-SHACL policies ([ac6e273](https://github.com/therandomsecurityguy/signet/commit/ac6e2733e4e12b4cec7d7ec099e9835eb01709f5))
+
 ## [0.1.101](https://github.com/therandomsecurityguy/signet/compare/v0.1.100...v0.1.101) (2026-11-27)
 
 
