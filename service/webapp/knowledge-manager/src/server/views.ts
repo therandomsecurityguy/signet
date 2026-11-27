@@ -3,7 +3,10 @@ import type {
   AgentSummary,
   Freshness,
   GraphSubgraph,
+  PolicyPackageDetails,
+  PolicySimulationResult,
   ProvenanceRecord,
+  PublicationGateHints,
   RecertificationQueue,
   RegistryUsageSignal,
   SearchMatch,
@@ -406,6 +409,7 @@ export function renderAgentDetails(input: {
   evidenceErrors?: string[];
   provenance?: ProvenanceRecord;
   usage?: RegistryUsageSignal | null;
+  gateHints?: PublicationGateHints | null;
   flash?: string;
   page?: PageChromeInput;
 }) {
@@ -459,6 +463,7 @@ export function renderAgentDetails(input: {
                 <p><strong>Agent Version URN:</strong> <code>${escapeHtml(input.details.active_version.agent_version.urn)}</code> ${copyButton(input.details.active_version.agent_version.urn)}</p>
                 ${input.details.active_version.freshness ? `<p>${renderFreshnessChip(input.details.active_version.freshness)}${renderUsageChip(input.usage)}</p>` : renderUsageChip(input.usage)}
                 ${renderPropertiesTable(input.details.active_version.agent_version.properties)}
+                ${renderGateHintsPanel(input.gateHints)}
               `
               : '<p>No active version.</p>'
           }
@@ -661,6 +666,7 @@ export function renderSkillDetails(input: {
   evidenceErrors?: string[];
   provenance?: ProvenanceRecord;
   usage?: RegistryUsageSignal | null;
+  gateHintsByVersion?: Record<number, PublicationGateHints>;
   flash?: string;
   lifecycleResult?: SkillLifecycleOperationResult;
   error?: string;
@@ -734,6 +740,7 @@ export function renderSkillDetails(input: {
               author: values.author ?? '',
               note: values.note ?? '',
             },
+            ...(input.gateHintsByVersion ? { gateHintsByVersion: input.gateHintsByVersion } : {}),
             ...(input.page ? { page: input.page } : {}),
           })}
         </section>
@@ -908,6 +915,139 @@ export function renderOntologyProjects(input: {
         ${termsTable}
       </section>
       ${legacy}
+    `,
+    input.page,
+  );
+}
+
+// --- policy playground (build plan 3.3c) -------------------------------------
+
+// Compact gate-hints summary for one publication version: which gates the
+// bound policy configures, which would block publish/certify, and why.
+// Renders nothing when hints are unavailable (best-effort enrichment).
+function renderGateHintsPanel(hints: PublicationGateHints | null | undefined) {
+  if (!hints) return '';
+  const applicable = hints.gates.filter((hint) => hint.applicable);
+  const summary = `
+    <div class="detail-chips">
+      <span class="muted">Gate hints${hints.policy_version ? ` (policy ${escapeHtml(hints.policy_version)})` : ''}:</span>
+      <span class="chip">publish: ${hints.would_publish ? 'clear' : 'blocked'}</span>
+      <span class="chip">certify: ${hints.would_certify ? 'clear' : 'blocked'}</span>
+    </div>`;
+  if (applicable.length === 0) {
+    return `<div class="gate-hints">${summary}<p class="muted">No publish/certify gates configured by the bound policy.</p></div>`;
+  }
+  const items = applicable
+    .map(
+      (hint) =>
+        `<li>${hint.satisfied ? '&#10003;' : '&#10007;'} <code>${escapeHtml(hint.gate)}</code> (${escapeHtml(
+          hint.operation,
+        )}) — ${escapeHtml(hint.reason)}</li>`,
+    )
+    .join('');
+  return `<div class="gate-hints">${summary}<ul class="summary-list">${items}</ul></div>`;
+}
+
+function renderPolicySimulationResult(result: PolicySimulationResult) {
+  const failing = result.targets.filter((target) => !target.found || !target.conforms);
+  const digest = result.policy_package_sha256
+    ? ` · digest <code>${escapeHtml(result.policy_package_sha256.slice(0, 12))}&#8230;</code>`
+    : '';
+  const cards = result.targets
+    .map((target) => {
+      const state = !target.found ? 'not found' : target.conforms ? 'conforms' : 'failing';
+      const failures = target.failures.length
+        ? `<ul class="summary-list">${target.failures.map((failure) => `<li>${escapeHtml(failure)}</li>`).join('')}</ul>`
+        : '';
+      const violations = target.violations.length
+        ? renderTable(
+            ['Severity', 'Message', 'Path', 'Constraint', 'Shape'],
+            target.violations.map((violation) => [
+              escapeHtml(violation.severity),
+              escapeHtml(violation.message),
+              escapeHtml(violation.resultPath ?? ''),
+              escapeHtml(violation.sourceConstraintComponent),
+              `<code>${escapeHtml(violation.sourceShape)}</code>`,
+            ]),
+          )
+        : '';
+      const policy = target.policy
+        ? `<p class="muted">Policy layer: resolved=${target.policy.resolved ? 'yes' : 'no'}${
+            target.policy.shapes_format ? ` · format ${escapeHtml(target.policy.shapes_format)}` : ''
+          }${target.policy.engine ? ` · engine ${escapeHtml(target.policy.engine)}` : ''}${
+            target.policy.shapes_sha256
+              ? ` · shapes <code>${escapeHtml(target.policy.shapes_sha256.slice(0, 12))}&#8230;</code>`
+              : ''
+          }</p>`
+        : '';
+      return `
+        <section class="panel">
+          <h3><code>${escapeHtml(target.publication_urn)}</code> — ${escapeHtml(state)}</h3>
+          ${failures}
+          ${violations}
+          ${policy}
+        </section>`;
+    })
+    .join('');
+  const verdict = result.conforms
+    ? 'all targets conform'
+    : `${failing.length} of ${result.targets.length} target(s) failing`;
+  return `
+    <section class="panel">
+      <h2>Simulation result — <code>${escapeHtml(result.policy_version)}</code></h2>
+      <p><strong>Verdict:</strong> ${escapeHtml(verdict)}${digest}</p>
+      <p class="muted">Dry run: no validation reports, governance artifacts, tasks, events, or version writes were recorded.</p>
+    </section>
+    ${cards}`;
+}
+
+export function renderPolicyPlayground(input: {
+  policies: PolicyPackageDetails[];
+  result?: PolicySimulationResult;
+  error?: string;
+  values?: { policy_version?: string; publication_urns?: string };
+  canSimulate?: boolean;
+  page?: PageChromeInput;
+}) {
+  const values = input.values ?? {};
+  const options = input.policies
+    .map(
+      (policy) =>
+        `<option value="${escapeHtml(policy.policy_version)}"${
+          values.policy_version === policy.policy_version ? ' selected' : ''
+        }>${escapeHtml(policy.policy_version)} (${escapeHtml(policy.shapes_format)})</option>`,
+    )
+    .join('');
+  const policyField = input.policies.length
+    ? `<label for="policy_version">Policy package</label>
+       <select id="policy_version" name="policy_version" required>${options}</select>`
+    : '<p class="muted">No policy packages are registered yet. Register one via <code>POST /v1/policy-packages</code> first.</p>';
+  const signInNotice = input.canSimulate
+    ? ''
+    : '<p class="muted">Sign in with an API bearer token to run simulations.</p>';
+
+  return renderPage(
+    'Policy playground',
+    `
+      <p class="breadcrumb"><a href="/">Home</a> / Policy playground</p>
+      ${renderError(input.error)}
+      <section class="panel">
+        <h2>Dry-run a policy</h2>
+        <p class="muted">Run a registered policy package against selected publication versions and see the
+        standard verdicts — with zero lifecycle side effects. Try a policy (or a specific shape change)
+        before binding it or attempting publish/certify.</p>
+        ${signInNotice}
+        <form method="post" action="/policy-playground">
+          ${csrfHiddenField(input.page)}
+          ${policyField}
+          <label for="publication_urns">Publication URNs (one per line, up to 25)</label>
+          <textarea id="publication_urns" name="publication_urns" rows="6" placeholder="urn:sg:skill-version:skill:example@v1">${escapeHtml(
+            values.publication_urns ?? '',
+          )}</textarea>
+          <button type="submit"${input.policies.length && input.canSimulate ? '' : ' disabled'}>Simulate</button>
+        </form>
+      </section>
+      ${input.result ? renderPolicySimulationResult(input.result) : ''}
     `,
     input.page,
   );
@@ -1531,6 +1671,7 @@ function activeNavKey(path?: string): string {
   if (path.startsWith('/skills')) return 'skills';
   if (path.startsWith('/reviews')) return 'reviews';
   if (path.startsWith('/recertification')) return 'recertification';
+  if (path.startsWith('/policy-playground')) return 'policy-playground';
   if (path.startsWith('/graph')) return 'graph';
   if (path.startsWith('/ontology')) return 'ontology';
   if (path.startsWith('/fuseki')) return 'fuseki';
@@ -1562,6 +1703,7 @@ function renderPage(title: string, body: string, page?: PageChromeInput) {
           ${navItem('/skills', 'Skills', active, 'skills')}
           ${navItem('/reviews', 'Reviews', active, 'reviews')}
           ${navItem('/recertification', 'Recertification', active, 'recertification')}
+          ${navItem('/policy-playground', 'Playground', active, 'policy-playground')}
           ${navItem('/graph', 'Graph', active, 'graph')}
           ${navItem('/ontology-projects', 'Ontology', active, 'ontology')}
           ${navItem('/fuseki-queries', 'Fuseki', active, 'fuseki')}
@@ -1826,6 +1968,7 @@ function renderSkillVersionsList(input: {
   skillKey: string;
   versions: SkillVersionDetails[];
   defaults: SkillVersionOperationInput;
+  gateHintsByVersion?: Record<number, PublicationGateHints>;
   page?: PageChromeInput;
 }) {
   if (input.versions.length === 0) {
@@ -1846,6 +1989,7 @@ function renderSkillVersionsList(input: {
             ${isVersionActive(version) ? '<span class="state-badge published">active</span>' : ''}
           </div>
           ${renderSkillVersionSummary(version)}
+          ${renderGateHintsPanel(input.gateHintsByVersion?.[versionNumber])}
           ${renderSkillVersionCard(version)}
           ${
             availableActions.length > 0

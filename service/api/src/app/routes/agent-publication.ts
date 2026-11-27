@@ -13,6 +13,7 @@ import {
   PublicationEnvelopeSchema,
   PublicationVerificationSchema,
 } from '../../contracts/publication/envelope.js';
+import { PublicationGateHintsSchema } from '../../contracts/gates.js';
 import { ErrorResponseSchema } from '../../contracts/error.js';
 import { ProvenanceJsonLdSchema, ProvenanceOutputSchema, CreateProvenanceSignatureInputSchema } from '../../contracts/provenance.js';
 import {
@@ -63,6 +64,17 @@ const getAgentPublicationVerificationRoute = createRoute({
   responses: {
     200: { content: { 'application/json': { schema: PublicationVerificationSchema } }, description: 'Get agent publication verification' },
     400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid agent verification request' },
+    404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Agent version not found' },
+  },
+});
+
+const getAgentGateHintsRoute = createRoute({
+  method: 'get',
+  path: '/v1/agents/{agentKey}/versions/{version}/gate-hints',
+  request: { params: z.object({ agentKey: entityKeySchema, version: z.string() }) },
+  responses: {
+    200: { content: { 'application/json': { schema: PublicationGateHintsSchema } }, description: 'Get agent publication gate hints' },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid agent gate hints request' },
     404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Agent version not found' },
   },
 });
@@ -209,6 +221,19 @@ export function registerAgentPublicationRoutes(
       return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid agent verification request.' } }, 400);
     }
     const got = await deps.publication.getPublicationVerification({ agent_key: agentKey, version });
+    if (!got) {
+      return c.json({ error: { code: 'AGENT_VERSION_NOT_FOUND', message: 'Agent version not found.' } }, 404);
+    }
+    return c.json(got, 200);
+  });
+
+  app.openapi(getAgentGateHintsRoute, async (c) => {
+    const agentKey = c.req.param('agentKey');
+    const version = parseVersion(c.req.param('version'));
+    if (!agentKey || !version) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid agent gate hints request.' } }, 400);
+    }
+    const got = await deps.publication.getGateHints({ agent_key: agentKey, version });
     if (!got) {
       return c.json({ error: { code: 'AGENT_VERSION_NOT_FOUND', message: 'Agent version not found.' } }, 404);
     }

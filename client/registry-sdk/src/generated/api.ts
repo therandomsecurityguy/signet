@@ -1288,6 +1288,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/agents/{agentKey}/versions/{version}/gate-hints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    agentKey: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Get agent publication gate hints */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            publication_urn: string;
+                            policy_version: string | null;
+                            gates: {
+                                /** @enum {string} */
+                                gate: "require_human_review" | "require_validation" | "require_signature" | "require_trusted_publisher" | "require_build_provenance" | "require_sbom";
+                                /** @enum {string} */
+                                operation: "publish" | "certify";
+                                applicable: boolean;
+                                satisfied: boolean;
+                                reason: string;
+                            }[];
+                            would_publish: boolean;
+                            would_certify: boolean;
+                        };
+                    };
+                };
+                /** @description Invalid agent gate hints request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Agent version not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/agents/{agentKey}/versions/{version}/provenance": {
         parameters: {
             query?: never;
@@ -7686,6 +7766,86 @@ export interface paths {
                     };
                 };
                 /** @description Invalid publication verification request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Skill version not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/skills/{skillKey}/versions/{version}/gate-hints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    skillKey: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Get publication gate hints */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            publication_urn: string;
+                            policy_version: string | null;
+                            gates: {
+                                /** @enum {string} */
+                                gate: "require_human_review" | "require_validation" | "require_signature" | "require_trusted_publisher" | "require_build_provenance" | "require_sbom";
+                                /** @enum {string} */
+                                operation: "publish" | "certify";
+                                applicable: boolean;
+                                satisfied: boolean;
+                                reason: string;
+                            }[];
+                            would_publish: boolean;
+                            would_certify: boolean;
+                        };
+                    };
+                };
+                /** @description Invalid gate hints request */
                 400: {
                     headers: {
                         [name: string]: unknown;

@@ -3428,6 +3428,167 @@
         }
       }
     },
+    "/v1/agents/{agentKey}/versions/{version}/gate-hints": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]*$"
+            },
+            "required": true,
+            "name": "agentKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "version",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get agent publication gate hints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "publication_urn": {
+                      "type": "string"
+                    },
+                    "policy_version": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "gates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "gate": {
+                            "type": "string",
+                            "enum": [
+                              "require_human_review",
+                              "require_validation",
+                              "require_signature",
+                              "require_trusted_publisher",
+                              "require_build_provenance",
+                              "require_sbom"
+                            ]
+                          },
+                          "operation": {
+                            "type": "string",
+                            "enum": [
+                              "publish",
+                              "certify"
+                            ]
+                          },
+                          "applicable": {
+                            "type": "boolean"
+                          },
+                          "satisfied": {
+                            "type": "boolean"
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "gate",
+                          "operation",
+                          "applicable",
+                          "satisfied",
+                          "reason"
+                        ]
+                      }
+                    },
+                    "would_publish": {
+                      "type": "boolean"
+                    },
+                    "would_certify": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "publication_urn",
+                    "policy_version",
+                    "gates",
+                    "would_publish",
+                    "would_certify"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid agent gate hints request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Agent version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/agents/{agentKey}/versions/{version}/provenance": {
       "get": {
         "parameters": [
@@ -18132,6 +18293,167 @@
           },
           "400": {
             "description": "Invalid publication verification request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Skill version not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "message"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/skills/{skillKey}/versions/{version}/gate-hints": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]*$"
+            },
+            "required": true,
+            "name": "skillKey",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "version",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Get publication gate hints",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "publication_urn": {
+                      "type": "string"
+                    },
+                    "policy_version": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "gates": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "gate": {
+                            "type": "string",
+                            "enum": [
+                              "require_human_review",
+                              "require_validation",
+                              "require_signature",
+                              "require_trusted_publisher",
+                              "require_build_provenance",
+                              "require_sbom"
+                            ]
+                          },
+                          "operation": {
+                            "type": "string",
+                            "enum": [
+                              "publish",
+                              "certify"
+                            ]
+                          },
+                          "applicable": {
+                            "type": "boolean"
+                          },
+                          "satisfied": {
+                            "type": "boolean"
+                          },
+                          "reason": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "gate",
+                          "operation",
+                          "applicable",
+                          "satisfied",
+                          "reason"
+                        ]
+                      }
+                    },
+                    "would_publish": {
+                      "type": "boolean"
+                    },
+                    "would_certify": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "publication_urn",
+                    "policy_version",
+                    "gates",
+                    "would_publish",
+                    "would_certify"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid gate hints request",
             "content": {
               "application/json": {
                 "schema": {

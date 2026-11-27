@@ -9080,6 +9080,149 @@ export class DefaultRegistryService implements RegistryService {
     }
   }
 
+  // Non-throwing mirror of the policy-driven gate enforcement (build plan
+  // 3.3c): evaluate every gate the bound policy configures against the
+  // version's CURRENT state and explain the outcome. Read-only — nothing is
+  // recorded, nothing throws.
+  async getPublicationGateHints(input: {
+    publication_urn: string;
+  }): Promise<import('../ports/registry-service.js').RegistryPublicationGateHints | null> {
+    const node = await this.deps.graph.getNode(input.publication_urn);
+    if (!node || (node.entity_type !== 'SKILL_VERSION' && node.entity_type !== 'AGENT_VERSION')) {
+      return null;
+    }
+    const properties = node.properties;
+    const bound = await this.readBoundPolicyDocument(properties);
+    if (!bound) {
+      return {
+        publication_urn: node.urn,
+        policy_version: null,
+        gates: [],
+        would_publish: true,
+        would_certify: true,
+      };
+    }
+    const { policyVersion } = bound;
+    const gates = bound.parsed.gates;
+    const hints: Array<import('../ports/registry-service.js').RegistryGateHint> = [];
+    // Non-applicable gates are normalized to satisfied:true / "not
+    // configured" so the output never implies a verdict about a gate the
+    // policy does not set.
+    const pushGate = (
+      gate: import('../ports/registry-service.js').RegistryGateHint['gate'],
+      operation: 'publish' | 'certify',
+      applicable: boolean,
+      state: { satisfied: boolean; reason: string },
+    ) => {
+      hints.push({
+        gate,
+        operation,
+        applicable,
+        satisfied: applicable ? state.satisfied : true,
+        reason: applicable ? state.reason : 'policy does not configure this gate',
+      });
+    };
+
+    // Human review binds at publish and certify (mirrors enforceHumanReviewGate).
+    const reviewStatus = stringOrUndefined(properties['review_status']) ?? 'unset';
+    const reviewSatisfied = properties['review_status'] === 'approved';
+    const reviewReason = reviewSatisfied
+      ? `review_status is ${reviewStatus}`
+      : `review_status is ${reviewStatus}; policy ${policyVersion} requires an approved review`;
+    pushGate('require_human_review', 'publish', gates.require_human_review === true, {
+      satisfied: reviewSatisfied,
+      reason: reviewReason,
+    });
+    pushGate('require_human_review', 'certify', gates.require_human_review === true, {
+      satisfied: reviewSatisfied,
+      reason: reviewReason,
+    });
+
+    // Validation binds at publish: a draft has never passed validation
+    // (mirrors the publish-only branch of enforcePublicationTrustGates).
+    const status = lifecycleStatus(properties);
+    pushGate('require_validation', 'publish', gates.require_validation === true, {
+      satisfied: status !== 'draft',
+      reason:
+        status !== 'draft'
+          ? `lifecycle is ${status}`
+          : `lifecycle is ${status}; policy ${policyVersion} requires validation before publish`,
+    });
+
+    const needsEvidence =
+      gates.require_signature === true ||
+      gates.require_trusted_publisher === true ||
+      gates.require_build_provenance === true ||
+      gates.require_sbom === true;
+    const verification = needsEvidence ? await this.getPublicationVerification({ publication_urn: node.urn }) : null;
+    const attestations = verification?.attestations ?? [];
+    const validChecks = (verification?.signature_checks ?? []).filter(
+      (check) =>
+        check.cryptographic_verification_passed &&
+        check.envelope_sha256_matches &&
+        (check.trusted_public_key_resolved ||
+          (check.signature_kind === 'keyless' && check.keyless?.verified === true)),
+    );
+
+    pushGate('require_signature', 'certify', gates.require_signature === true, {
+      satisfied: validChecks.length > 0,
+      reason:
+        validChecks.length > 0
+          ? `${validChecks.length} verified qualified signature(s)`
+          : `no verified qualified detached signature; policy ${policyVersion} requires one before certify`,
+    });
+
+    const publisher = stringOrUndefined(properties['publisher']);
+    let publisherMatched = false;
+    if (gates.require_trusted_publisher === true && publisher) {
+      for (const check of validChecks) {
+        const trustedKey = await this.getTrustedPublicKey({ key_ref: check.key_ref });
+        const owner = stringOrUndefined(trustedKey?.public_key.properties['owner']);
+        if (owner && owner === publisher) {
+          publisherMatched = true;
+          break;
+        }
+      }
+    }
+    pushGate('require_trusted_publisher', 'certify', gates.require_trusted_publisher === true, {
+      satisfied: publisherMatched,
+      reason: publisherMatched
+        ? `a trusted key is owned by publisher ${publisher}`
+        : publisher
+          ? `no trusted signing key is owned by publisher ${publisher}`
+          : 'no publisher recorded on the publication',
+    });
+
+    const countAttestations = (predicates: ReadonlySet<string>) =>
+      attestations.filter((attestation) => predicates.has(attestation.predicate_type.trim().toLowerCase())).length;
+    const provenanceCount = countAttestations(BUILD_PROVENANCE_PREDICATE_TYPES);
+    pushGate('require_build_provenance', 'certify', gates.require_build_provenance === true, {
+      satisfied: provenanceCount > 0,
+      reason:
+        provenanceCount > 0
+          ? `${provenanceCount} verified build-provenance attestation(s)`
+          : `no verified build-provenance attestation attached; policy ${policyVersion} requires one before certify`,
+    });
+    const sbomCount = countAttestations(SBOM_PREDICATE_TYPES);
+    pushGate('require_sbom', 'certify', gates.require_sbom === true, {
+      satisfied: sbomCount > 0,
+      reason:
+        sbomCount > 0
+          ? `${sbomCount} verified SBOM attestation(s)`
+          : `no verified SBOM attestation attached; policy ${policyVersion} requires one before certify`,
+    });
+
+    const unsatisfiedFor = (operation: 'publish' | 'certify') =>
+      hints.some((hint) => hint.operation === operation && hint.applicable && !hint.satisfied);
+    return {
+      publication_urn: node.urn,
+      policy_version: policyVersion,
+      gates: hints,
+      would_publish: !unsatisfiedFor('publish'),
+      would_certify: !unsatisfiedFor('certify'),
+    };
+  }
+
   async createAgentProvenanceSignature(
     input: { agent_key: string; version: number } & import('../ports/registry-service.js').RegistryProvenanceSignatureInput,
   ): Promise<CreateResult<import('../ports/registry-service.js').RegistryProvenanceSignatureRecord>> {

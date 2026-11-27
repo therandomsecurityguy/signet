@@ -399,6 +399,67 @@ export type OntologyPackageDetails = {
   ontology: unknown;
 };
 
+export type PolicyPackageDetails = {
+  artifact_urn: string;
+  sha256: string;
+  policy_version: string;
+  created_by: string;
+  created_at: string;
+  description?: string;
+  shapes_format: 'legacy-json-v1' | 'shacl-turtle';
+};
+
+// Publication gate hints (build plan 3.3c): the read-only mirror of the
+// policy-driven gate enforcement — "which gate would reject this, and why".
+export type PublicationGateHint = {
+  gate: string;
+  operation: 'publish' | 'certify';
+  applicable: boolean;
+  satisfied: boolean;
+  reason: string;
+};
+
+export type PublicationGateHints = {
+  publication_urn: string;
+  policy_version: string | null;
+  gates: PublicationGateHint[];
+  would_publish: boolean;
+  would_certify: boolean;
+};
+
+export type PolicySimulationViolation = {
+  focusNode: string;
+  resultPath?: string;
+  sourceConstraintComponent: string;
+  sourceShape: string;
+  message: string;
+  severity: 'Violation' | 'Warning' | 'Info';
+};
+
+export type PolicySimulationTarget = {
+  publication_urn: string;
+  entity_type?: 'SKILL_VERSION' | 'AGENT_VERSION';
+  logical_key?: string;
+  version?: number;
+  found: boolean;
+  conforms: boolean;
+  failures: string[];
+  violations: PolicySimulationViolation[];
+  policy?: {
+    resolved: boolean;
+    shapes_format?: string;
+    shapes_sha256?: string;
+    engine?: string;
+  };
+};
+
+export type PolicySimulationResult = {
+  policy_version: string;
+  policy_package_sha256: string | null;
+  conforms: boolean;
+  targets: PolicySimulationTarget[];
+};
+
 export type DeFactoTermDetails = {
   urn: string;
   term: string;
@@ -497,6 +558,14 @@ export interface RegistryApiClient {
     artifactSha256?: string;
   }): Promise<RegistryUsageSignal | null>;
   listOntologyPackages(): Promise<{ ontology_packages: OntologyPackageDetails[] }>;
+  listPolicyPackages(): Promise<{ policy_packages: PolicyPackageDetails[] }>;
+  simulatePolicyPackage(
+    policyVersion: string,
+    input: { publication_urns: string[] },
+    apiToken: string,
+  ): Promise<PolicySimulationResult>;
+  getSkillGateHints(skillKey: string, version: number): Promise<PublicationGateHints>;
+  getAgentGateHints(agentKey: string, version: number): Promise<PublicationGateHints>;
   listDeFactoTerms(opts?: { status?: DeFactoTermDetails['status'] }): Promise<{ terms: DeFactoTermDetails[] }>;
   reviewDeFactoTerm(
     term: string,
@@ -749,6 +818,33 @@ export class HttpRegistryApiClient implements RegistryApiClient {
 
   async listOntologyPackages(): Promise<{ ontology_packages: OntologyPackageDetails[] }> {
     return await this.fetchJson('/v1/ontology-packages');
+  }
+
+  async listPolicyPackages(): Promise<{ policy_packages: PolicyPackageDetails[] }> {
+    return await this.fetchJson('/v1/policy-packages');
+  }
+
+  async simulatePolicyPackage(
+    policyVersion: string,
+    input: { publication_urns: string[] },
+    apiToken: string,
+  ): Promise<PolicySimulationResult> {
+    return await this.fetchJson(
+      `/v1/policy-packages/${encodeURIComponent(policyVersion)}/simulate`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      apiToken,
+    );
+  }
+
+  async getSkillGateHints(skillKey: string, version: number): Promise<PublicationGateHints> {
+    return await this.fetchJson(`/v1/skills/${encodeURIComponent(skillKey)}/versions/${version}/gate-hints`);
+  }
+
+  async getAgentGateHints(agentKey: string, version: number): Promise<PublicationGateHints> {
+    return await this.fetchJson(`/v1/agents/${encodeURIComponent(agentKey)}/versions/${version}/gate-hints`);
   }
 
   async listDeFactoTerms(opts?: { status?: DeFactoTermDetails['status'] }): Promise<{ terms: DeFactoTermDetails[] }> {

@@ -130,6 +130,8 @@ Current lightweight graph UI:
 - `POST /skills/:skillKey/versions/:version/deprecate`
 - `POST /skills/:skillKey/versions/:version/certify`
 - `GET /ontology-projects`
+- `GET /policy-playground`
+- `POST /policy-playground`
 - `GET /fuseki-queries`
 - `GET /api/registry/agents`
 - `GET /api/registry/skills`

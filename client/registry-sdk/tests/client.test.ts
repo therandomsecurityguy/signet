@@ -96,4 +96,34 @@ describe('RegistryClient', () => {
     await expect(client.listTransparencyLogs()).resolves.toEqual({ logs: [] });
     await expect(client.listPublicKeys()).resolves.toEqual({ keys: [] });
   });
+
+  it('exposes typed gate-hints methods for skills and agents', async () => {
+    const hints = {
+      publication_urn: 'urn:sg:skill-version:skill:demo@v1',
+      policy_version: 'policy/demo/v1',
+      gates: [
+        {
+          gate: 'require_human_review',
+          operation: 'publish',
+          applicable: true,
+          satisfied: false,
+          reason: 'review_status is unset',
+        },
+      ],
+      would_publish: false,
+      would_certify: true,
+    };
+    const fetchFn = mockFetch({
+      'http://registry.test/v1/skills/skill%3Ademo/versions/1/gate-hints': { body: hints },
+      'http://registry.test/v1/agents/agent%3Ademo/versions/2/gate-hints': {
+        body: { ...hints, publication_urn: 'urn:sg:agent-version:agent:demo@v2' },
+      },
+    });
+    const client = new RegistryClient({ baseUrl: 'http://registry.test', fetch: fetchFn });
+    const skillHints = await client.getSkillGateHints('skill:demo', 1);
+    expect(skillHints.would_publish).toBe(false);
+    expect(skillHints.gates[0]?.gate).toBe('require_human_review');
+    const agentHints = await client.getAgentGateHints('agent:demo', 2);
+    expect(agentHints.publication_urn).toBe('urn:sg:agent-version:agent:demo@v2');
+  });
 });

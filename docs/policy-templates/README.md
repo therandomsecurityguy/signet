@@ -36,6 +36,17 @@ Then bind the package to a version (`policy_version` on the draft) and run
 `validate` — violations surface in the standard validation report with the
 template's `sh:message` texts.
 
+## Try before you bind
+
+A registered policy can be dry-run against existing versions with
+`POST /v1/policy-packages/{policyVersion}/simulate` (1–25 publication URNs)
+— the verdicts match what `validate` would decide, with zero lifecycle side
+effects. `GET .../versions/{version}/gate-hints` additionally answers "which
+gate would reject this publish/certify, and why" for a version's current
+state (read-only). The webapp (`service/webapp/knowledge-manager`) exposes
+both as the `/policy-playground` page and the per-version gate hints on
+skill/agent detail pages.
+
 ## Conventions the registration validates
 
 - `sh:targetClass` over `urn:sg:entity-type:SKILL_VERSION` /
