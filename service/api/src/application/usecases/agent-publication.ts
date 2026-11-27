@@ -36,6 +36,12 @@ export class AgentPublicationUseCase {
     return verification;
   }
 
+  async getGateHints(input: { agent_key: string; version: number }) {
+    return await this.registry.getPublicationGateHints({
+      publication_urn: agentVersionUrn(input.agent_key, input.version),
+    });
+  }
+
   async getProvenance(input: { agent_key: string; version: number }) {
     const version = await this.registry.getAgentVersion(input);
     if (!version) return null;

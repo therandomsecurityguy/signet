@@ -1574,6 +1574,248 @@ describe('knowledge-manager app', () => {
     expect(text).toContain('Signet Security Agent');
     expect(text).toContain('Argo CD Break-Glass');
   });
+
+  it('renders the policy playground and dry-runs a policy through a signed-in session', async () => {
+    const calls: Array<{ policyVersion: string; urns: string[]; token: string }> = [];
+
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        listPolicyPackages: async () => ({
+          policy_packages: [
+            {
+              artifact_urn: 'urn:sg:artifact:sha256:policy',
+              sha256: 'a'.repeat(64),
+              policy_version: 'registry-policy/demo-v1',
+              created_by: 'pablo',
+              created_at: '2026-01-01T00:00:00Z',
+              description: 'Demo policy',
+              shapes_format: 'shacl-turtle',
+            },
+          ],
+        }),
+        simulatePolicyPackage: async (policyVersion, input, apiToken) => {
+          calls.push({ policyVersion, urns: input.publication_urns, token: apiToken });
+          return {
+            policy_version: policyVersion,
+            policy_package_sha256: 'b'.repeat(64),
+            conforms: false,
+            targets: [
+              {
+                publication_urn: input.publication_urns[0] ?? '',
+                found: true,
+                conforms: true,
+                failures: [],
+                violations: [],
+                policy: { resolved: true, shapes_format: 'shacl-turtle', engine: 'shacl-engine@1.1.3' },
+              },
+              {
+                publication_urn: input.publication_urns[1] ?? '',
+                found: true,
+                conforms: false,
+                failures: ['description_required'],
+                violations: [
+                  {
+                    focusNode: input.publication_urns[1] ?? '',
+                    resultPath: 'urn:sg:property:description',
+                    sourceConstraintComponent: 'sh:MinCountConstraintComponent',
+                    sourceShape: 'urn:policy:demo',
+                    message: 'description_required',
+                    severity: 'Violation',
+                  },
+                ],
+                policy: { resolved: true },
+              },
+            ],
+          };
+        },
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    // Anonymous visitors see the form but cannot run simulations.
+    const page = await app.request('/policy-playground');
+    expect(page.status).toBe(200);
+    const pageText = await page.text();
+    expect(pageText).toContain('Dry-run a policy');
+    expect(pageText).toContain('registry-policy/demo-v1');
+    expect(pageText).toContain('Sign in with an API bearer token to run simulations.');
+
+    const anonymous = await app.request('/policy-playground', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        policy_version: 'registry-policy/demo-v1',
+        publication_urns: 'urn:sg:skill-version:skill:one@v1',
+      }).toString(),
+    });
+    expect(anonymous.status).toBe(401);
+
+    const login = await app.request('/session/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ return_to: '/policy-playground' }).toString(),
+    });
+    expect(login.status).toBe(303);
+    const cookie = login.headers.get('set-cookie');
+    const csrf = await csrfTokenFor(app, cookie ?? '');
+
+    const submit = await app.request('/policy-playground', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        cookie: cookie ?? '',
+      },
+      body: new URLSearchParams({
+        _csrf: csrf,
+        policy_version: 'registry-policy/demo-v1',
+        publication_urns: 'urn:sg:skill-version:skill:one@v1\nurn:sg:skill-version:skill:two@v1',
+      }).toString(),
+    });
+    expect(submit.status).toBe(200);
+    const submitText = await submit.text();
+    expect(submitText).toContain('Simulation result');
+    expect(submitText).toContain('urn:sg:skill-version:skill:one@v1');
+    expect(submitText).toContain('urn:sg:skill-version:skill:two@v1');
+    expect(submitText).toContain('description_required');
+    expect(submitText).toContain('failing');
+    expect(submitText).toContain('no validation reports');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.policyVersion).toBe('registry-policy/demo-v1');
+    expect(calls[0]?.urns).toEqual(['urn:sg:skill-version:skill:one@v1', 'urn:sg:skill-version:skill:two@v1']);
+    expect(calls[0]?.token).toContain('webapp-okta-');
+  });
+
+  it('renders publish-time gate hints on skill version cards', async () => {
+    const gatedHints = {
+      publication_urn: 'urn:sg:skill-version:example:1',
+      policy_version: 'hint-policy/v1',
+      gates: [
+        {
+          gate: 'require_human_review',
+          operation: 'publish' as const,
+          applicable: true,
+          satisfied: false,
+          reason: 'review_status is unset; policy hint-policy/v1 requires an approved review',
+        },
+        {
+          gate: 'require_signature',
+          operation: 'certify' as const,
+          applicable: false,
+          satisfied: true,
+          reason: 'policy does not configure this gate',
+        },
+      ],
+      would_publish: false,
+      would_certify: true,
+    };
+
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        listSkillVersions: async () => ({
+          versions: [
+            {
+              skill_version: {
+                urn: 'urn:sg:skill-version:example:1',
+                properties: { version: 1, lifecycle_status: 'draft', active: false, certified: false },
+              },
+              artifacts: [],
+              upstream_versions: [],
+            },
+          ],
+        }),
+        getSkillGateHints: async (_skillKey, version) => ({
+          ...gatedHints,
+          publication_urn: `urn:sg:skill-version:example:${version}`,
+        }),
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const page = await app.request('/skills/skill%3Aexample');
+    expect(page.status).toBe(200);
+    const text = await page.text();
+    expect(text).toContain('Gate hints (policy hint-policy/v1)');
+    expect(text).toContain('publish: blocked');
+    expect(text).toContain('certify: clear');
+    expect(text).toContain('require_human_review');
+    expect(text).toContain('review_status is unset');
+    // Non-applicable gates stay out of the rendered list.
+    expect(text).not.toContain('require_signature');
+  });
+
+  it('renders gate hints for the active agent version', async () => {
+    const app = buildApp({
+      env,
+      registryApi: makeRegistryApiClient({
+        getAgent: async () => ({
+          agent: {
+            urn: 'urn:sg:agent:cursor:test',
+            properties: { agent_key: 'cursor:test', harness_name: 'cursor' },
+          },
+          active_version: {
+            agent_version: {
+              urn: 'urn:sg:agent-version:cursor:test@v1',
+              properties: { version: 1, publication_status: 'published' },
+            },
+            skills: [],
+            artifacts: [],
+            harnesses: [],
+          },
+          skills: [],
+          artifacts: [],
+          harnesses: [],
+        }),
+        listAgentVersions: async () => ({
+          versions: [
+            {
+              agent_version: {
+                urn: 'urn:sg:agent-version:cursor:test@v1',
+                properties: { version: 1, publication_status: 'published' },
+              },
+              artifacts: [],
+              skills: [],
+              harnesses: [],
+            },
+          ],
+        }),
+        getAgentGateHints: async () => ({
+          publication_urn: 'urn:sg:agent-version:cursor:test@v1',
+          policy_version: 'agent-hint/v1',
+          gates: [
+            {
+              gate: 'require_signature',
+              operation: 'certify',
+              applicable: true,
+              satisfied: false,
+              reason: 'no verified qualified detached signature; policy agent-hint/v1 requires one before certify',
+            },
+          ],
+          would_publish: true,
+          would_certify: false,
+        }),
+      }),
+      semanticTurkey: {
+        listProjects: async () => ({ status: 'not_configured', projects: [] }),
+      } satisfies SemanticTurkeyClient,
+      sessionStore: new InMemoryOperatorSessionStore({ ttlMinutes: env.SESSION_TTL_MINUTES }),
+    });
+
+    const page = await app.request('/agents/cursor%3Atest');
+    expect(page.status).toBe(200);
+    const text = await page.text();
+    expect(text).toContain('Gate hints (policy agent-hint/v1)');
+    expect(text).toContain('certify: blocked');
+    expect(text).toContain('require_signature');
+    expect(text).toContain('no verified qualified detached signature');
+  });
 });
 
 function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): RegistryApiClient {
@@ -1655,6 +1897,33 @@ function makeRegistryApiClient(overrides?: Partial<RegistryApiClient>): Registry
     deprecateSkillVersion: async () => defaultLifecycleResult('deprecate'),
     certifySkillVersion: async () => defaultLifecycleResult('certify'),
     listOntologyPackages: async () => ({ ontology_packages: [] }),
+    listPolicyPackages: async () => ({ policy_packages: [] }),
+    simulatePolicyPackage: async (policyVersion, input) => ({
+      policy_version: policyVersion,
+      policy_package_sha256: null,
+      conforms: true,
+      targets: input.publication_urns.map((urn) => ({
+        publication_urn: urn,
+        found: true,
+        conforms: true,
+        failures: [],
+        violations: [],
+      })),
+    }),
+    getSkillGateHints: async (skillKey, version) => ({
+      publication_urn: `urn:sg:skill-version:${skillKey}@v${version}`,
+      policy_version: null,
+      gates: [],
+      would_publish: true,
+      would_certify: true,
+    }),
+    getAgentGateHints: async (agentKey, version) => ({
+      publication_urn: `urn:sg:agent-version:${agentKey}@v${version}`,
+      policy_version: null,
+      gates: [],
+      would_publish: true,
+      would_certify: true,
+    }),
     listDeFactoTerms: async () => ({ terms: [] }),
     reviewDeFactoTerm: async (term, input) => ({
       urn: `urn:sg:de-facto-term:${term}`,

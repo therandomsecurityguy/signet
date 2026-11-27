@@ -224,6 +224,33 @@ function makeRegistryApiClient(): RegistryApiClient {
     deprecateSkillVersion: async () => defaultLifecycleResult('deprecate'),
     certifySkillVersion: async () => defaultLifecycleResult('certify'),
     listOntologyPackages: async () => ({ ontology_packages: [] }),
+    listPolicyPackages: async () => ({ policy_packages: [] }),
+    simulatePolicyPackage: async (policyVersion, input) => ({
+      policy_version: policyVersion,
+      policy_package_sha256: null,
+      conforms: true,
+      targets: input.publication_urns.map((urn) => ({
+        publication_urn: urn,
+        found: true,
+        conforms: true,
+        failures: [],
+        violations: [],
+      })),
+    }),
+    getSkillGateHints: async (skillKey, version) => ({
+      publication_urn: `urn:sg:skill-version:${skillKey}@v${version}`,
+      policy_version: null,
+      gates: [],
+      would_publish: true,
+      would_certify: true,
+    }),
+    getAgentGateHints: async (agentKey, version) => ({
+      publication_urn: `urn:sg:agent-version:${agentKey}@v${version}`,
+      policy_version: null,
+      gates: [],
+      would_publish: true,
+      would_certify: true,
+    }),
     listDeFactoTerms: async () => ({ terms: [] }),
     reviewDeFactoTerm: async (term, input) => ({
       urn: `urn:sg:de-facto-term:${term}`,

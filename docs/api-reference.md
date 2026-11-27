@@ -86,6 +86,7 @@ const verification = await client.getSkillVerification('skill:example', 1);
 | GET | `/v1/agents/{agentKey}/active` | Resolve active version |
 | GET | `/v1/agents/{agentKey}/versions/{version}/publication-envelope` | Publication envelope |
 | GET | `/v1/agents/{agentKey}/versions/{version}/verification` | Publication verification |
+| GET | `/v1/agents/{agentKey}/versions/{version}/gate-hints` | Publish/certify gate hints (read-only) |
 | GET | `/v1/agents/{agentKey}/versions/{version}/provenance` | PROV-O provenance (structured or `?format=jsonld`) |
 | POST | `/v1/agents/{agentKey}/versions/{version}/provenance/signatures` | Attach a detached provenance signature |
 | GET | `/v1/agents/{agentKey}/versions/{version}/report-signatures` | Validation-report signatures, re-verified on read |
@@ -112,6 +113,7 @@ const verification = await client.getSkillVerification('skill:example', 1);
 | GET | `/v1/skills/{skillKey}/active` | Resolve active version |
 | GET | `/v1/skills/{skillKey}/versions/{version}/publication-envelope` | Publication envelope |
 | GET | `/v1/skills/{skillKey}/versions/{version}/verification` | Publication verification |
+| GET | `/v1/skills/{skillKey}/versions/{version}/gate-hints` | Publish/certify gate hints (read-only) |
 | GET | `/v1/skills/{skillKey}/versions/{version}/provenance` | PROV-O provenance (structured or `?format=jsonld`) |
 | POST | `/v1/skills/{skillKey}/versions/{version}/provenance/signatures` | Attach a detached provenance signature |
 | GET | `/v1/skills/{skillKey}/versions/{version}/report-signatures` | Validation-report signatures, re-verified on read |
@@ -270,9 +272,29 @@ reproduces the verdicts locally.
 | GET | `/v1/policy-packages` | List policy packages |
 | GET | `/v1/policy-packages/{policyVersion}` | Get policy package |
 | POST | `/v1/policy-packages` | Create policy package |
+| POST | `/v1/policy-packages/{policyVersion}/simulate` | Dry-run a policy against selected versions (zero side effects) |
 | GET | `/v1/ontology-packages` | List ontology packages |
 | GET | `/v1/ontology-packages/{ontologyVersion}` | Get ontology package |
 | POST | `/v1/ontology-packages` | Create ontology package |
+
+Policy dry-run and publish-time hints:
+
+- `POST /v1/policy-packages/{policyVersion}/simulate` executes the
+  registered policy against 1–25 publication URNs and returns the standard
+  per-target verdicts (`found`, `conforms`, `failures`, full SHACL
+  `violations`, plus the policy layer's `resolved` / `shapes_format` /
+  `shapes_sha256` / `engine`) with **zero lifecycle side effects** — no
+  reports, artifacts, tasks, events, or node writes. Malformed or missing
+  targets are reported per entry (`INVALID_PUBLICATION_URN` /
+  `PUBLICATION_NOT_FOUND`) without failing the batch.
+- `GET .../versions/{version}/gate-hints` (skills and agents) is a
+  non-throwing, read-only mirror of the policy-driven gate enforcement: for
+  each gate the bound policy configures (`require_human_review`,
+  `require_validation`, `require_signature`, `require_trusted_publisher`,
+  `require_build_provenance`, `require_sbom`) it reports `applicable`,
+  `satisfied`, and a human-readable `reason`, plus `would_publish` /
+  `would_certify`. Gates the policy does not configure are normalized to
+  `applicable: false, satisfied: true`; nothing is recorded.
 
 Ontology packages come in two authoring formats:
 

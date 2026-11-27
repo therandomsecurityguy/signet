@@ -18,7 +18,10 @@ import {
   type GovernanceArtifactRef,
   type OntologyPackageDetails,
   type PendingReviewItem,
+  type PolicyPackageDetails,
+  type PolicySimulationResult,
   type ProvenanceRecord,
+  type PublicationGateHints,
   type RecertificationQueue,
   type RegistryApiClient,
   type RegistryUsageSignal,
@@ -48,6 +51,7 @@ import {
   renderNewAgentForm,
   renderNewSkillForm,
   renderOntologyProjects,
+  renderPolicyPlayground,
   renderRecertificationQueue,
   renderReviews,
   renderSkillDetails,
@@ -606,6 +610,7 @@ const session = await readOperatorSession(c, deps);
       let evidenceErrors: string[] = [];
       let provenance: ProvenanceRecord | undefined;
       let usage: RegistryUsageSignal | null = null;
+      let gateHints: PublicationGateHints | null = null;
       const activeUrn = body.active_version?.agent_version.urn;
       if (activeUrn) {
         usage = await deps.registryApi.getUsageSignal({ publicationUrn: activeUrn }).catch(() => null);
@@ -620,6 +625,10 @@ const session = await readOperatorSession(c, deps);
             provenance = await deps.registryApi
               .getAgentProvenance(c.req.param('agentKey'), versionNumber)
               .catch(() => undefined);
+            // Gate hints (build plan 3.3c) for the active version; best-effort.
+            gateHints = await deps.registryApi
+              .getAgentGateHints(c.req.param('agentKey'), versionNumber)
+              .catch(() => null);
           }
         } catch (err) {
           evidenceErrors = [
@@ -635,6 +644,7 @@ const session = await readOperatorSession(c, deps);
           activeEvidence,
           evidenceErrors,
           usage,
+          gateHints,
           ...(provenance ? { provenance } : {}),
           page: buildPageChrome(deps.env, c.req.path, c.req.query(), await readOperatorSession(c, deps)),
         }),
@@ -776,7 +786,10 @@ const session = await readOperatorSession(c, deps);
   app.get('/skills/:skillKey', async (c) => {
     const skillKey = c.req.param('skillKey');
     try {
-      const { details, versions, activeVersion, usage } = await loadSkillPageData(deps.registryApi, skillKey);
+      const { details, versions, activeVersion, usage, gateHintsByVersion } = await loadSkillPageData(
+        deps.registryApi,
+        skillKey,
+      );
       const flash = c.req.query('flash');
       const usedByAgents = await agentsUsingSkill(deps.registryApi, details.skill.urn, skillKey);
 
@@ -799,6 +812,7 @@ const session = await readOperatorSession(c, deps);
           activeVersion,
           usage,
           usedByAgents,
+          gateHintsByVersion,
           activeEvidence: loaded.evidence,
           evidenceErrors: loaded.errors,
           ...(flash ? { flash } : {}),
@@ -1050,6 +1064,86 @@ const session = await readOperatorSession(c, deps);
     ),
   );
 
+  // Policy playground (build plan 3.3c): dry-run a registered policy package
+  // against selected publication versions. Reads are anonymous; running a
+  // simulation needs a signed-in operator (the registry API requires a token
+  // on the simulate route) — and simulation itself has zero side effects.
+  app.get('/policy-playground', async (c) => {
+    const session = await readOperatorSession(c, deps);
+    let policies: PolicyPackageDetails[] = [];
+    let registryError: string | undefined;
+    try {
+      policies = (await deps.registryApi.listPolicyPackages()).policy_packages;
+    } catch (err) {
+      registryError = err instanceof Error ? err.message : 'Failed to load policy packages.';
+    }
+    return c.html(
+      renderPolicyPlayground({
+        policies,
+        ...(registryError ? { error: `Policy packages unavailable: ${registryError}` } : {}),
+        canSimulate: Boolean(session),
+        page: buildPageChrome(deps.env, c.req.path, c.req.query(), session),
+      }),
+    );
+  });
+
+  app.post('/policy-playground', async (c) => {
+    const values = await readFormValues(c);
+    const session = await readOperatorSession(c, deps);
+    const policyVersion = (values.policy_version ?? '').trim();
+    const publicationUrnsRaw = values.publication_urns ?? '';
+    const urns = publicationUrnsRaw
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    // The form still needs its policy list on every outcome; a reload failure
+    // only costs the select options, never the submitted request.
+    let policies: PolicyPackageDetails[] = [];
+    try {
+      policies = (await deps.registryApi.listPolicyPackages()).policy_packages;
+    } catch {
+      // Ignored: rendered as an empty select below.
+    }
+    const page = buildPageChrome(deps.env, c.req.path, c.req.query(), session);
+    const render = (extra: {
+      result?: PolicySimulationResult;
+      error?: string;
+      status?: 400 | 401 | 403 | 404 | 409 | 500;
+    }) =>
+      c.html(
+        renderPolicyPlayground({
+          policies,
+          values: { policy_version: policyVersion, publication_urns: publicationUrnsRaw },
+          canSimulate: Boolean(session),
+          ...extra,
+          page,
+        }),
+        extra.status ?? 200,
+      );
+
+    if (!session) {
+      return render({ error: 'Sign in with an API bearer token to run simulations.', status: 401 });
+    }
+    if (!policyVersion) {
+      return render({ error: 'Select a policy package to simulate.', status: 400 });
+    }
+    if (urns.length === 0 || urns.length > 25) {
+      return render({ error: 'Provide between 1 and 25 publication URNs (one per line).', status: 400 });
+    }
+    try {
+      const result = await deps.registryApi.simulatePolicyPackage(
+        policyVersion,
+        { publication_urns: urns },
+        session.apiToken,
+      );
+      return render({ result });
+    } catch (err) {
+      const mapped = mapRegistryApiError(err);
+      return render({ error: mapped.message, status: mapped.status });
+    }
+  });
+
   app.get('/api/registry/agents', async (c) => c.json(await deps.registryApi.listAgents(), 200));
   app.get('/api/registry/skills', async (c) => c.json(await deps.registryApi.listSkills(), 200));
   app.get('/api/knowledge/ontology-projects', async (c) => c.json(await deps.semanticTurkey.listProjects(), 200));
@@ -1062,6 +1156,7 @@ async function loadSkillPageData(registryApi: RegistryApiClient, skillKey: strin
   versions: SkillVersionDetails[];
   activeVersion: SkillVersionDetails | null;
   usage: RegistryUsageSignal | null;
+  gateHintsByVersion: Record<number, PublicationGateHints>;
 }> {
   const [details, versions, activeVersion] = await Promise.all([
     registryApi.getSkill(skillKey),
@@ -1076,8 +1171,29 @@ async function loadSkillPageData(registryApi: RegistryApiClient, skillKey: strin
         .catch(() => null)
     : null;
 
-  return { details, versions, activeVersion, usage };
+  // Gate hints (build plan 3.3c) for every version shown on the page,
+  // best-effort and capped: a hints failure never blocks the page.
+  const gateHintsByVersion: Record<number, PublicationGateHints> = {};
+  const hintable = versions
+    .map((version) => ({ number: versionOfProperties(version.skill_version.properties) }))
+    .filter((entry): entry is { number: number } => entry.number !== null)
+    .slice(0, GATE_HINT_MAX_VERSIONS);
+  const hints = await Promise.all(
+    hintable.map((entry) => registryApi.getSkillGateHints(skillKey, entry.number).catch(() => null)),
+  );
+  hintable.forEach((entry, index) => {
+    const hint = hints[index];
+    if (hint) {
+      gateHintsByVersion[entry.number] = hint;
+    }
+  });
+
+  return { details, versions, activeVersion, usage, gateHintsByVersion };
 }
+
+// Cap on per-version gate-hints reads when enriching the details page; the
+// hints are advisory enrichment, never a source of page failures.
+const GATE_HINT_MAX_VERSIONS = 25;
 
 async function handleSkillDraftWrite(c: Context, deps: KnowledgeManagerDeps) {
   const skillKey = c.req.param('skillKey') ?? '';
@@ -1192,7 +1308,10 @@ async function renderSkillPage(
     sessionError?: string;
   },
 ) {
-  const { details, versions, activeVersion, usage } = await loadSkillPageData(deps.registryApi, skillKey);
+  const { details, versions, activeVersion, usage, gateHintsByVersion } = await loadSkillPageData(
+    deps.registryApi,
+    skillKey,
+  );
   const session = await readOperatorSession(c, deps);
   return c.html(
     renderSkillDetails({
@@ -1200,6 +1319,7 @@ async function renderSkillPage(
       versions,
       activeVersion,
       usage,
+      gateHintsByVersion,
       ...(input.flash ? { flash: input.flash } : {}),
       ...(input.error ? { error: input.error } : {}),
       ...(input.lifecycleResult ? { lifecycleResult: input.lifecycleResult } : {}),

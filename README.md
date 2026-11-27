@@ -178,6 +178,19 @@ Validation (five layers):
   lifecycle side effects** — no reports, artifacts, tasks, events, or node
   writes; the execution path is the exact one validation uses, so a
   simulation verdict matches what `validate` would decide for the shapes
+- publish-time gate hints: `GET /v1/{skills|agents}/{key}/versions/{v}/gate-hints`
+  is a non-throwing, read-only mirror of the policy-driven gate enforcement —
+  each configured gate (`require_human_review`, `require_validation`,
+  `require_signature`, `require_trusted_publisher`,
+  `require_build_provenance`, `require_sbom`) reports `applicable`,
+  `satisfied`, and a human-readable `reason`, plus `would_publish` /
+  `would_certify`, so consumers can ask "which gate would reject this, and
+  why" before attempting; unconfigured gates are normalized out of the
+  verdict, and nothing is recorded
+- webapp policy playground (`service/webapp/knowledge-manager`):
+  `/policy-playground` dry-runs a registered policy against selected
+  versions through the simulate API, and skill/agent detail pages render the
+  per-version gate hints next to the lifecycle actions
 - dual ontology packages (`registry_shape` / `skill_area`) as versioned
   CAS artifacts (`POST /v1/ontology-packages`) in two authoring formats:
   legacy JSON documents and authored OWL Turtle (`ontology_format:

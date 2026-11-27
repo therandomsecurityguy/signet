@@ -39,6 +39,12 @@ export class SkillLifecycleUseCase {
     return verification;
   }
 
+  async getGateHints(input: { skill_key: string; version: number }) {
+    return await this.registry.getPublicationGateHints({
+      publication_urn: skillVersionUrn(input.skill_key, input.version),
+    });
+  }
+
   async getProvenance(input: { skill_key: string; version: number }) {
     const version = await this.registry.getSkillVersion(input);
     if (!version) return null;

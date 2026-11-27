@@ -30,6 +30,7 @@ import {
   PublicationEnvelopeSchema,
   PublicationVerificationSchema,
 } from '../../contracts/publication/envelope.js';
+import { PublicationGateHintsSchema } from '../../contracts/gates.js';
 import type { AppEnv } from '../server.js';
 import { auditApiWrite } from './audit.js';
 import { entityKeySchema } from '../../contracts/keys.js';
@@ -84,6 +85,17 @@ const getPublicationVerificationRoute = createRoute({
   responses: {
     200: { content: { 'application/json': { schema: PublicationVerificationSchema } }, description: 'Get publication verification' },
     400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid publication verification request' },
+    404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Skill version not found' },
+  },
+});
+
+const getGateHintsRoute = createRoute({
+  method: 'get',
+  path: '/v1/skills/{skillKey}/versions/{version}/gate-hints',
+  request: { params: z.object({ skillKey: entityKeySchema, version: z.string() }) },
+  responses: {
+    200: { content: { 'application/json': { schema: PublicationGateHintsSchema } }, description: 'Get publication gate hints' },
+    400: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Invalid gate hints request' },
     404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Skill version not found' },
   },
 });
@@ -435,6 +447,19 @@ export function registerSkillLifecycleRoutes(
       return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid publication verification request.' } }, 400);
     }
     const got = await deps.lifecycle.getPublicationVerification({ skill_key: skillKey, version });
+    if (!got) {
+      return c.json({ error: { code: 'SKILL_VERSION_NOT_FOUND', message: 'Skill version not found.' } }, 404);
+    }
+    return c.json(got, 200);
+  });
+
+  app.openapi(getGateHintsRoute, async (c) => {
+    const skillKey = c.req.param('skillKey');
+    const version = parseVersion(c.req.param('version'));
+    if (!skillKey || !version) {
+      return c.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid gate hints request.' } }, 400);
+    }
+    const got = await deps.lifecycle.getGateHints({ skill_key: skillKey, version });
     if (!got) {
       return c.json({ error: { code: 'SKILL_VERSION_NOT_FOUND', message: 'Skill version not found.' } }, 404);
     }

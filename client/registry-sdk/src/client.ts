@@ -115,6 +115,14 @@ export class RegistryClient {
     );
   }
 
+  async getSkillGateHints(skillKey: string, version: number) {
+    return this.unwrap(
+      await this.client.GET('/v1/skills/{skillKey}/versions/{version}/gate-hints', {
+        params: { path: { skillKey, version: String(version) } },
+      }),
+    );
+  }
+
   async getSkillProvenance(skillKey: string, version: number) {
     return this.unwrap(
       await this.client.GET('/v1/skills/{skillKey}/versions/{version}/provenance', {
@@ -152,6 +160,14 @@ export class RegistryClient {
   async getAgentVerification(agentKey: string, version: number) {
     return this.unwrap(
       await this.client.GET('/v1/agents/{agentKey}/versions/{version}/verification', {
+        params: { path: { agentKey, version: String(version) } },
+      }),
+    );
+  }
+
+  async getAgentGateHints(agentKey: string, version: number) {
+    return this.unwrap(
+      await this.client.GET('/v1/agents/{agentKey}/versions/{version}/gate-hints', {
         params: { path: { agentKey, version: String(version) } },
       }),
     );

@@ -1388,6 +1388,34 @@ export type RegistryPolicySimulation = {
   targets: RegistryPolicySimulationTarget[];
 };
 
+// Publication gate hints (build plan 3.3c): a non-throwing, read-only mirror
+// of the policy-driven gate enforcement — "which gate would reject this, and
+// why" for a version's current state.
+export type RegistryGateHint = {
+  gate:
+    | 'require_human_review'
+    | 'require_validation'
+    | 'require_signature'
+    | 'require_trusted_publisher'
+    | 'require_build_provenance'
+    | 'require_sbom';
+  operation: 'publish' | 'certify';
+  /** The bound policy configures this gate. */
+  applicable: boolean;
+  satisfied: boolean;
+  reason: string;
+};
+
+export type RegistryPublicationGateHints = {
+  publication_urn: string;
+  /** Null when no policy package is bound to the version. */
+  policy_version: string | null;
+  gates: RegistryGateHint[];
+  /** True when no applicable publish/certify gate is unsatisfied. */
+  would_publish: boolean;
+  would_certify: boolean;
+};
+
 export type RegistryPolicyPackageDetails = {
   artifact_urn: string;
   sha256: string;
@@ -1609,6 +1637,7 @@ export interface RegistryService {
   getSkillPublicationEnvelope(input: { skill_key: string; version: number }): Promise<RegistryPublicationEnvelope | null>;
   getPublicationProvenance(input: { publication_urn: string }): Promise<RegistryPublicationProvenance | null>;
   getPublicationVerification(input: { publication_urn: string }): Promise<RegistryPublicationVerification | null>;
+  getPublicationGateHints(input: { publication_urn: string }): Promise<RegistryPublicationGateHints | null>;
   compileSkillSource(input: {
     source_type: 'markdown' | 'tool_manifest';
     content: string;
