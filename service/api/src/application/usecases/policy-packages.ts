@@ -31,4 +31,8 @@ export class PolicyPackageUseCase {
   async get(input: { policy_version: string }) {
     return await this.registry.getPolicyPackage(input);
   }
+
+  async simulate(input: { policy_version: string; publication_urns: string[] }) {
+    return await this.registry.simulatePolicyPackage(input);
+  }
 }

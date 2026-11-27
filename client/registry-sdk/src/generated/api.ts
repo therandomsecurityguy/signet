@@ -3659,6 +3659,120 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/policy-packages/{policyVersion}/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    policyVersion: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        publication_urns: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Simulation verdicts (dry-run: no reports, artifacts, tasks, events, or node writes) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            policy_version: string;
+                            policy_package_sha256: string | null;
+                            conforms: boolean;
+                            targets: {
+                                publication_urn: string;
+                                /** @enum {string} */
+                                entity_type?: "SKILL_VERSION" | "AGENT_VERSION";
+                                logical_key?: string;
+                                version?: number;
+                                found: boolean;
+                                conforms: boolean;
+                                failures: string[];
+                                violations: {
+                                    focusNode: string;
+                                    resultPath?: string;
+                                    sourceConstraintComponent: string;
+                                    sourceShape: string;
+                                    message: string;
+                                    /** @enum {string} */
+                                    severity: "Violation" | "Warning" | "Info";
+                                }[];
+                                policy?: {
+                                    resolved: boolean;
+                                    shapes_format?: string;
+                                    shapes_sha256?: string;
+                                    engine?: string;
+                                };
+                            }[];
+                        };
+                    };
+                };
+                /** @description Invalid simulation payload */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Policy package not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/ontology-packages": {
         parameters: {
             query?: never;

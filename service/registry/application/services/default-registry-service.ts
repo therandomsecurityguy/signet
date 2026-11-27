@@ -37,6 +37,7 @@ import {
 import {
   parseShapeDocument,
   type ShapeDocument,
+  type ValidationDataGraph,
   type ValidationViolation,
 } from './shacl-like-validator.js';
 import {
@@ -324,6 +325,84 @@ export class DefaultRegistryService implements RegistryService {
   async getPolicyPackage(input: { policy_version: string }): Promise<import('../ports/registry-service.js').RegistryPolicyPackageDetails | null> {
     const node = await this.findPolicyPackageNode(input.policy_version);
     return node ? await this.toPolicyPackageDetails(node) : null;
+  }
+
+  // Policy dry-run (build plan 3.3b): execute a registered policy package
+  // against selected publication versions and return standard verdicts with
+  // ZERO lifecycle side effects — no reports, artifacts, tasks, events, or
+  // node writes. The execution path is the exact one validation uses
+  // (sharedPolicyPackageForDataset), minus all recording.
+  async simulatePolicyPackage(input: {
+    policy_version: string;
+    publication_urns: string[];
+  }): Promise<import('../ports/registry-service.js').RegistryPolicySimulation> {
+    const policyNode = await this.findPolicyPackageNode(input.policy_version);
+    if (!policyNode) {
+      throw new RegistryCoreError('POLICY_PACKAGE_NOT_FOUND', `Policy package not found: ${input.policy_version}`);
+    }
+    const targets: Array<import('../ports/registry-service.js').RegistryPolicySimulationTarget> = [];
+    for (const urn of input.publication_urns) {
+      const parsed = parseSimulationTarget(urn);
+      if (!parsed) {
+        targets.push({
+          publication_urn: urn,
+          found: false,
+          conforms: false,
+          failures: ['INVALID_PUBLICATION_URN'],
+          violations: [],
+        });
+        continue;
+      }
+      const node = await this.deps.graph.getNode(urn);
+      if (!node || node.entity_type !== parsed.entity_type) {
+        targets.push({
+          publication_urn: urn,
+          entity_type: parsed.entity_type,
+          logical_key: parsed.logical_key,
+          version: parsed.version,
+          found: false,
+          conforms: false,
+          failures: ['PUBLICATION_NOT_FOUND'],
+          violations: [],
+        });
+        continue;
+      }
+      const { dataGraph } = await this.buildValidationDataGraph({
+        entity_type: parsed.entity_type,
+        version_urn: urn,
+        properties: node.properties,
+      });
+      const run = await this.executePolicyPackageForDataset({
+        policyVersion: input.policy_version,
+        versionUrn: urn,
+        dataGraph,
+      });
+      const failures = run.violations
+        .filter((violation) => violation.severity === 'Violation')
+        .map((violation) => violation.message);
+      targets.push({
+        publication_urn: urn,
+        entity_type: parsed.entity_type,
+        logical_key: parsed.logical_key,
+        version: parsed.version,
+        found: true,
+        conforms: failures.length === 0,
+        failures,
+        violations: run.violations,
+        policy: {
+          resolved: run.resolved,
+          ...(run.shapesFormat ? { shapes_format: run.shapesFormat } : {}),
+          ...(run.shapesSha256 ? { shapes_sha256: run.shapesSha256 } : {}),
+          ...(run.engineId ? { engine: run.engineId } : {}),
+        },
+      });
+    }
+    return {
+      policy_version: input.policy_version,
+      policy_package_sha256: stringOrUndefined(policyNode.properties['sha256']) ?? null,
+      conforms: targets.every((target) => target.found && target.conforms),
+      targets,
+    };
   }
 
   private async findPolicyPackageNode(policyVersion: string) {
@@ -3749,12 +3828,17 @@ export class DefaultRegistryService implements RegistryService {
     }
   }
 
-  private async runPublicationValidation(input: {
+  // Shared dataset construction for validation and policy simulation: the
+  // focus version plus its outgoing edges, and the bound skill-area ontology
+  // when one resolves (feeds ontology-aware shapes and the ontology layer).
+  private async buildValidationDataGraph(input: {
     entity_type: 'SKILL_VERSION' | 'AGENT_VERSION';
-    logical_key: string;
     version_urn: string;
     properties: Record<string, unknown>;
-  }): Promise<{ failures: string[]; violations: ValidationViolation[]; used_urns: string[] }> {
+  }): Promise<{
+    dataGraph: ValidationDataGraph;
+    ontology: Awaited<ReturnType<DefaultRegistryService['resolveSkillAreaOntology']>>;
+  }> {
     const edges = await this.deps.graph.listEdgesFrom(input.version_urn);
     const dataEdges = [];
     for (const edge of edges) {
@@ -3771,13 +3855,110 @@ export class DefaultRegistryService implements RegistryService {
     const ontology = await this.resolveSkillAreaOntology(
       stringOrUndefined(input.properties['ontology_version']),
     );
-    const dataGraph = {
+    const dataGraph: ValidationDataGraph = {
       focus_urn: input.version_urn,
       entity_type: input.entity_type,
       properties: input.properties,
       edges: dataEdges,
       ...(ontology.document ? { ontology: ontology.document } : {}),
     };
+    return { dataGraph, ontology };
+  }
+
+  // Execute one registered policy package against an already-built dataset.
+  // Shared verbatim by validation (which then records reports and events)
+  // and by policy simulation (which records nothing).
+  private async executePolicyPackageForDataset(input: {
+    policyVersion: string;
+    versionUrn: string;
+    dataGraph: ValidationDataGraph;
+  }): Promise<{
+    resolved: boolean;
+    shapesFormat: string | null;
+    shapesSha256: string | null;
+    engineId: string | null;
+    policyNodeUrn: string | null;
+    violations: ValidationViolation[];
+  }> {
+    const shaclEngine = resolveShaclEngine(this.deps.shaclExecution);
+    let violations: ValidationViolation[] = [];
+    let resolved = false;
+    let shapesFormat: string | null = null;
+    let shapesSha256: string | null = null;
+    let engineId: string | null = null;
+    let policyNodeUrn: string | null = null;
+    const policyNode = await this.findPolicyPackageNode(input.policyVersion);
+
+    if (policyNode) {
+      policyNodeUrn = policyNode.urn;
+      const sha = stringOrUndefined(policyNode.properties['sha256']);
+      const stored = sha ? await this.deps.cas.getBySha256(sha) : null;
+      if (stored) {
+        try {
+          const parsed = parsePolicyPackageEnvelope(
+            JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)),
+          );
+          if (parsed.shapes_turtle) {
+            if (turtleShapesRequireShaclRuntime(parsed.shapes_turtle)) {
+              // SHACL-AF: only the runtime sidecar executes rules/functions/
+              // custom components. Without a configured runtime (or when it
+              // errors), validation FAILS CLOSED with an explicit violation
+              // instead of passing unexecuted semantics.
+              if (this.deps.shaclRuntime) {
+                const runtimeEngine = createPyshaclRuntimeEngine(this.deps.shaclRuntime);
+                engineId = runtimeEngine.engine;
+                try {
+                  violations = await validatePublicationGraphWithTurtleShapes(
+                    { graph: input.dataGraph, shapes_turtle: parsed.shapes_turtle },
+                    runtimeEngine,
+                  );
+                } catch (err) {
+                  violations = [this.shaclRuntimeFailureViolation(input.policyVersion, input.versionUrn, err)];
+                }
+              } else {
+                violations = [
+                  this.shaclRuntimeFailureViolation(
+                    input.policyVersion,
+                    input.versionUrn,
+                    new ShaclRuntimeRequiredError(),
+                  ),
+                ];
+              }
+            } else {
+              // SPARQL-feature policies run on the shacl-engine hybrid
+              // adapter; core-only policies stay on the default engine.
+              const policyEngine = await resolveTurtleShapesEngine(parsed.shapes_turtle, this.deps.shaclExecution);
+              violations = await validatePublicationGraphWithTurtleShapes(
+                { graph: input.dataGraph, shapes_turtle: parsed.shapes_turtle },
+                policyEngine,
+              );
+              engineId = policyEngine.engine;
+            }
+          } else if (parsed.document) {
+            violations = await validatePublicationGraphWithShacl(
+              { graph: input.dataGraph, document: parsed.document },
+              shaclEngine,
+            );
+          }
+          resolved = true;
+          shapesFormat = parsed.shapes_format;
+          shapesSha256 = sha ?? null;
+        } catch {
+          resolved = false;
+        }
+      }
+    }
+    return { resolved, shapesFormat, shapesSha256, engineId, policyNodeUrn, violations };
+  }
+
+
+  private async runPublicationValidation(input: {
+    entity_type: 'SKILL_VERSION' | 'AGENT_VERSION';
+    logical_key: string;
+    version_urn: string;
+    properties: Record<string, unknown>;
+  }): Promise<{ failures: string[]; violations: ValidationViolation[]; used_urns: string[] }> {
+    const { dataGraph, ontology } = await this.buildValidationDataGraph(input);
 
     // Layer 1: built-in graph-shape validation (structural rules), authored
     // as W3C SHACL Turtle and executed via the shared engine.
@@ -3798,84 +3979,21 @@ export class DefaultRegistryService implements RegistryService {
 
     // Layer 2: W3C SHACL policy validation against the registered policy
     // package for this version's policy_version, when one is registered.
-    // Legacy JSON documents execute through the translation path; authored
-    // Turtle documents execute directly.
+    // Shared with policy simulation through executePolicyPackageForDataset.
     const policyVersion = stringOrUndefined(input.properties['policy_version']) ?? 'registry-policy/v1';
-    let policyViolations: ValidationViolation[] = [];
-    let policyResolved = false;
-    let policyShapesFormat: string | null = null;
-    let policyShapesSha256: string | null = null;
-    let policyEngineId: string | null = null;
-    const policyNode = await this.findPolicyPackageNode(policyVersion);
-
-    if (policyNode) {
-      const sha = stringOrUndefined(policyNode.properties['sha256']);
-      const stored = sha ? await this.deps.cas.getBySha256(sha) : null;
-      if (stored) {
-        try {
-          const parsed = parsePolicyPackageEnvelope(
-            JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(stored.bytes)),
-          );
-          if (parsed.shapes_turtle) {
-            if (turtleShapesRequireShaclRuntime(parsed.shapes_turtle)) {
-              // SHACL-AF: only the runtime sidecar executes rules/functions/
-              // custom components. Without a configured runtime (or when it
-              // errors), validation FAILS CLOSED with an explicit violation
-              // instead of passing unexecuted semantics.
-              if (this.deps.shaclRuntime) {
-                const runtimeEngine = createPyshaclRuntimeEngine(this.deps.shaclRuntime);
-                policyEngineId = runtimeEngine.engine;
-                try {
-                  policyViolations = await validatePublicationGraphWithTurtleShapes(
-                    { graph: dataGraph, shapes_turtle: parsed.shapes_turtle },
-                    runtimeEngine,
-                  );
-                } catch (err) {
-                  policyViolations = [
-                    this.shaclRuntimeFailureViolation(policyVersion, input.version_urn, err),
-                  ];
-                }
-              } else {
-                policyViolations = [
-                  this.shaclRuntimeFailureViolation(
-                    policyVersion,
-                    input.version_urn,
-                    new ShaclRuntimeRequiredError(),
-                  ),
-                ];
-              }
-            } else {
-              // SPARQL-feature policies run on the shacl-engine hybrid
-              // adapter; core-only policies stay on the default engine.
-              const policyEngine = await resolveTurtleShapesEngine(parsed.shapes_turtle, this.deps.shaclExecution);
-              policyViolations = await validatePublicationGraphWithTurtleShapes(
-                { graph: dataGraph, shapes_turtle: parsed.shapes_turtle },
-                policyEngine,
-              );
-              policyEngineId = policyEngine.engine;
-            }
-          } else if (parsed.document) {
-            policyViolations = await validatePublicationGraphWithShacl(
-              { graph: dataGraph, document: parsed.document },
-              shaclEngine,
-            );
-          }
-          policyResolved = true;
-          policyShapesFormat = parsed.shapes_format;
-          policyShapesSha256 = sha ?? null;
-        } catch {
-          policyResolved = false;
-        }
-      }
-    }
+    const policyRun = await this.executePolicyPackageForDataset({
+      policyVersion,
+      versionUrn: input.version_urn,
+      dataGraph,
+    });
     layers.push({
       layer: 'policy',
       policy_version: policyVersion,
-      policy_package_resolved: policyResolved,
-      ...(policyShapesFormat ? { shapes_format: policyShapesFormat } : {}),
-      ...(policyShapesSha256 ? { shapes_sha256: policyShapesSha256 } : {}),
-      ...(policyEngineId ? { engine: policyEngineId } : {}),
-      violations: policyViolations,
+      policy_package_resolved: policyRun.resolved,
+      ...(policyRun.shapesFormat ? { shapes_format: policyRun.shapesFormat } : {}),
+      ...(policyRun.shapesSha256 ? { shapes_sha256: policyRun.shapesSha256 } : {}),
+      ...(policyRun.engineId ? { engine: policyRun.engineId } : {}),
+      violations: policyRun.violations,
     });
 
     // Layer 3: ontology validation. Capability claims must bind to known
@@ -3985,7 +4103,7 @@ export class DefaultRegistryService implements RegistryService {
       violations: [],
     });
 
-    const violations = [...graphShapeViolations, ...policyViolations, ...ontologyViolations];
+    const violations = [...graphShapeViolations, ...policyRun.violations, ...ontologyViolations];
     const failures = violations.filter((violation) => violation.severity === 'Violation').map((violation) => violation.message);
 
     // Every validation run emits a machine-readable report artifact with
@@ -4087,7 +4205,7 @@ export class DefaultRegistryService implements RegistryService {
     }
 
     const used_urns = [
-      ...(policyNode ? [policyNode.urn] : []),
+      ...(policyRun.policyNodeUrn ? [policyRun.policyNodeUrn] : []),
       ...(ontology.node_urn ? [ontology.node_urn] : []),
       reportArtifact.artifact_urn,
       ...(llmEvidenceArtifactUrn ? [llmEvidenceArtifactUrn] : []),
@@ -10863,6 +10981,23 @@ function hasTag(tags: string[] | undefined, tag: string): boolean {
 }
 
 const REVALIDATABLE_LIFECYCLE_STATUSES: string[] = ['validated', 'published', 'certified', 'deprecated'];
+
+// Parse a publication URN into the pieces policy simulation needs. Returns
+// null for anything that is not a well-formed skill/agent version URN.
+function parseSimulationTarget(
+  urn: string,
+): { entity_type: 'SKILL_VERSION' | 'AGENT_VERSION'; logical_key: string; version: number } | null {
+  const skill = /^urn:sg:skill-version:(.+)@v(\d+)$/.exec(urn);
+  if (skill?.[1] && skill[2]) {
+    return { entity_type: 'SKILL_VERSION', logical_key: skill[1], version: Number(skill[2]) };
+  }
+  const agent = /^urn:sg:agent-version:(.+)@v(\d+)$/.exec(urn);
+  if (agent?.[1] && agent[2]) {
+    return { entity_type: 'AGENT_VERSION', logical_key: agent[1], version: Number(agent[2]) };
+  }
+  return null;
+}
+
 const DEFAULT_REVALIDATION_LIMIT = 25;
 const MAX_REVALIDATION_LIMIT = 200;
 

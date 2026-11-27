@@ -172,6 +172,12 @@ Validation (five layers):
 - machine-readable violation reports (SHACL result vocabulary; recorded
   `validator: shacl-v1`, engine id, and per-layer shapes fingerprints)
   stored in the CAS and linked via `sg:validatedBy`
+- policy dry-run: `POST /v1/policy-packages/{version}/simulate` executes a
+  registered policy against selected versions (up to 25 publication URNs)
+  and returns the standard per-target verdicts and violations with **zero
+  lifecycle side effects** — no reports, artifacts, tasks, events, or node
+  writes; the execution path is the exact one validation uses, so a
+  simulation verdict matches what `validate` would decide for the shapes
 - dual ontology packages (`registry_shape` / `skill_area`) as versioned
   CAS artifacts (`POST /v1/ontology-packages`) in two authoring formats:
   legacy JSON documents and authored OWL Turtle (`ontology_format:
