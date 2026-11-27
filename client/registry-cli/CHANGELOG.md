@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.10](https://github.com/therandomsecurityguy/signet/compare/registry-cli-v0.1.9...registry-cli-v0.1.10) (2026-11-27)
+
+
+### Features
+
+* **pull:** registry-operator pull materializes verified bytes + manifest ([92ebd8a](https://github.com/therandomsecurityguy/signet/commit/92ebd8a6dda31899a49344e174225f9232e507c6))
+* **pull:** registry-operator pull materializes verified bytes + manifest ([3605d09](https://github.com/therandomsecurityguy/signet/commit/3605d09ed5032fdb0434bf9a835acafbcc2b68d6))
+
 ## [0.1.9](https://github.com/therandomsecurityguy/signet/compare/registry-cli-v0.1.8...registry-cli-v0.1.9) (2026-11-26)
 
 
