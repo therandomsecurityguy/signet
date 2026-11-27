@@ -131,6 +131,12 @@ consumer:
   newer-active versions warn — `--strict` escalates warnings and requires a
   `verified` publication. Run it in CI for repos and at session start for
   agents.
+- **`registry-operator pull <target> --out <dir>`** materializes verified
+  bytes: revocation, the frozen-envelope digest, detached signatures, and
+  every artifact re-hash are checked before anything is written; the output
+  directory carries the artifacts, the exact frozen `envelope.json`, and a
+  `manifest.json` recording digests, signature counts, and frozen-envelope
+  facts for later comparison.
 - Validation reports carry a `sh:ValidationReport` JSON-LD representation
   with its own RDFC-1.0 canonical digest + artifact, and are signable by
   trusted keys over that canonical RDF (`GET|POST .../report-signatures`),

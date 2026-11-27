@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { buildKeylessBundle } from './keyless.js';
 import { DEFAULT_LOCK_FILE, parseLockTarget, readLockFile, serializeLockFile, upsertLockEntries, type LockEntry } from './lock.js';
+import { artifactFileName, sourceFileBaseName, targetDirectory, type PullManifest } from './pull.js';
 import { cfAccessHeaders, loadEnv, type Env } from './config/env.js';
 import {
   AgentCreatePlan,
@@ -61,6 +62,7 @@ type CliCommand =
     }
   | { group: 'bootstrap'; action: 'test'; args: Record<string, string | boolean | string[] | undefined> }
   | { group: 'lock'; action: 'write'; args: Record<string, string | boolean | string[] | undefined> }
+  | { group: 'pull'; action: 'run'; args: Record<string, string | boolean | string[] | undefined> }
   | { group: 'sign'; action: 'keyless'; args: Record<string, string | boolean | string[] | undefined> };
 
 export type ResolveBootstrapOptions = {
@@ -109,6 +111,8 @@ export async function runCli(argv: string[]) {
       return await runVerifyBrowserSession(env, command.args);
     case 'lock':
       return await runLock(env, command.args);
+    case 'pull':
+      return await runPull(env, command.args);
     case 'bootstrap':
       return await runBootstrapTest(env, command.args);
     case 'sign':
@@ -120,6 +124,12 @@ export function parseArgs(argv: string[]): CliCommand {
   const [group, maybeAction, ...rest] = argv;
   if (!group) {
     throw new Error('Usage: registry-operator <group> <action> [--options]');
+  }
+  // `pull` takes positional targets: options and targets mix freely.
+  if (group === 'pull') {
+    const { args, positionals } = parseOptionsWithPositionals(argv.slice(1));
+    if (positionals.length > 0) args['_'] = positionals;
+    return { group: 'pull', action: 'run', args };
   }
   // `lock` is a single-word command: every non-flag token is an option.
   if (!maybeAction || maybeAction.startsWith('--')) {
@@ -1266,6 +1276,231 @@ async function runVerifyLock(env: Env, args: Record<string, string | boolean | s
   }
 }
 
+// Materialize verified bytes + an integrity manifest (build plan 3.2).
+// Everything is checked before anything is written: revocation, envelope
+// digest (recomputed locally), detached signatures against trusted keys
+// (keyless verdicts from the server), and a local re-hash of every artifact.
+async function runPull(env: Env, args: Record<string, string | boolean | string[] | undefined>) {
+  const positionals = asStringArray(args['_']);
+  const outRaw = asString(args.out);
+  const targets = [
+    ...positionals.map((raw) => ({ raw, expected: undefined })),
+    ...asStringArray(args.skill).map((raw) => ({ raw, expected: 'skill' as const })),
+    ...asStringArray(args.agent).map((raw) => ({ raw, expected: 'agent' as const })),
+  ];
+  if (!outRaw || targets.length === 0) {
+    throw new Error(
+      'Usage: registry-operator pull (skill:<key>[@<version>] | agent:<key>[@<version>] ... | --skill <key> | --agent <key>) --out <dir> [--strict]',
+    );
+  }
+  const outDir = path.resolve(outRaw);
+  const strict = args.strict === true;
+  const api = new HttpRegistryOperatorApiClient({ apiOrigin: env.API_ORIGIN, extraHeaders: cfAccessHeaders(env) });
+
+  const pulled: Array<Record<string, unknown>> = [];
+  for (const { raw, expected } of targets) {
+    const target = parseLockTarget(raw);
+    if (expected && target.type !== expected) {
+      throw new Error(`Invalid pull target "${raw}": expected a ${expected} key.`);
+    }
+    pulled.push(await pullTarget(api, target, outDir, strict));
+  }
+  console.log(JSON.stringify({ out: outDir, strict, pulled }, null, 2));
+}
+
+async function pullTarget(
+  api: HttpRegistryOperatorApiClient,
+  target: { type: 'skill' | 'agent'; key: string; version?: number },
+  outDir: string,
+  strict: boolean,
+): Promise<Record<string, unknown>> {
+  let version = target.version;
+  if (!version) {
+    const active =
+      target.type === 'skill'
+        ? await api.getActiveSkillVersion(target.key)
+        : await api.getActiveAgentVersion(target.key);
+    const activeVersion = Number(versionPropsOf(active, target.type)?.['version']);
+    if (!Number.isInteger(activeVersion) || activeVersion <= 0) {
+      throw new Error(`${target.key} has no active version to pull; specify ${target.key}@<version>.`);
+    }
+    version = activeVersion;
+  }
+  const details = await fetchLockedVersion(api, target.type, target.key, version);
+  const props = versionPropsOf(details, target.type) ?? {};
+
+  // Fail closed before any bytes are written.
+  const lifecycle = String(props['lifecycle_status'] ?? '');
+  if (props['revoked'] === true || lifecycle === 'revoked' || String(props['publication_status'] ?? '') === 'revoked') {
+    throw new Error(`${target.key}@${version} is revoked; refusing to pull.`);
+  }
+
+  const envelope =
+    target.type === 'skill'
+      ? await api.getSkillPublicationEnvelope(target.key, version)
+      : await api.getAgentPublicationEnvelope(target.key, version);
+  const verification =
+    target.type === 'skill'
+      ? await api.getSkillPublicationVerification(target.key, version)
+      : await api.getAgentPublicationVerification(target.key, version);
+
+  const canonicalJson = String(envelope['canonical_json'] ?? '');
+  const envelopeDigest = String(envelope['canonical_json_sha256'] ?? '');
+  if (!canonicalJson || sha256Hex(Buffer.from(canonicalJson, 'utf8')) !== envelopeDigest) {
+    throw new Error(`${target.key}@${version} envelope failed local digest verification; refusing to pull.`);
+  }
+  // The recorded anchor is the frozen publication envelope digest (stable
+  // across later evidence attachment); canonical_json_sha256 is the
+  // publish-time digest fallback for pre-freeze publications.
+  const recordedDigest =
+    (typeof props['publication_envelope_sha256'] === 'string' ? props['publication_envelope_sha256'] : '') ||
+    (typeof props['canonical_json_sha256'] === 'string' ? props['canonical_json_sha256'] : '');
+  if (!recordedDigest || envelopeDigest !== recordedDigest) {
+    throw new Error(
+      `${target.key}@${version} envelope digest does not match the recorded publication digest; refusing to pull.`,
+    );
+  }
+
+  // Signature verdicts: trusted keys verified locally over the canonical
+  // bytes; keyless verdicts taken from the registry (their trust policy
+  // lives there), exactly like `verify publication`.
+  const signatures = Array.isArray(envelope['detached_signatures'])
+    ? (envelope['detached_signatures'] as Array<{
+        artifact_urn?: string;
+        key_ref?: string;
+        algorithm?: string;
+        signed_payload?: 'canonical_json' | 'canonical_rdf';
+        envelope_sha256?: string;
+        signature?: string;
+        keyless?: { identity?: string; issuer?: string };
+      }>)
+    : [];
+  const publicKeys = await loadTrustedPublicKeyPems(
+    api,
+    signatures
+      .filter((signature) => !signature.keyless)
+      .map((signature) => signature.key_ref)
+      .filter((keyRef): keyRef is string => Boolean(keyRef)),
+    undefined,
+  );
+  const trustedVerdict = verifyEnvelopeSignatures({
+    envelope: {
+      canonical_json: canonicalJson,
+      canonical_json_sha256: envelopeDigest,
+      detached_signatures: signatures
+        .filter((signature) => !signature.keyless)
+        .map((signature) => ({
+          key_ref: signature.key_ref ?? '',
+          algorithm: signature.algorithm ?? '',
+          ...(signature.signed_payload ? { signed_payload: signature.signed_payload } : {}),
+          envelope_sha256: signature.envelope_sha256 ?? '',
+          signature: signature.signature ?? '',
+        })),
+    },
+    resolvePublicKey: (keyRef) => publicKeys.get(keyRef),
+  });
+  const serverChecks = Array.isArray(verification['signature_checks'])
+    ? (verification['signature_checks'] as Array<{
+        artifact_urn?: string;
+        key_ref?: string;
+        keyless?: { verified?: boolean };
+      }>)
+    : [];
+  const keylessVerified = signatures
+    .filter((signature) => signature.keyless)
+    .every((signature) => {
+      const check =
+        serverChecks.find((candidate) => candidate.artifact_urn === signature.artifact_urn) ??
+        serverChecks.find((candidate) => candidate.key_ref === signature.key_ref);
+      return check?.keyless?.verified === true;
+    });
+  const trustedValid = trustedVerdict.signatures.every((signature) => signature.signature_valid);
+  const validSignatures =
+    trustedVerdict.signatures.filter((signature) => signature.signature_valid).length +
+    serverChecks.filter((check) => check.keyless?.verified === true).length;
+  if (!trustedValid || !keylessVerified) {
+    throw new Error(`${target.key}@${version} has an invalid detached signature; refusing to pull.`);
+  }
+
+  const serverStatus = String(verification['verification_status'] ?? 'unknown');
+  const strictFailures: string[] = [];
+  if (strict) {
+    if (serverStatus !== 'verified') strictFailures.push(`server verification_status is ${serverStatus}`);
+    if (validSignatures === 0) strictFailures.push('no valid detached signature');
+    const frozenPresent = verification['publication_envelope_artifact_present'] === true;
+    if (frozenPresent && verification['publication_envelope_artifact_sha256_matches'] === false) {
+      strictFailures.push('frozen envelope artifact digest mismatch');
+    }
+  }
+  if (strictFailures.length > 0) {
+    throw new Error(`${target.key}@${version} failed strict verification (${strictFailures.join('; ')}); refusing to pull.`);
+  }
+
+  // Materialize: every artifact is re-hashed locally before it is written.
+  const artifacts = Array.isArray(details['artifacts'])
+    ? (details['artifacts'] as Array<{ artifact_urn?: string; sha256?: string }>)
+    : [];
+  const pullDir = targetDirectory(outDir, target.type, target.key, version);
+  await mkdir(pullDir, { recursive: true });
+  const written: PullManifest['artifacts'] = [];
+  const multiple = artifacts.length > 1;
+  const sourceBase = sourceFileBaseName(
+    typeof props['source_path'] === 'string' ? props['source_path'] : undefined,
+  );
+  const usedNames = new Set<string>();
+  for (const artifact of artifacts) {
+    const sha =
+      typeof artifact.sha256 === 'string' && /^[0-9a-f]{64}$/.test(artifact.sha256)
+        ? artifact.sha256
+        : parseArtifactUrnSha256(artifact.artifact_urn ?? '');
+    if (!sha) {
+      throw new Error(`${target.key}@${version} has an artifact without a digest; refusing to pull.`);
+    }
+    const { bytes, mediaType } = await api.getArtifactBytes(sha);
+    if (sha256Hex(bytes) !== sha) {
+      throw new Error(`${target.key}@${version} artifact ${sha} failed local re-hash; refusing to write.`);
+    }
+    const file = sourceBase
+      ? multiple || usedNames.has(sourceBase)
+        ? `${sha.slice(0, 8)}-${sourceBase}`
+        : sourceBase
+      : artifactFileName({ mediaType, sha256: sha, multiple });
+    usedNames.add(file);
+    await writeFile(path.join(pullDir, file), bytes);
+    written.push({ sha256: sha, file, ...(mediaType ? { media_type: mediaType } : {}) });
+  }
+  await writeFile(path.join(pullDir, 'envelope.json'), canonicalJson, 'utf8');
+  const manifest: PullManifest = {
+    manifest_version: 1,
+    type: target.type,
+    key: target.key,
+    version,
+    publication_urn: versionUrnOf(details, target.type),
+    envelope_sha256: envelopeDigest,
+    strict,
+    server_verification_status: serverStatus,
+    valid_signatures: validSignatures,
+    frozen_envelope_artifact_present: verification['publication_envelope_artifact_present'] === true,
+    live_envelope_matches_frozen_artifact:
+      typeof verification['live_envelope_matches_frozen_artifact'] === 'boolean'
+        ? verification['live_envelope_matches_frozen_artifact']
+        : null,
+    artifacts: written,
+    pulled_at: new Date().toISOString(),
+  };
+  await writeFile(path.join(pullDir, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+
+  return {
+    type: target.type,
+    key: target.key,
+    version,
+    directory: pullDir,
+    artifacts: written,
+    server_verification_status: serverStatus,
+    valid_signatures: validSignatures,
+  };
+}
+
 async function fetchLockedVersion(
   api: HttpRegistryOperatorApiClient,
   type: 'skill' | 'agent',
@@ -1908,6 +2143,38 @@ function parseOptions(argv: string[]) {
     i += 1;
   }
   return out;
+}
+
+// Positional-aware variant for the single-word commands: `--flag value`
+// pairs are consumed as options; everything else is a positional target.
+function parseOptionsWithPositionals(argv: string[]): {
+  args: Record<string, string | boolean | string[] | undefined>;
+  positionals: string[];
+} {
+  const args: Record<string, string | boolean | string[] | undefined> = {};
+  const positionals: string[] = [];
+  for (let i = 0; i < argv.length; i += 1) {
+    const token = argv[i];
+    if (!token) continue;
+    if (token.startsWith('--')) {
+      const key = token.slice(2);
+      const next = argv[i + 1];
+      if (!next || next.startsWith('--')) {
+        args[key] = true;
+        continue;
+      }
+      if (key in args) {
+        const current = args[key];
+        args[key] = Array.isArray(current) ? [...current, next] : [String(current), next];
+      } else {
+        args[key] = next;
+      }
+      i += 1;
+    } else {
+      positionals.push(token);
+    }
+  }
+  return { args, positionals };
 }
 
 function resolveManifestPath(env: Env, provided: string | undefined) {
