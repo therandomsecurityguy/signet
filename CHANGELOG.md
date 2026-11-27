@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.103](https://github.com/therandomsecurityguy/signet/compare/v0.1.102...v0.1.103) (2026-11-27)
+
+
+### Features
+
+* **policy:** dry-run simulation endpoint (zero side effects) ([81c66b6](https://github.com/therandomsecurityguy/signet/commit/81c66b6af9f18e3ff9ec0902221c0112ba44a4b1))
+
 ## [0.1.102](https://github.com/therandomsecurityguy/signet/compare/v0.1.101...v0.1.102) (2026-11-27)
 
 
