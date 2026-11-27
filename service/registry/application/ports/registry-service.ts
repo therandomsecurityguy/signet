@@ -1351,6 +1351,43 @@ export type CreatePolicyPackageInput = {
   require_sbom?: boolean;
 };
 
+// Policy simulation (build plan 3.3b): dry-run a registered policy package
+// against selected publication versions — standard verdicts, zero lifecycle
+// side effects (no reports, artifacts, tasks, events, or node writes).
+export type RegistryPolicySimulationViolation = {
+  focusNode: string;
+  resultPath?: string;
+  sourceConstraintComponent: string;
+  sourceShape: string;
+  message: string;
+  severity: 'Violation' | 'Warning' | 'Info';
+};
+
+export type RegistryPolicySimulationTarget = {
+  publication_urn: string;
+  entity_type?: 'SKILL_VERSION' | 'AGENT_VERSION';
+  logical_key?: string;
+  version?: number;
+  found: boolean;
+  conforms: boolean;
+  failures: string[];
+  violations: RegistryPolicySimulationViolation[];
+  policy?: {
+    resolved: boolean;
+    shapes_format?: string;
+    shapes_sha256?: string;
+    engine?: string;
+  };
+};
+
+export type RegistryPolicySimulation = {
+  policy_version: string;
+  policy_package_sha256: string | null;
+  /** True only when every target was found and conforms. */
+  conforms: boolean;
+  targets: RegistryPolicySimulationTarget[];
+};
+
 export type RegistryPolicyPackageDetails = {
   artifact_urn: string;
   sha256: string;
@@ -1470,6 +1507,10 @@ export interface RegistryService {
   createPolicyPackage(input: CreatePolicyPackageInput): Promise<CreateResult<RegistryPolicyPackageDetails>>;
   listPolicyPackages(): Promise<{ policy_packages: RegistryPolicyPackageDetails[] }>;
   getPolicyPackage(input: { policy_version: string }): Promise<RegistryPolicyPackageDetails | null>;
+  simulatePolicyPackage(input: {
+    policy_version: string;
+    publication_urns: string[];
+  }): Promise<RegistryPolicySimulation>;
 
   createOntologyPackage(input: CreateOntologyPackageInput): Promise<CreateResult<RegistryOntologyPackageDetails>>;
   listOntologyPackages(): Promise<{ ontology_packages: RegistryOntologyPackageDetails[] }>;

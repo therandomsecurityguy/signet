@@ -61,4 +61,48 @@ export const ListPolicyPackagesOutputSchema = z.object({
   policy_packages: z.array(PolicyPackageDetailsSchema),
 });
 
+// Policy simulation (build plan 3.3b): dry-run a registered policy package
+// against selected versions. Zero lifecycle side effects.
+export const SimulatePolicyPackageInputSchema = z.object({
+  publication_urns: z.array(z.string().min(1).max(500)).min(1).max(25),
+});
+
+export const PolicySimulationViolationSchema = z.object({
+  focusNode: z.string(),
+  resultPath: z.string().optional(),
+  sourceConstraintComponent: z.string(),
+  sourceShape: z.string(),
+  message: z.string(),
+  severity: z.enum(['Violation', 'Warning', 'Info']),
+});
+
+export const PolicySimulationOutputSchema = z.object({
+  policy_version: z.string(),
+  policy_package_sha256: z.string().nullable(),
+  /** True only when every target was found and conforms. */
+  conforms: z.boolean(),
+  targets: z.array(
+    z.object({
+      publication_urn: z.string(),
+      entity_type: z.enum(['SKILL_VERSION', 'AGENT_VERSION']).optional(),
+      logical_key: z.string().optional(),
+      version: z.number().int().optional(),
+      found: z.boolean(),
+      conforms: z.boolean(),
+      failures: z.array(z.string()),
+      violations: z.array(PolicySimulationViolationSchema),
+      policy: z
+        .object({
+          resolved: z.boolean(),
+          shapes_format: z.string().optional(),
+          shapes_sha256: z.string().optional(),
+          engine: z.string().optional(),
+        })
+        .optional(),
+    }),
+  ),
+});
+
 export type CreatePolicyPackageInput = z.infer<typeof CreatePolicyPackageInputSchema>;
+export type SimulatePolicyPackageInput = z.infer<typeof SimulatePolicyPackageInputSchema>;
+export type PolicySimulationOutput = z.infer<typeof PolicySimulationOutputSchema>;
