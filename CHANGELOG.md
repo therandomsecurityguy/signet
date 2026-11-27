@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.101](https://github.com/therandomsecurityguy/signet/compare/v0.1.100...v0.1.101) (2026-11-27)
+
+
+### Features
+
+* **mcp:** native resources for skill and agent bodies ([35da801](https://github.com/therandomsecurityguy/signet/commit/35da801cd8df0caa784f9cddc7af374629be2ad6))
+* **mcp:** native resources for skill and agent bodies ([84f870d](https://github.com/therandomsecurityguy/signet/commit/84f870d231cc4cfc9844b0a3a740511beeec4e61))
+
 ## [0.1.100](https://github.com/therandomsecurityguy/signet/compare/v0.1.99...v0.1.100) (2026-11-27)
 
 
