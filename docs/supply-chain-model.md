@@ -109,7 +109,12 @@ consumer:
   `verifyDetachedSignature`, `verifyProvenanceSignature`,
   `verifyRfc6962InclusionProof`, and
   `fetchArtifact` (local re-hash against the requested digest and the
-  `Content-Digest` header).
+  `Content-Digest` header). The Python SDK
+  (`client/registry-sdk-py`, `pip install signet-registry`) mirrors the
+  same verdict semantics for the Python-heavy agent ecosystem: envelope
+  digests, detached signatures (ed25519/ed448, rsa-sha256, ecdsa
+  p-256/p-384), provenance verdicts, RFC 6962 inclusion proofs, and a
+  small read client with local artifact re-hashing.
 - `registry-operator verify publication (--skill|--agent) --version <n>
   [--strict]` reproduces the verdict in the CLI,
   `registry-operator verify provenance (--skill|--agent) --version <n>

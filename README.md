@@ -130,7 +130,9 @@ Canonicalization and signatures:
   DSSE attestations
 - verify-then-load consumer contract: SDK verification helpers
   (`verifyEnvelopeSignatures`, `verifyDetachedSignature`,
-  `verifyRfc6962InclusionProof`, `fetchArtifact` with local re-hashing) and
+  `verifyRfc6962InclusionProof`, `fetchArtifact` with local re-hashing in
+  `@signet-registry/sdk`, plus the Python `signet-registry` SDK with the
+  same verdict semantics) and
   `registry-operator verify publication|artifact`; see
   `docs/supply-chain-model.md`
 - `signet.lock`: per-consumer pins of exact publications
