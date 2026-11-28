@@ -155,6 +155,46 @@ paths, and `sh:pattern` that compiles under RE2 (linear-time execution,
 no backreferences/lookarounds); explicit node targeting is rejected. See
 `docs/api-reference.md` for both policy formats.
 
+### Try before you bind (verified)
+
+Dry-run a registered policy against existing versions — the verdicts match
+what `validate` would decide, with zero lifecycle side effects (no reports,
+artifacts, tasks, events, or writes) — and ask which gate would reject a
+publish/certify and why, before attempting:
+
+```bash
+# 5. Simulate the policy from step 1 against the rejected draft and the
+#    conforming version: standard per-target verdicts, nothing recorded.
+curl -s -H "authorization: Bearer $TOK" -H 'content-type: application/json' \
+  -X POST "$API/v1/policy-packages/demo-shacl%2Fv1/simulate" \
+  -d '{"publication_urns":["urn:sg:skill-version:skill:shacl-demo@v1",
+                           "urn:sg:skill-version:skill:shacl-demo-ok@v1"]}' \
+  | jq '{conforms, targets: [.targets[] | {urn: .publication_urn, conforms, failures}]}'
+# -> shacl-demo@v1 conforms: false, failures: ["description_required_by_demo_shacl_policy"]
+
+# 6. Gate hints on a fresh draft: publish is blocked because the policy
+#    requires validation (the hint mirrors enforcement exactly; read-only).
+curl -s -H "authorization: Bearer $TOK" -H 'content-type: application/json' \
+  -X POST "$API/v1/skills/skill%3Agate-hints-demo/drafts" -d '{
+    "author": "demo",
+    "description": "gate hints demo",
+    "artifact": { "content": "# gate hints demo", "original_path": "skills/gate-hints-demo.md" },
+    "governance": { "policy_version": "demo-shacl/v1" }
+  }' >/dev/null
+curl -s -H "authorization: Bearer $TOK" \
+  "$API/v1/skills/skill%3Agate-hints-demo/versions/1/gate-hints" \
+  | jq '{policy_version, would_publish, would_certify,
+         gates: [.gates[] | select(.applicable) | {gate, operation, satisfied, reason}]}'
+# -> would_publish: false; require_validation (publish) satisfied: false,
+#    reason: "lifecycle is draft; policy demo-shacl/v1 requires validation before publish"
+```
+
+In the browser (webapp, `kubectl -n signet port-forward svc/signet-webapp 3200:3200`
+for the k8s demo): the **Playground** page (`/policy-playground`) runs the
+simulate call from a form (sign in with the mock Okta button first), and
+skill/agent detail pages render the per-version gate hints next to the
+lifecycle actions.
+
 ## Witness network walkthrough (verified)
 
 Reads the transparency sample graph seeded by `scripts/demo-local.sh seed`
