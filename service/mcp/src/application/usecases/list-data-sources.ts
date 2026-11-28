@@ -66,11 +66,13 @@ export class ListDataSourcesUseCase {
     if (this.env.MOTHERDUCK_MODE === 'mock') {
       return { data_source: 'motherduck', mode: 'mock', ready: true };
     }
+    const missing = presentCheck('MOTHERDUCK_TOKEN', this.env.MOTHERDUCK_TOKEN);
     return {
       data_source: 'motherduck',
       mode: 'real',
-      ready: false,
-      notes: 'real mode is not implemented in this build; set MOTHERDUCK_MODE=mock for the deterministic sample path',
+      ready: missing.length === 0,
+      ...(missing.length > 0 ? { missing_config: missing } : {}),
+      notes: `database defaults to "my_db" (set MOTHERDUCK_DATABASE to override)`,
     };
   }
 }

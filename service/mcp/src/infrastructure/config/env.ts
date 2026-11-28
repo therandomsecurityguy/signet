@@ -108,6 +108,12 @@ const EnvSchema = z.object({
   ATHENA_OUTPUT_S3: z.string().optional(),
   AWS_REGION: z.string().optional(),
 
+  // MotherDuck (token required only when MOTHERDUCK_MODE=real); the token is
+  // passed to the DuckDB driver config explicitly. MOTHERDUCK_DATABASE
+  // defaults to the MotherDuck example database name.
+  MOTHERDUCK_DATABASE: z.string().optional(),
+  MOTHERDUCK_TOKEN: z.string().optional(),
+
   // Rate limiting
   RATE_LIMIT_ENABLED: z
     .string()

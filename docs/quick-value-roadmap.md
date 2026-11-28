@@ -218,15 +218,17 @@ Outputs:
 
 ### Worksession 39. Data-access golden path
 
-**Delivered so far (first slice):** per-source golden paths (Snowflake /
-Athena / MotherDuck) proven end to end through the real execution path
-(auth + policy + audit, deterministic mock answers so the whole flow runs
-credential-free), a read-only `GET /v1/data-sources` readiness surface
-(mode + missing-config presence, never values), and the operator guide
-`docs/mcp-data-access.md` with demo prompts and troubleshooting.
-**Remaining:** MotherDuck real driver (`@duckdb/node-api`), real-mode
-catalog metadata parity (`data.list_tables` / `data.describe_table` for
-Snowflake/Athena), MCP-inspector smoke.
+**Delivered so far:** per-source golden paths (Snowflake / Athena /
+MotherDuck) proven end to end through the real execution path (auth +
+policy + audit, deterministic mock answers so the whole flow runs
+credential-free); a read-only `GET /v1/data-sources` readiness surface
+(mode + missing-config presence, never values); the operator guide
+`docs/mcp-data-access.md` with demo prompts and troubleshooting; and the
+**MotherDuck real driver** (`@duckdb/node-api`): queries, catalog listing,
+and describe run against MotherDuck with a bounded connect sequence and
+statement timeouts (real-path tests execute on a local DuckDB engine).
+**Remaining:** real-mode catalog metadata parity (`data.list_tables` /
+`data.describe_table` for Snowflake/Athena), MCP-inspector smoke.
 
 Goal:
 - create one great happy path for data access through MCP
