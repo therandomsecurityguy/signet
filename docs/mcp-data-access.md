@@ -15,7 +15,7 @@ warehouse access is wired.
 |---|---|---|---|
 | `snowflake` | `data.query`, `data.list_tables`, `data.describe_table` | mock | query path live; catalog metadata (list/describe) returns empty until metadata parity lands |
 | `athena` | same | mock | query path live; catalog metadata returns empty until metadata parity lands; AWS credentials/region from the standard AWS chain |
-| `motherduck` | same | mock | not implemented in this build — mock mode only |
+| `motherduck` | same | mock | query and catalog paths live (DuckDB driver); requires `MOTHERDUCK_TOKEN` |
 
 ## 1. Check readiness
 
@@ -95,8 +95,13 @@ destroy the session on timeout, so abandoned queries stop burning credits.
 environment chain (`AWS_REGION`, `AWS_ACCESS_KEY_ID`/`AWS_PROFILE`, instance
 role, …). Timed-out queries are actively stopped (`StopQueryExecution`).
 
-**MotherDuck** (`MOTHERDUCK_MODE=real`): not implemented in this build —
-calls fail closed with an explicit error; keep mock mode.
+**MotherDuck** (`MOTHERDUCK_MODE=real`): required `MOTHERDUCK_TOKEN`
+(the token is passed to the DuckDB driver config explicitly; never logged);
+optional `MOTHERDUCK_DATABASE` (defaults to `my_db`). Queries and catalog
+metadata (`data.list_tables` via `information_schema.tables`,
+`data.describe_table` via `DESCRIBE`) run through the shared DuckDB instance
+cache, with a bounded 30s connect sequence and statement timeouts enforced
+by interrupting the running query.
 
 ## 4. What governs every call
 
@@ -152,7 +157,8 @@ An agent prompt that exercises governance rather than data:
 | `not_read_only` / `forbidden_keyword` / `multiple_statements` | The SQL is not a single read-only statement; rewrite it. |
 | `source_not_allowed` / `table_not_allowed` | `AUTHZ_RULES_JSON` is configured and the principal's group lacks this source/object; extend the rule. |
 | Real Snowflake/Athena `list_tables`/`describe_table` return empty | Expected today: catalog metadata parity is not yet implemented for real mode; queries still work. |
-| MotherDuck `real` mode errors | Real driver is not implemented in this build; use `mock`. |
+| `MotherDuck is not configured` | Real mode without `MOTHERDUCK_TOKEN` — set it or switch back to `mock`. |
+| MotherDuck `request failed` | Token rejected or the `md:` database is unreachable; check `MOTHERDUCK_TOKEN`/`MOTHERDUCK_DATABASE` and connectivity. |
 
 ## Related
 

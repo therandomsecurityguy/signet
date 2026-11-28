@@ -39,7 +39,17 @@ describe('data source readiness', () => {
     expect(bySource['athena']).toMatchObject({ mode: 'real', ready: false });
     expect(bySource['athena']?.missing_config).toEqual(['ATHENA_WORKGROUP', 'ATHENA_OUTPUT_S3']);
     expect(bySource['motherduck']).toMatchObject({ mode: 'real', ready: false });
-    expect(bySource['motherduck']?.notes).toContain('not implemented');
+    expect(bySource['motherduck']?.missing_config).toEqual(['MOTHERDUCK_TOKEN']);
+  });
+
+  it('marks MotherDuck real mode ready with a token and notes the database default', () => {
+    const result = new ListDataSourcesUseCase(
+      baseEnv({ MOTHERDUCK_MODE: 'real', MOTHERDUCK_TOKEN: 'md-token' }),
+    ).execute();
+    const motherduck = result.data_sources.find((row) => row.data_source === 'motherduck');
+    expect(motherduck).toMatchObject({ mode: 'real', ready: true });
+    expect(motherduck?.missing_config).toBeUndefined();
+    expect(motherduck?.notes).toContain('MOTHERDUCK_DATABASE');
   });
 
   it('marks real mode ready when the required config is present', () => {
