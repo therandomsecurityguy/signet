@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.105](https://github.com/therandomsecurityguy/signet/compare/v0.1.104...v0.1.105) (2026-11-28)
+
+
+### Features
+
+* **mcp:** data-access golden path — readiness surface, per-source paths, operator docs ([f28b75b](https://github.com/therandomsecurityguy/signet/commit/f28b75b61c5bb7fb9fb156ff4d782a700d0aa1a0))
+* **mcp:** data-access golden path — readiness surface, per-source paths, operator docs ([af2983b](https://github.com/therandomsecurityguy/signet/commit/af2983b521177320b95839a0a9caa238707bb5b0))
+
 ## [0.1.104](https://github.com/therandomsecurityguy/signet/compare/v0.1.103...v0.1.104) (2026-11-27)
 
 
