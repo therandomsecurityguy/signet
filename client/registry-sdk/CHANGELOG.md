@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.23](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.22...registry-sdk-v0.1.23) (2026-11-28)
+
+
+### Features
+
+* **policy:** publish-time gate hints + webapp playground ([1e98cc1](https://github.com/therandomsecurityguy/signet/commit/1e98cc12cb98dd31330e31af7dcc27c50c55a56a))
+
 ## [0.1.22](https://github.com/therandomsecurityguy/signet/compare/registry-sdk-v0.1.21...registry-sdk-v0.1.22) (2026-11-27)
 
 
