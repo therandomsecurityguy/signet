@@ -90,6 +90,13 @@ discovers that something is revoked or unverified.
 - `data.list_tables`
 - `data.describe_table`
 
+Before the first data call, `GET /v1/data-sources` reports each approved
+source's mode (`mock`/`real`) and readiness (`missing_config` names, never
+values). Sources default to `mock` locally with deterministic answers, so
+the whole path works before any warehouse credentials exist. The full
+golden path — readiness → list → describe → query, per source, with demo
+prompts and troubleshooting — is in `docs/mcp-data-access.md`.
+
 ## 3. Harness config
 
 ### Claude Code

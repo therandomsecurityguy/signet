@@ -101,6 +101,13 @@ const EnvSchema = z.object({
   SNOWFLAKE_SCHEMA: z.string().optional(),
   SNOWFLAKE_ROLE: z.string().optional(),
 
+  // Athena (required only when ATHENA_MODE=real); credentials and region come
+  // from the standard AWS environment chain (AWS_REGION, AWS_ACCESS_KEY_ID /
+  // AWS_PROFILE / instance role, …).
+  ATHENA_WORKGROUP: z.string().optional(),
+  ATHENA_OUTPUT_S3: z.string().optional(),
+  AWS_REGION: z.string().optional(),
+
   // Rate limiting
   RATE_LIMIT_ENABLED: z
     .string()

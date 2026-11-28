@@ -59,6 +59,14 @@ mcp:
     tag: dev
   env:
     DATABASE_URL: file:/workspace/data/registry/signet-mcp.db
+    # Warehouse connectors run in mock mode for the local demo:
+    # data.list_tables / data.describe_table / data.query return
+    # deterministic samples for all three approved sources, and
+    # GET /v1/data-sources reports them ready. See docs/mcp-data-access.md
+    # to wire real sources in a non-demo environment.
+    SNOWFLAKE_MODE: mock
+    ATHENA_MODE: mock
+    MOTHERDUCK_MODE: mock
 
 webapp:
   image:

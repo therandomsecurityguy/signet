@@ -657,7 +657,7 @@ Current implementation status (incremental):
 Signet is designed to be available to every agent workflow. The current surfaces:
 - **OpenAPI 3.1 spec + Swagger UI** — `GET /v1/openapi.json` and `GET /v1/docs` on `service/api`. See `docs/api-reference.md`.
 - **Typed read-first SDK** — `@signet-registry/sdk` under `client/registry-sdk`, generated from the spec. See `client/registry-sdk/README.md`.
-- **MCP gateway** — `service/mcp` exposes read-only `registry.*` tools (including `registry.search`, `registry.verify_publication`, and `registry.get_attestations`) over Streamable HTTP at `/mcp`, plus native resources (`signet://skill/{key}`, `signet://agent/{key}`, and the `signet://index` catalog) so harnesses can attach verified bodies directly. See `docs/mcp-onboarding.md` for per-harness config (Claude Code, Cursor, opencode, generic MCP clients).
+- **MCP gateway** — `service/mcp` exposes read-only `registry.*` tools (including `registry.search`, `registry.verify_publication`, and `registry.get_attestations`) over Streamable HTTP at `/mcp`, plus native resources (`signet://skill/{key}`, `signet://agent/{key}`, and the `signet://index` catalog) so harnesses can attach verified bodies directly. The same gateway serves approved **data sources** read-only (`data.query`, `data.list_tables`, `data.describe_table`; `GET /v1/data-sources` reports per-source readiness) — see `docs/mcp-data-access.md` for the golden path and `docs/mcp-onboarding.md` for per-harness config (Claude Code, Cursor, opencode, generic MCP clients).
 - **Cognitive layer** — opt-in token-context estimation + summarization in `service/mcp` (see `service/mcp/README.md`).
 - **Operator CLI** — `@signet-registry/operator` under `client/registry-cli`, packaged for CLI-first agents (see `client/registry-cli/README.md`).
 - **Onboarding skill** — a distributable `signet-registry` skill teaching the discover → inspect → load → trust → use flow (see `skills/` and `.cursor/skills/signet-registry/`).
@@ -698,6 +698,7 @@ Signet is designed to be available to every agent workflow. The current surfaces
 - SHACL-AF execution boundary (in-process vs sidecar): `docs/shacl-af-in-process-design.md`
 - API reference: `docs/api-reference.md`
 - MCP onboarding: `docs/mcp-onboarding.md`
+- MCP data access (golden path: readiness → list → describe → query per source, with demo prompts): `docs/mcp-data-access.md`
 - beta-v1 readiness and scope: `docs/beta-v1-readiness.md`
 - docs index: `docs/README.md`
 

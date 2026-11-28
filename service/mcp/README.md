@@ -237,6 +237,12 @@ Semantic-governance evidence flows through the shared registry core and appears 
 curl -s localhost:3000/v1/tools \
   -H "Authorization: Bearer <token>"
 
+# Which data sources are reachable right now (mode + readiness; no values)
+curl -s localhost:3000/v1/data-sources \
+  -H "Authorization: Bearer <token>"
+
+# Credential-free locally: every source defaults to mock mode with
+# deterministic answers. See docs/mcp-data-access.md for the golden path.
 curl -s -X POST localhost:3000/v1/tools/data.query:execute \
   -H 'content-type: application/json' \
   -H 'x-agent-client: curl' \

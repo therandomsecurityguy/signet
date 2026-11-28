@@ -20,7 +20,7 @@ export class AthenaConnector {
 
   constructor(private readonly env: Env) {
     const cfg: AthenaClientConfig = {};
-    if (process.env.AWS_REGION) cfg.region = process.env.AWS_REGION;
+    if (env.AWS_REGION) cfg.region = env.AWS_REGION;
     this.client = new AthenaClient(cfg);
   }
 
@@ -44,9 +44,9 @@ export class AthenaConnector {
     const started = await this.client.send(
       new StartQueryExecutionCommand({
         QueryString: input.sql,
-        WorkGroup: process.env.ATHENA_WORKGROUP,
+        WorkGroup: this.env.ATHENA_WORKGROUP,
         ResultConfiguration: {
-          OutputLocation: process.env.ATHENA_OUTPUT_S3,
+          OutputLocation: this.env.ATHENA_OUTPUT_S3,
         },
       }),
     );

@@ -7,6 +7,7 @@ import { AthenaConnector } from '../infrastructure/connectors/athena/athena-conn
 import { MotherDuckConnector } from '../infrastructure/connectors/motherduck/motherduck-connector.js';
 import { DefaultPolicyService } from '../infrastructure/policy/default-policy-service.js';
 import { ExecuteToolUseCase } from '../application/usecases/execute-tool.js';
+import { ListDataSourcesUseCase } from '../application/usecases/list-data-sources.js';
 import { ListToolsUseCase } from '../application/usecases/list-tools.js';
 import { ToolRegistry } from '../domain/tools/tool-registry.js';
 import type { Env } from '../infrastructure/config/env.js';
@@ -130,6 +131,7 @@ export function buildAppDependencies(env: Env) {
     apiKeys,
     cognitive,
     listTools: new ListToolsUseCase(registry),
+    listDataSources: new ListDataSourcesUseCase(env),
     executeTool: new ExecuteToolUseCase({
       registry,
       policy,

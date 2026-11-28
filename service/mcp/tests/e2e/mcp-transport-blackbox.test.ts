@@ -171,7 +171,15 @@ describe('MCP transport blackbox e2e', () => {
 
       const tools = await client.listTools();
       expect(tools.tools.map((tool) => tool.name)).toEqual(
-        expect.arrayContaining(['registry.list_agents', 'registry.get_agent', 'registry.get_skill', 'registry.get_artifact']),
+        expect.arrayContaining([
+          'registry.list_agents',
+          'registry.get_agent',
+          'registry.get_skill',
+          'registry.get_artifact',
+          'data.query',
+          'data.list_tables',
+          'data.describe_table',
+        ]),
       );
 
       const listResult = await client.callTool({
@@ -219,6 +227,20 @@ describe('MCP transport blackbox e2e', () => {
           },
         },
         artifacts: [{ artifact_urn: 'urn:sg:artifact:sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789', sha256: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789' }],
+      });
+
+      // Data-access golden path over the same transport: an agent can run a
+      // read-only query against an approved source without extra setup
+      // (mock mode is the local/demo default).
+      const dataResult = await client.callTool({
+        name: 'data.query',
+        arguments: { data_source: 'snowflake', sql: 'select 1 as one' },
+      });
+      expect(readTextContent(dataResult)).not.toContain('MCP error');
+      expect(readStructuredContent(dataResult)).toMatchObject({
+        row_count_returned: 1,
+        truncated: false,
+        warehouse_execution_id: 'snowflake-mock-query-id',
       });
     } finally {
       await transport?.close().catch(() => undefined);
