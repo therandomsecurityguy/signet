@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.104](https://github.com/therandomsecurityguy/signet/compare/v0.1.103...v0.1.104) (2026-11-27)
+
+
+### Features
+
+* **policy:** publish-time gate hints + webapp playground ([1e98cc1](https://github.com/therandomsecurityguy/signet/commit/1e98cc12cb98dd31330e31af7dcc27c50c55a56a))
+
 ## [0.1.103](https://github.com/therandomsecurityguy/signet/compare/v0.1.102...v0.1.103) (2026-11-27)
 
 
