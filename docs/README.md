@@ -20,6 +20,7 @@ These docs are the human-readable overview layer for **Signet**.
 - API reference: `api-reference.md`
 - SHACL-AF execution boundary (in-process vs sidecar): `shacl-af-in-process-design.md`
 - MCP onboarding: `mcp-onboarding.md`
+- MCP data access (golden path): `mcp-data-access.md`
 - beta v1 scope and readiness: `beta-v1-readiness.md`
 
 ### Canonical architecture shortcut

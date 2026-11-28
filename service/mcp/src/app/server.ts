@@ -12,6 +12,7 @@ import {
   registry,
 } from '../infrastructure/telemetry/metrics.js';
 import { registerToolRoutes } from './routes/tools.js';
+import { registerDataSourceRoutes } from './routes/data-sources.js';
 import type { Principal } from '../domain/principal/principal.js';
 import type { AppDependencies } from './dependencies.js';
 import { registerMcpRoutes } from './routes/mcp.js';
@@ -105,6 +106,10 @@ export function buildApp(deps: AppDependencies) {
   registerToolRoutes(app, {
     listTools: deps.listTools,
     executeTool: deps.executeTool,
+  });
+
+  registerDataSourceRoutes(app, {
+    listDataSources: deps.listDataSources,
   });
 
   registerMcpRoutes(app, {
